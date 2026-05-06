@@ -1276,7 +1276,36 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       <div className="flex-1">
         {activeTab === 'perfil' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">Configurações do Perfil</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-slate-800">Configurações do Perfil</h2>
+              <div className="flex items-center gap-3">
+                 <span className="text-sm font-medium text-slate-700">Site Público Ativo:</span>
+                 <button
+                    type="button"
+                    onClick={() => {
+                        const newValue = editForm.isPublicSiteActive === false ? true : false;
+                        setEditForm({...editForm, isPublicSiteActive: newValue});
+                    }}
+                    className={cn(
+                        "w-12 h-6 rounded-full transition-colors relative",
+                        editForm.isPublicSiteActive !== false ? "bg-emerald-500" : "bg-slate-300"
+                    )}
+                 >
+                    <span 
+                       className={cn(
+                          "absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform",
+                          editForm.isPublicSiteActive !== false ? "translate-x-6" : "translate-x-0"
+                       )}
+                    />
+                 </button>
+              </div>
+            </div>
+            
+            {editForm.isPublicSiteActive === false && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl mb-6 text-sm">
+                 <strong>Site desativado:</strong> As opções de agendamento online, informações detalhadas e serviços estão ocultos do público. Apenas seu nome e contatos ficarão visíveis na Landing Page. Salve as alterações para aplicar.
+              </div>
+            )}
             <form onSubmit={handleProfileSave} className="space-y-6">
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">

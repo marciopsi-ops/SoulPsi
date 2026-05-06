@@ -78,7 +78,7 @@ export default function App() {
            setView('landing');
         } else {
            setTherapistId(currUser.uid);
-           await initTherapistProfile(currUser.uid, currUser.displayName || '');
+           await initTherapistProfile(currUser.uid, currUser.displayName || '', currUser.email || '');
            setView('dashboard');
         }
       } else {
@@ -123,11 +123,23 @@ export default function App() {
     }
   };
 
-  const initTherapistProfile = async (uid: string, name: string) => {
+  const initTherapistProfile = async (uid: string, name: string, email: string) => {
     try {
       const docRef = doc(db, 'profiles', uid);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
+        let initialStatus = 'pending';
+        if (email) {
+          try {
+            const allowedSnap = await getDoc(doc(db, 'allowed_users', email.toLowerCase()));
+            if (allowedSnap.exists()) {
+               initialStatus = allowedSnap.data().status || 'active';
+            }
+          } catch(err) {
+             console.error("Error checking allowed user:", err);
+          }
+        }
+        
         const newProfile = {
           userId: uid,
           name: name || 'Dr. Therapist',
@@ -140,7 +152,7 @@ export default function App() {
           calendarSync: false,
           driveSync: false,
           materials: [],
-          subscriptionStatus: 'pending',
+          subscriptionStatus: initialStatus,
           services: [
              { id: 's1', category: 'voce', title: 'Terapia Individual', description: 'Agende uma sessão e dê o primeiro passo para o seu bem-estar emocional. As sessões duram 50 minutos e ocorrem de forma online.', price: 200 },
              { id: 's2', category: 'psicologos', title: 'Supervisão Clínica', description: 'Orientação técnica e discussão de casos para recém-formados e profissionais que buscam aprimoramento em Terapia Cognitivo-Comportamental.', price: 250 }
@@ -252,21 +264,12 @@ export default function App() {
       {/* Main Content Area */}
       <main className="pb-20">
         {view === 'landing' && (
-          profileData?.subscriptionStatus !== 'active' && !isAdminUser ? (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-8 rounded-2xl max-w-md text-center">
-                <h2 className="text-2xl font-bold mb-4">Perfil Indisponível</h2>
-                <p>Este perfil pertence a um profissional da Elo Soluções Humanas e não está com o agendamento público ativo no momento.</p>
-              </div>
-            </div>
-          ) : (
-            <LandingPage 
-              therapistId={therapistId} 
-              profileData={profileData} 
-              onBook={navigateToCheckout} 
-              isLoggedIn={!!user}
-            />
-          )
+          <LandingPage 
+            therapistId={therapistId} 
+            profileData={profileData} 
+            onBook={navigateToCheckout} 
+            isLoggedIn={!!user}
+          />
         )}
         {view === 'dashboard' && user && !isAdminUser && (
           profileData?.subscriptionStatus !== 'active' ? (

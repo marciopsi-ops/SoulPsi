@@ -244,8 +244,49 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
     </div>
   );
 
+  if (finalProfile.isPublicSiteActive === false && !isLoggedIn) {
+     return (
+       <div className="w-full max-w-4xl mx-auto px-4 py-8" style={customStyle}>
+         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+            <div className="h-48 w-full bg-slate-200 relative overflow-hidden">
+              <img 
+                src={finalProfile.coverPhoto} 
+                alt="Cover" 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+            </div>
+            <div className="px-6 sm:px-10 pb-10 relative">
+              <div className="flex flex-col sm:flex-row gap-6 relative -top-16 mb-[-3rem]">
+                 <img 
+                  src={finalProfile.profilePhoto} 
+                  alt={finalProfile.name} 
+                  className="w-32 h-32 rounded-2xl object-cover shadow-xl border-4 border-white bg-white"
+                />
+                <div className="pt-16 sm:pt-20 flex-1">
+                   <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{finalProfile.name}</h1>
+                   <p className="text-lg text-theme-primary font-medium mt-1">{finalProfile.title}</p>
+                   {finalProfile.crp && <p className="text-slate-500 mt-1">{finalProfile.crp}</p>}
+                </div>
+              </div>
+            </div>
+         </div>
+         <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+           <h2 className="text-2xl font-bold text-slate-800 mb-4">Agenda Temporariamente Indisponível</h2>
+           <p className="text-slate-600 max-w-md mx-auto mb-8">No momento, o agendamento online através desta plataforma encontra-se desativado. Por favor, entre em contato diretamente via nossos canais de atendimento.</p>
+           {renderSocialButtons()}
+         </div>
+       </div>
+     );
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8" style={customStyle}>
+      {finalProfile.isPublicSiteActive === false && isLoggedIn && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 text-sm font-medium flex items-center justify-center">
+           O seu site está atualmente DESATIVADO para o público. Esta é apenas uma pré-visualização.
+        </div>
+      )}
       {/* Profile Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
         <div 

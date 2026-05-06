@@ -29,10 +29,25 @@ service cloud.firestore {
       allow update, delete: if false; 
     }
 
+    // --- Allowed Users ---
+    function isValidAllowedUser(data) {
+      return data.keys().hasAll(['email', 'createdAt'])
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 100
+        && data.createdAt == request.time;
+    }
+
+    match /allowed_users/{docId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidAllowedUser(incoming());
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // --- Profile ---
     function isValidProfile(data) {
       return data.keys().hasAll(['userId', 'name', 'updatedAt'])
-        && data.userId is string && data.userId.size() <= 128 && data.userId == request.auth.uid
+        && data.userId is string && data.userId.size() <= 128
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.updatedAt == request.time
         && data.get('title', '') is string && data.get('title', '').size() <= 100
@@ -69,13 +84,15 @@ service cloud.firestore {
         && data.get('footerText', '') is string && data.get('footerText', '').size() <= 500
         && data.get('patientCostsStr', '[]') is string && data.get('patientCostsStr', '[]').size() <= 50000
         && data.get('companyCostsStr', '[]') is string && data.get('companyCostsStr', '[]').size() <= 50000
+        && data.get('webhookUrl', '') is string && data.get('webhookUrl', '').size() <= 500
         && data.get('driveSync', false) is bool
         && data.get('inPersonEnabled', false) is bool
         && data.get('address', '') is string && data.get('address', '').size() <= 500
         && data.get('howToGetThere', '') is string && data.get('howToGetThere', '').size() <= 1000
-        && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled']
+        && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled', 'pending']
         && (data.get('materials', []) is list && data.get('materials', []).size() <= 50 && (data.get('materials', []).size() == 0 || (data.get('materials', [])[0] is map || data.get('materials', [])[0] is string)))
         && (data.get('services', []) is list && data.get('services', []).size() <= 20)
+        && data.get('isPublicSiteActive', true) is bool
         && (data.get('schedule', {}) is map);
     }
 
@@ -85,6 +102,7 @@ service cloud.firestore {
       
       allow create: if isOwner(profileId) 
                     && isValidId(profileId)
+                    && incoming().userId == request.auth.uid
                     && isValidProfile(incoming());
                     
       allow update: if (isOwner(profileId) || isAdmin())
@@ -99,7 +117,7 @@ service cloud.firestore {
                         isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
                           'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
                           'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
-                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'updatedAt'
+                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'webhookUrl', 'updatedAt', 'isPublicSiteActive'
                         ])
                       )
                     );
