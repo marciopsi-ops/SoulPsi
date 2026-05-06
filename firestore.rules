@@ -1,0 +1,307 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function existing() { return resource.data; }
+    function incoming() { return request.resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // --- Admins ---
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'createdAt'])
+        && data.email is string && data.email.size() > 0
+        && data.createdAt == request.time;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list: if isAdmin();
+      allow create: if isSignedIn(); // allow bootstrap
+      allow update, delete: if false; 
+    }
+
+    // --- Profile ---
+    function isValidProfile(data) {
+      return data.keys().hasAll(['userId', 'name', 'updatedAt'])
+        && data.userId is string && data.userId.size() <= 128 && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.updatedAt == request.time
+        && data.get('title', '') is string && data.get('title', '').size() <= 100
+        && data.get('bio', '') is string && data.get('bio', '').size() <= 300
+        && data.get('about', '') is string && data.get('about', '').size() <= 2000
+        && (data.get('specialties', []) is list && data.get('specialties', []).size() <= 20 && (data.get('specialties', []).size() == 0 || data.get('specialties', [])[0] is string))
+        && data.get('crp', '') is string && data.get('crp', '').size() <= 50
+        && data.get('city', '') is string && data.get('city', '').size() <= 100
+        && (data.get('approaches', []) is list && data.get('approaches', []).size() <= 20 && (data.get('approaches', []).size() == 0 || data.get('approaches', [])[0] is string))
+        && data.get('companyName', '') is string && data.get('companyName', '').size() <= 100
+        && data.get('cnpj', '') is string && data.get('cnpj', '').size() <= 20
+        && data.get('companyLogo', '') is string && data.get('companyLogo', '').size() <= 600000
+        && data.get('whatsapp', '') is string && data.get('whatsapp', '').size() <= 20
+        && data.get('coverPhoto', '') is string && data.get('coverPhoto', '').size() <= 600000
+        && data.get('profilePhoto', '') is string && data.get('profilePhoto', '').size() <= 600000
+        && data.get('theme', 'auto') is string && data.get('theme', 'auto').size() <= 20
+        && data.get('themeColor', '') is string && data.get('themeColor', '').size() <= 20
+        && data.get('paymentFlow', 'pix') is string && data.get('paymentFlow', 'pix') in ['pix', 'whatsapp']
+        && data.get('calendarSync', false) is bool
+        && data.get('calendarUrl', '') is string && data.get('calendarUrl', '').size() <= 500
+        && data.get('calendarEmbed', '') is string && data.get('calendarEmbed', '').size() <= 2000
+        && data.get('googleMapsUrl', '') is string && data.get('googleMapsUrl', '').size() <= 500
+        && data.get('googleMapsEmbed', '') is string && data.get('googleMapsEmbed', '').size() <= 2000
+        && data.get('googleReviewsUrl', '') is string && data.get('googleReviewsUrl', '').size() <= 500
+        && data.get('pixKey', '') is string && data.get('pixKey', '').size() <= 200
+        && data.get('instagramUrl', '') is string && data.get('instagramUrl', '').size() <= 500
+        && data.get('facebookUrl', '') is string && data.get('facebookUrl', '').size() <= 500
+        && data.get('linkedinUrl', '') is string && data.get('linkedinUrl', '').size() <= 500
+        && data.get('youtubeUrl', '') is string && data.get('youtubeUrl', '').size() <= 500
+        && data.get('tiktokUrl', '') is string && data.get('tiktokUrl', '').size() <= 500
+        && data.get('footerEmail', '') is string && data.get('footerEmail', '').size() <= 100
+        && data.get('footerPhone', '') is string && data.get('footerPhone', '').size() <= 20
+        && data.get('footerAddress', '') is string && data.get('footerAddress', '').size() <= 200
+        && data.get('footerText', '') is string && data.get('footerText', '').size() <= 500
+        && data.get('patientCostsStr', '[]') is string && data.get('patientCostsStr', '[]').size() <= 50000
+        && data.get('companyCostsStr', '[]') is string && data.get('companyCostsStr', '[]').size() <= 50000
+        && data.get('driveSync', false) is bool
+        && data.get('inPersonEnabled', false) is bool
+        && data.get('address', '') is string && data.get('address', '').size() <= 500
+        && data.get('howToGetThere', '') is string && data.get('howToGetThere', '').size() <= 1000
+        && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled']
+        && (data.get('materials', []) is list && data.get('materials', []).size() <= 50 && (data.get('materials', []).size() == 0 || (data.get('materials', [])[0] is map || data.get('materials', [])[0] is string)))
+        && (data.get('services', []) is list && data.get('services', []).size() <= 20)
+        && (data.get('schedule', {}) is map);
+    }
+
+    match /profiles/{profileId} {
+      allow get: if isValidId(profileId);
+      allow list: if true;
+      
+      allow create: if isOwner(profileId) 
+                    && isValidId(profileId)
+                    && isValidProfile(incoming());
+                    
+      allow update: if (isOwner(profileId) || isAdmin())
+                    && isValidId(profileId)
+                    && incoming().userId == existing().userId
+                    && isValidProfile(incoming())
+                    && (
+                      (
+                        isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['subscriptionStatus', 'updatedAt'])
+                      ) ||
+                      (
+                        isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
+                          'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
+                          'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
+                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'updatedAt'
+                        ])
+                      )
+                    );
+    }
+
+    // --- Reviews ---
+    function isValidReview(data) {
+       return data.keys().hasAll(['authorName', 'content', 'status', 'createdAt'])
+         && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+         && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
+         && data.status is string && data.status in ['pending', 'approved', 'hidden']
+         && data.createdAt == request.time;
+    }
+
+    match /profiles/{profileId}/reviews/{reviewId} {
+      allow get: if isValidId(profileId) && ((existing().status == 'approved') || isOwner(profileId));
+      allow list: if isValidId(profileId) && ((existing().status == 'approved') || isOwner(profileId));
+
+      allow create: if isValidId(profileId) && isValidId(reviewId) 
+                    && isValidReview(incoming()) 
+                    && incoming().status == 'pending'
+                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(reviewId)
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().authorName == existing().authorName
+                    && incoming().content == existing().content
+                    && incoming().status is string && incoming().status in ['pending', 'approved', 'hidden']
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+                    
+      allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(reviewId);
+    }
+
+    // --- Clients ---
+    function isValidClient(data) {
+       return data.keys().hasAll(['name', 'dob', 'cpf', 'email', 'phone', 'lgpdAccepted', 'createdAt'])
+         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+         && data.dob is string && data.dob.size() <= 20
+         && data.cpf is string && data.cpf.size() <= 20
+         && data.email is string && data.email.size() <= 100
+         && data.phone is string && data.phone.size() <= 20
+         && data.lgpdAccepted is bool && data.lgpdAccepted == true
+         && data.get('isActive', true) is bool
+         && data.get('source', 'Outros') is string && data.get('source', 'Outros').size() <= 150
+         && data.get('frequency', '') is string && data.get('frequency', '').size() <= 50
+         && data.get('rulesAccepted', false) is bool
+         && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && (data.get('statusHistory', []) is list && data.get('statusHistory', []).size() <= 100)
+         && data.createdAt == request.time;
+    }
+
+    match /profiles/{profileId}/clients/{clientId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      // Allow creation if they have the patient form link
+      allow create: if isValidId(profileId) && isValidId(clientId)
+                    && isValidClient(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+                    
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(clientId)
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dob', 'cpf', 'email', 'phone', 'isActive', 'notes', 'statusHistory', 'source', 'frequency', 'rulesAccepted'])
+                    && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+                    && incoming().dob is string && incoming().dob.size() <= 20
+                    && incoming().cpf is string && incoming().cpf.size() <= 20
+                    && incoming().email is string && incoming().email.size() <= 100
+                    && incoming().phone is string && incoming().phone.size() <= 20
+                    && incoming().get('isActive', true) is bool
+                    && incoming().get('source', 'Outros') is string && incoming().get('source', 'Outros').size() <= 150
+                    && incoming().get('frequency', '') is string && incoming().get('frequency', '').size() <= 50
+                    && incoming().get('rulesAccepted', false) is bool
+                    && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && (incoming().get('statusHistory', []) is list && incoming().get('statusHistory', []).size() <= 100);
+      allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(clientId);
+    }
+
+    // --- Appointments ---
+    function isValidAppointment(data) {
+       return data.keys().hasAll(['clientId', 'clientName', 'datetime', 'status', 'totalAmount', 'createdAt'])
+         && (data.clientId == null || (data.clientId is string && data.clientId.size() <= 128))
+         && data.clientName is string && data.clientName.size() > 0 && data.clientName.size() <= 100
+         && data.datetime is string && data.datetime.size() <= 50
+         && data.status is string && data.status in ['scheduled', 'completed', 'cancelled']
+         && data.totalAmount is number
+         && data.get('paymentStatus', 'pending') is string && data.get('paymentStatus', 'pending') in ['pending', 'paid']
+         && data.get('modality', '') is string && data.get('modality', '').size() <= 50
+         && data.get('billingAccount', '') is string && data.get('billingAccount', '').size() <= 100
+         && data.get('priceAdjust', '') is string && data.get('priceAdjust', '').size() <= 100
+         && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && (data.get('documents', []) is list && data.get('documents', []).size() <= 20)
+         && data.createdAt == request.time;
+    }
+
+    match /profiles/{profileId}/appointments/{appointmentId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(appointmentId)
+                    && isValidAppointment(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))
+                    && (incoming().clientId == null || existsAfter(/databases/$(database)/documents/profiles/$(profileId)/clients/$(incoming().clientId)));
+                    
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId)
+                    && incoming().clientId == existing().clientId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'clientName', 'documents'])
+                    && incoming().status is string && incoming().status in ['scheduled', 'completed', 'cancelled']
+                    && incoming().get('paymentStatus', 'pending') is string && incoming().get('paymentStatus', 'pending') in ['pending', 'paid']
+                    && incoming().get('modality', '') is string && incoming().get('modality', '').size() <= 50
+                    && incoming().get('billingAccount', '') is string && incoming().get('billingAccount', '').size() <= 100
+                    && incoming().get('priceAdjust', '') is string && incoming().get('priceAdjust', '').size() <= 100
+                    && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && (incoming().get('documents', []) is list && incoming().get('documents', []).size() <= 20);
+                    
+      allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId);
+    }
+
+    // --- Companies ---
+    function isValidCompany(data) {
+       return data.keys().hasAll(['name', 'cnpj', 'contactPerson', 'email', 'phone', 'createdAt'])
+         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+         && data.get('tradeName', '') is string && data.get('tradeName', '').size() <= 100
+         && data.cnpj is string && data.cnpj.size() <= 20
+         && data.get('addressStreet', '') is string && data.get('addressStreet', '').size() <= 150
+         && data.get('addressNumber', '') is string && data.get('addressNumber', '').size() <= 20
+         && data.get('addressZipcode', '') is string && data.get('addressZipcode', '').size() <= 20
+         && data.get('addressCity', '') is string && data.get('addressCity', '').size() <= 100
+         && data.contactPerson is string && data.contactPerson.size() <= 100
+         && data.email is string && data.email.size() <= 100
+         && data.phone is string && data.phone.size() <= 20
+         && data.get('lgpdAccepted', false) is bool
+         && data.get('isActive', true) is bool
+         && data.get('source', 'Outros') is string && data.get('source', 'Outros').size() <= 150
+         && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && data.get('department', '') is string && data.get('department', '').size() <= 100
+         && (data.get('statusHistory', []) is list && data.get('statusHistory', []).size() <= 100)
+         && data.createdAt == request.time;
+    }
+
+    match /profiles/{profileId}/companies/{companyId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(companyId)
+                    && isValidCompany(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+                    
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(companyId)
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'tradeName', 'cnpj', 'addressStreet', 'addressNumber', 'addressZipcode', 'addressCity', 'contactPerson', 'email', 'phone', 'isActive', 'notes', 'statusHistory', 'source', 'department'])
+                    && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+                    && incoming().get('tradeName', '') is string && incoming().get('tradeName', '').size() <= 100
+                    && incoming().cnpj is string && incoming().cnpj.size() <= 20
+                    && incoming().get('addressStreet', '') is string && incoming().get('addressStreet', '').size() <= 150
+                    && incoming().get('addressNumber', '') is string && incoming().get('addressNumber', '').size() <= 20
+                    && incoming().get('addressZipcode', '') is string && incoming().get('addressZipcode', '').size() <= 20
+                    && incoming().get('addressCity', '') is string && incoming().get('addressCity', '').size() <= 100
+                    && incoming().contactPerson is string && incoming().contactPerson.size() <= 100
+                    && incoming().email is string && incoming().email.size() <= 100
+                    && incoming().phone is string && incoming().phone.size() <= 20
+                    && incoming().get('isActive', true) is bool
+                    && incoming().get('source', 'Outros') is string && incoming().get('source', 'Outros').size() <= 150
+                    && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && incoming().get('department', '') is string && incoming().get('department', '').size() <= 100
+                    && (incoming().get('statusHistory', []) is list && incoming().get('statusHistory', []).size() <= 100);
+      allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(companyId);
+    }
+
+    // --- Company Appointments ---
+    function isValidCompanyAppointment(data) {
+       return data.keys().hasAll(['companyId', 'companyName', 'datetime', 'status', 'totalAmount', 'createdAt'])
+         && (data.companyId == null || (data.companyId is string && data.companyId.size() <= 128))
+         && data.companyName is string && data.companyName.size() > 0 && data.companyName.size() <= 100
+         && data.datetime is string && data.datetime.size() <= 50
+         && data.status is string && data.status in ['scheduled', 'completed', 'cancelled']
+         && data.totalAmount is number
+         && data.get('paymentStatus', 'pending') is string && data.get('paymentStatus', 'pending') in ['pending', 'paid']
+         && data.get('modality', '') is string && data.get('modality', '').size() <= 50
+         && data.get('billingAccount', '') is string && data.get('billingAccount', '').size() <= 100
+         && data.get('priceAdjust', '') is string && data.get('priceAdjust', '').size() <= 100
+         && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && (data.get('documents', []) is list && data.get('documents', []).size() <= 20)
+         && data.createdAt == request.time;
+    }
+
+    match /profiles/{profileId}/companyAppointments/{appointmentId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(appointmentId)
+                    && isValidCompanyAppointment(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))
+                    && (incoming().companyId == null || existsAfter(/databases/$(database)/documents/profiles/$(profileId)/companies/$(incoming().companyId)));
+                    
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId)
+                    && incoming().companyId == existing().companyId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'companyName', 'documents'])
+                    && incoming().status is string && incoming().status in ['scheduled', 'completed', 'cancelled']
+                    && incoming().get('paymentStatus', 'pending') is string && incoming().get('paymentStatus', 'pending') in ['pending', 'paid']
+                    && incoming().get('modality', '') is string && incoming().get('modality', '').size() <= 50
+                    && incoming().get('billingAccount', '') is string && incoming().get('billingAccount', '').size() <= 100
+                    && incoming().get('priceAdjust', '') is string && incoming().get('priceAdjust', '').size() <= 100
+                    && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && (incoming().get('documents', []) is list && incoming().get('documents', []).size() <= 20);
+                    
+      allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId);
+    }
+  }
+}

@@ -1,0 +1,3345 @@
+import React, { useState, useEffect } from 'react';
+import { db, storage, auth, handleFirestoreError, OperationType } from '../firebase';
+import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { format } from 'date-fns';
+import { FastAverageColor } from 'fast-average-color';
+import { THEMES } from '../lib/themes';
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+
+function CostManager({ costsStr, type, userId, onUpdates }: { costsStr: string, type: 'patientCostsStr' | 'companyCostsStr', userId: string, onUpdates: (newStr: string) => void }) {
+   const [costs, setCosts] = useState<{id: string, name: string, amount: number, month?: string, year?: string}[]>(() => {
+      try { return JSON.parse(costsStr || '[]'); } catch { return []; }
+   });
+   const currentYear = new Date().getFullYear().toString();
+   const [form, setForm] = useState({ name: '', amount: '', month: '', year: currentYear });
+   const [filterMonth, setFilterMonth] = useState<string>('');
+   const [filterYear, setFilterYear] = useState<string>(currentYear);
+   const [saving, setSaving] = useState(false);
+
+   const suggestions = type === 'patientCostsStr' 
+      ? ['Aluguel sala', 'Material de escritório', 'Internet', 'Luz', 'Testes psicológicos', 'Marketing'] 
+      : ['Contabilidade', 'Impostos', 'Licenças software', 'Deslocamento', 'Refeições', 'Eventos'];
+
+   const addCost = async (e: React.FormEvent) => {
+       e.preventDefault();
+       if (!form.name || !form.amount) return;
+       const newCost = { id: Math.random().toString(), name: form.name, amount: Number(form.amount), month: form.month, year: form.month ? form.year : undefined };
+       const newCosts = [...costs, newCost];
+       await saveCosts(newCosts);
+       setForm({ name: '', amount: '', month: form.month, year: form.year });
+   };
+
+   const removeCost = async (id: string) => {
+       const newCosts = costs.filter(c => c.id !== id);
+       await saveCosts(newCosts);
+   };
+
+   const saveCosts = async (newCosts: any[]) => {
+       setSaving(true);
+       try {
+          const str = JSON.stringify(newCosts);
+          await updateDoc(doc(db, 'profiles', userId), { [type]: str, updatedAt: serverTimestamp() });
+          setCosts(newCosts);
+          onUpdates(str);
+       } catch (e: any) {
+          handleFirestoreError(e, OperationType.UPDATE, `profiles/${userId}`);
+       } finally {
+          setSaving(false);
+       }
+   };
+
+   const filteredCosts = costs.filter(c => {
+      if (!filterMonth) return true; // Show all if no month is selected as a general view?
+      if (!c.month) return true; // Fixed costs are shown in all months
+      if (filterMonth && filterYear) return c.month === filterMonth && c.year === filterYear;
+      if (filterMonth && !filterYear) return c.month === filterMonth;
+      return true;
+   });
+
+   const currentTotal = filteredCosts.reduce((a,b)=>a+b.amount,0);
+
+   const yearsList = Array.from(new Set([currentYear, ...costs.filter(c => c.year).map(c => c.year as string)])).sort();
+
+   return (
+       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+             <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-red-500" />
+                Custos e Despesas
+             </h3>
+             <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">Visualizar:</span>
+                <select className="px-2 py-1.5 border rounded-lg text-xs bg-white focus:ring-amber-400" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+                   <option value="">Geral (Todos)</option>
+                   <option value="Jan">Janeiro</option>
+                   <option value="Fev">Fevereiro</option>
+                   <option value="Mar">Março</option>
+                   <option value="Abr">Abril</option>
+                   <option value="Mai">Maio</option>
+                   <option value="Jun">Junho</option>
+                   <option value="Jul">Julho</option>
+                   <option value="Ago">Agosto</option>
+                   <option value="Set">Setembro</option>
+                   <option value="Out">Outubro</option>
+                   <option value="Nov">Novembro</option>
+                   <option value="Dez">Dezembro</option>
+                </select>
+                {filterMonth && (
+                   <select className="px-2 py-1.5 border rounded-lg text-xs bg-white focus:ring-amber-400" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
+                      {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
+                   </select>
+                )}
+             </div>
+          </div>
+
+          {filterMonth && (
+             <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-100 flex items-center justify-between mb-4">
+                <div className="text-sm font-semibold">
+                   Total de {filterMonth}/{filterYear} <span className="text-red-500 font-normal text-xs ml-1">(inclui custos fixos)</span>
+                </div>
+                <div className="text-lg font-bold">R$ {currentTotal.toFixed(2).replace('.', ',')}</div>
+             </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 mb-4">
+             {suggestions.map(s => (
+                <button key={s} type="button" onClick={() => setForm({...form, name: s})} className="text-xs px-2 py-1 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-amber-50 hover:text-amber-600 transition">
+                   + {s}
+                </button>
+             ))}
+          </div>
+          <form onSubmit={addCost} className="flex flex-wrap items-center gap-2 mb-4">
+             <input type="text" placeholder="Nome do custo..." className="flex-1 min-w-[150px] p-2 border rounded-lg text-sm bg-white focus:ring-amber-400" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
+             <div className="flex w-full sm:w-auto gap-2">
+                <select className="p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 flex-1 sm:flex-none" value={form.month} onChange={e => setForm({...form, month: e.target.value})}>
+                   <option value="">Todo mês / Fixo</option>
+                   <option value="Jan">Janeiro</option>
+                   <option value="Fev">Fevereiro</option>
+                   <option value="Mar">Março</option>
+                   <option value="Abr">Abril</option>
+                   <option value="Mai">Maio</option>
+                   <option value="Jun">Junho</option>
+                   <option value="Jul">Julho</option>
+                   <option value="Ago">Agosto</option>
+                   <option value="Set">Setembro</option>
+                   <option value="Out">Outubro</option>
+                   <option value="Nov">Novembro</option>
+                   <option value="Dez">Dezembro</option>
+                </select>
+                {form.month && (
+                   <input type="number" min="2000" max="2099" step="1" className="w-20 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400" value={form.year} onChange={e => setForm({...form, year: e.target.value})} required />
+                )}
+             </div>
+             <input type="number" step="0.01" min="0" placeholder="R$ 0,00" className="w-32 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
+             <button type="submit" disabled={saving} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600 transition disabled:opacity-50">Incluir</button>
+          </form>
+          {filteredCosts.length > 0 && (
+             <div className="flex flex-col gap-2">
+                {filteredCosts.map(c => (
+                   <div key={c.id} className="flex justify-between items-center bg-white p-2 px-3 rounded-lg border border-slate-200 text-sm">
+                      <div className="flex items-center gap-2">
+                         <span className="text-slate-700">{c.name}</span>
+                         {c.month ? (
+                           <span className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase">{c.month}/{c.year}</span>
+                         ) : (
+                           <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase">Fixo</span>
+                         )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <span className="font-medium text-slate-900">R$ {c.amount.toFixed(2).replace('.', ',')}</span>
+                         <button onClick={() => removeCost(c.id)} className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50" title="Remover"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                   </div>
+                ))}
+                {!filterMonth && (
+                   <div className="flex justify-between items-center p-2 px-3 mt-2 text-sm font-bold border-t border-slate-200">
+                      <span className="text-slate-800">Total Geral (Soma de todos os itens da lista):</span>
+                      <span className="text-red-600">R$ {currentTotal.toFixed(2).replace('.', ',')}</span>
+                   </div>
+                )}
+             </div>
+          )}
+          {filteredCosts.length === 0 && (
+             <div className="text-center py-4 text-slate-500 text-sm">Nenhum custo encontrado para este filtro.</div>
+          )}
+       </div>
+   );
+}
+
+export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
+  const fireWebhook = (event: string, data: any) => {
+    if (profileData && profileData.webhookUrl) {
+      fetch(profileData.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+           event,
+           data,
+           timestamp: new Date().toISOString()
+        })
+      }).catch(err => {
+         console.warn("Falha ao notificar webhook:", err);
+      });
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes'>('perfil');
+  const [clients, setClients] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [companyAppointments, setCompanyAppointments] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  
+  // Profile Editable Form
+  const [editForm, setEditForm] = useState(profileData || {});
+  const [specialtiesText, setSpecialtiesText] = useState((profileData?.specialties || []).join(', '));
+  const [approachesText, setApproachesText] = useState((profileData?.approaches || []).join(', '));
+  const [saving, setSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleCalendarSync = () => {
+    setIsSyncing(true);
+    try {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: (import.meta as any).env.VITE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/calendar.events.readonly',
+        callback: async (response: any) => {
+          if (response.access_token) {
+            try {
+               const timeMin = new Date();
+               const maxDate = new Date();
+               maxDate.setDate(maxDate.getDate() + 7);
+               
+               const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin.toISOString()}&timeMax=${maxDate.toISOString()}&singleEvents=true`, {
+                 headers: { Authorization: `Bearer ${response.access_token}` }
+               });
+               const data = await res.json();
+               const events = data.items || [];
+               
+               const newSchedule: any = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+               const slotsPerDay = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+               
+               for(let i=0; i<7; i++) {
+                 const date = new Date(timeMin);
+                 date.setDate(date.getDate() + i);
+                 const dayOfWeek = date.getDay();
+                 
+                 // Default to no weekend slots (unless they configure, but MVP keeps it simple)
+                 if (dayOfWeek === 0 || dayOfWeek === 6) continue; 
+                 
+                 const dayStr = date.toISOString().split('T')[0];
+                 const busyHours = events.map((ev: any) => {
+                    if (!ev.start?.dateTime) return null;
+                    if (ev.start.dateTime.startsWith(dayStr)) {
+                       return new Date(ev.start.dateTime).getHours();
+                    }
+                    return null;
+                 }).filter((h: any) => h !== null);
+
+                 const availableSlots = slotsPerDay.filter(slot => {
+                    const slotHour = parseInt(slot.split(':')[0]);
+                    return !busyHours.includes(slotHour);
+                 });
+                 newSchedule[dayOfWeek] = availableSlots;
+               }
+               
+               setEditForm((prev: any) => ({ ...prev, schedule: newSchedule, calendarSync: true }));
+            } catch(e) {
+               console.error('Error fetching calendar', e);
+               alert('Erro ao sincronizar eventos do calendário.');
+            } finally { setIsSyncing(false); }
+          } else {
+             setIsSyncing(false);
+          }
+        },
+        error_callback: () => {
+          setIsSyncing(false);
+          alert('Permissão negada ou erro na conexão com o Google.');
+        }
+      });
+      client.requestAccessToken();
+    } catch(e) { 
+      console.error(e); 
+      setIsSyncing(false); 
+      alert('Erro ao iniciar conexão com o Google.');
+    }
+  };
+
+  useEffect(() => {
+    // Sync local form state if prop updates
+    setEditForm(profileData || {});
+    setSpecialtiesText((profileData?.specialties || []).join(', '));
+    setApproachesText((profileData?.approaches || []).join(', '));
+  }, [profileData]);
+
+  useEffect(() => {
+    // Fetch dashboard data
+    const fetchDashboardData = async () => {
+      try {
+        const [cliSnap, apptSnap, revSnap, compSnap, compApptSnap] = await Promise.all([
+          getDocs(query(collection(db, `profiles/${userId}/clients`))),
+          getDocs(query(collection(db, `profiles/${userId}/appointments`))),
+          getDocs(query(collection(db, `profiles/${userId}/reviews`))),
+          getDocs(query(collection(db, `profiles/${userId}/companies`))),
+          getDocs(query(collection(db, `profiles/${userId}/companyAppointments`)))
+        ]);
+        
+        setClients(cliSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setAppointments(apptSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setReviews(revSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setCompanies(compSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setCompanyAppointments(compApptSnap.docs.map(d => ({id: d.id, ...d.data()})));
+      } catch (e: any) {
+        console.error(e);
+      }
+    };
+    fetchDashboardData();
+  }, [userId]);
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const dbRef = doc(db, 'profiles', userId);
+      const payload = {
+         ...editForm,
+         specialties: specialtiesText.split(',').map((s: string) => s.trim()).filter((s: string) => s),
+         approaches: approachesText.split(',').map((s: string) => s.trim()).filter((s: string) => s),
+         materials: (editForm.materials || []).map((m: any) => typeof m === 'string' ? { url: m, description: '' } : m).filter((m: any) => m.url.trim() !== ''),
+         updatedAt: serverTimestamp()
+      };
+      // Removing nested IDs or unexpected vars if any, but editForm should match schema
+      await updateDoc(dbRef, payload);
+      onUpdateProfile(payload);
+      alert("Perfil atualizado com sucesso!");
+    } catch (e: any) {
+       handleFirestoreError(e, OperationType.UPDATE, `profiles/${userId}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            reject(new Error('Canvas ctx not found'));
+          }
+        };
+        img.onerror = () => reject(new Error('Image load error'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'coverPhoto' | 'profilePhoto' | 'companyLogo' | 'pixQrCode') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(field);
+    try {
+      // For cover photo, max 1200x600, for profile photo max 400x400
+      const maxWidth = field === 'coverPhoto' ? 1200 : 400;
+      const maxHeight = field === 'coverPhoto' ? 600 : 400;
+      const dataUrl = await resizeImage(file, maxWidth, maxHeight);
+      let extractedColor = undefined;
+      // If uploading cover photo, extract average color!
+      if (field === 'coverPhoto') {
+        try {
+           const fac = new FastAverageColor();
+           const imgElement = document.createElement('img');
+           imgElement.src = dataUrl;
+           const color = await fac.getColorAsync(imgElement);
+           extractedColor = color.hex;
+        } catch (e) {
+           console.error("Failed to extract color", e);
+        }
+      }
+      
+      setEditForm(prev => {
+         const updated = { ...prev, [field]: dataUrl };
+         if (extractedColor) {
+            updated.themeColor = extractedColor;
+            if (!updated.theme) updated.theme = 'auto';
+         }
+         return updated;
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert("Erro ao enviar imagem. Verifique as permissões ou tente novamente.");
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+    const handleReviewAction = async (reviewId: string, status: 'approved' | 'hidden') => {
+    try {
+      await updateDoc(doc(db, `profiles/${userId}/reviews`, reviewId), { status });
+      setReviews(reviews.map(r => r.id === reviewId ? { ...r, status } : r));
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.UPDATE, `profiles/${userId}/reviews/${reviewId}`);
+    }
+  };
+
+  const [clientSearchText, setClientSearchText] = useState('');
+  const [showBirthdays, setShowBirthdays] = useState(false);
+  const [clientSourceFilter, setClientSourceFilter] = useState<string>('all');
+  const [clientFrequencyFilter, setClientFrequencyFilter] = useState<string>('all');
+  const [companySearchText, setCompanySearchText] = useState('');
+  const [companySourceFilter, setCompanySourceFilter] = useState<string>('all');
+  const [companyGlobalInvoiceFilter, setCompanyGlobalInvoiceFilter] = useState<'all' | 'issued' | 'pending'>('all');
+  
+  const [globalBillingFilter, setGlobalBillingFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+
+  const appointmentsInPeriod = appointments.filter(appt => {
+    if (!appt.datetime) return false;
+    const date = new Date(appt.datetime);
+    return date.getMonth() === filterMonth && date.getFullYear() === filterYear;
+  });
+
+  const companyAppointmentsInPeriod = companyAppointments.filter(appt => {
+    if (!appt.datetime) return false;
+    const date = new Date(appt.datetime);
+    return date.getMonth() === filterMonth && date.getFullYear() === filterYear;
+  });
+
+  const totalPendingInPeriod = appointmentsInPeriod
+    .filter(a => (a.paymentStatus || 'pending') === 'pending')
+    .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
+
+  const totalCompanyPendingInPeriod = companyAppointmentsInPeriod
+    .filter(a => (a.paymentStatus || 'pending') === 'pending')
+    .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
+
+  const totalPaidInPeriod = appointmentsInPeriod
+    .filter(a => (a.paymentStatus || 'pending') === 'paid')
+    .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
+
+  const totalCompanyPaidInPeriod = companyAppointmentsInPeriod
+    .filter(a => (a.paymentStatus || 'pending') === 'paid')
+    .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
+
+  const clientIdsWithBillingFilter = new Set(appointmentsInPeriod
+    .filter(a => globalBillingFilter === 'all' ? true : (a.paymentStatus || 'pending') === globalBillingFilter)
+    .map(a => a.clientId)
+  );
+
+  const companyIdsWithBillingFilter = new Set(companyAppointmentsInPeriod
+    .filter(a => globalBillingFilter === 'all' ? true : (a.paymentStatus || 'pending') === globalBillingFilter)
+    .map(a => a.companyId)
+  );
+
+  const companyIdsWithInvoiceFilter = new Set(companyAppointmentsInPeriod
+    .filter(a => companyGlobalInvoiceFilter === 'all' ? true : (a.invoiceStatus || 'pending') === companyGlobalInvoiceFilter)
+    .map(a => a.companyId)
+  );
+
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = client.name?.toLowerCase().includes(clientSearchText.toLowerCase()) || 
+                          client.email?.toLowerCase().includes(clientSearchText.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (clientSourceFilter !== 'all') {
+      if (client.source !== clientSourceFilter) return false;
+    }
+
+    if (clientFrequencyFilter !== 'all') {
+      if (client.frequency !== clientFrequencyFilter) return false;
+    }
+
+    if (showBirthdays) {
+       if (!client.dob) return false;
+       const currentMonth = new Date().getMonth();
+       const [, month] = client.dob.split('-');
+       const clientMonth = parseInt(month, 10) - 1;
+       if (clientMonth !== currentMonth) return false;
+    }
+
+    if (globalBillingFilter !== 'all') {
+       if (!clientIdsWithBillingFilter.has(client.id)) return false;
+    }
+
+    return true;
+  });
+
+  const filteredCompanies = companies.filter(company => {
+    const matchesSearch = company.name?.toLowerCase().includes(companySearchText.toLowerCase()) || 
+                          company.email?.toLowerCase().includes(companySearchText.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (companySourceFilter !== 'all') {
+      if (company.source !== companySourceFilter) return false;
+    }
+
+    if (globalBillingFilter !== 'all') {
+      if (!companyIdsWithBillingFilter.has(company.id)) return false;
+    }
+
+    if (companyGlobalInvoiceFilter !== 'all') {
+      if (!companyIdsWithInvoiceFilter.has(company.id)) return false;
+    }
+
+    return true;
+  });
+
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [clientEditForm, setClientEditForm] = useState<any>({});
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [companyEditForm, setCompanyEditForm] = useState<any>({});
+  
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
+  const [editingCompanyAppointmentId, setEditingCompanyAppointmentId] = useState<string | null>(null);
+  const [appointmentEditForm, setAppointmentEditForm] = useState<any>({});
+  const [companyAppointmentEditForm, setCompanyAppointmentEditForm] = useState<any>({});
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [companySessionInvoiceFilter, setCompanySessionInvoiceFilter] = useState<'all' | 'issued' | 'pending'>('all');
+  const [sessionMonthFilter, setSessionMonthFilter] = useState<number | 'all'>('all');
+  const [sessionYearFilter, setSessionYearFilter] = useState<number | 'all'>('all');
+  const [uploadingAppointmentId, setUploadingAppointmentId] = useState<string | null>(null);
+
+  const [notificationModalClient, setNotificationModalClient] = useState<any | null>(null);
+  const [notificationTemplate, setNotificationTemplate] = useState<'financial' | 'referral' | 'reminder' | 'other'>('financial');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationSubject, setNotificationSubject] = useState('');
+  
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMonth, setExportMonth] = useState<number | 'all'>('all');
+  const [exportYear, setExportYear] = useState<number | 'all'>('all');
+
+  const handleOpenNotification = (client: any) => {
+    setNotificationModalClient(client);
+    handleTemplateChange('financial', client);
+  };
+
+  const handleTemplateChange = (template: 'financial' | 'referral' | 'reminder' | 'other', client: any) => {
+     setNotificationTemplate(template);
+     const firstName = client.name ? client.name.split(' ')[0] : 'Paciente';
+     if (template === 'financial') {
+        const clientAppts = appointments.filter(a => a.clientId === client.id);
+        const pendingAppts = clientAppts.filter(a => (a.paymentStatus || 'pending') === 'pending');
+        const totalPending = pendingAppts.reduce((acc, curr) => acc + Number(curr.totalAmount || 0), 0);
+        setNotificationSubject('Fechamento Financeiro - Sessões de Psicologia');
+        setNotificationMessage(`Olá ${firstName},\n\nSegue o resumo do nosso fechamento financeiro.\nO valor total de sessões pendentes é de R$ ${totalPending.toFixed(2).replace('.', ',')}.\n\nPode ser transferido para o Pix: ${profileData?.pixKey || 'SUA_CHAVE_PIX_AQUI'}\n\nQualquer dúvida, estou à disposição.\n\nAbraço,\n${profileData?.name || 'Psicólogo(a)'}`);
+     } else if (template === 'referral') {
+        setNotificationSubject('Encaminhamento / Documentos');
+        setNotificationMessage(`Olá ${firstName},\n\nSegue em anexo o documento / encaminhamento conversado em nossa sessão.\n\nAbraço,\n${profileData?.name || 'Psicólogo(a)'}`);
+     } else if (template === 'reminder') {
+        setNotificationSubject('Lembrete de Sessão');
+        setNotificationMessage(`Olá ${firstName},\n\nPassando para confirmar a nossa próxima sessão!\n\nAbraço,\n${profileData?.name || 'Psicólogo(a)'}`);
+     } else {
+        setNotificationSubject('Contato');
+        setNotificationMessage(`Olá ${firstName},\n\n`);
+     }
+  };
+
+  const handleAddCompanySession = (companyId: string, companyName: string) => {
+    setEditingCompanyAppointmentId('new');
+    setCompanyAppointmentEditForm({
+      companyId,
+      companyName,
+      date: new Date().toISOString().slice(0, 10),
+      time: '09:00', // We can remove this from UI but let's keep it in payload for datetime compat
+      status: 'scheduled',
+      totalAmount: 0,
+      paymentStatus: 'pending',
+      invoiceStatus: 'pending',
+      serviceDescription: ''
+    });
+  };
+
+  const handleEditCompanySession = (appt: any) => {
+    setEditingCompanyAppointmentId(appt.id);
+    const dateObj = new Date(appt.datetime);
+    setCompanyAppointmentEditForm({
+      ...appt,
+      date: dateObj.toISOString().slice(0, 10),
+      time: dateObj.toTimeString().slice(0, 5)
+    });
+  };
+
+  const handleAddSession = (clientId: string, clientName: string) => {
+    setEditingAppointmentId('new');
+    setAppointmentEditForm({
+      clientId,
+      clientName,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toISOString().slice(11, 16),
+      status: 'completed',
+      paymentStatus: 'pending',
+      totalAmount: profileData?.services?.[0]?.price || 0,
+      notes: ''
+    });
+  };
+
+  const handleEditSession = (appt: any) => {
+    setEditingAppointmentId(appt.id);
+    const dt = new Date(appt.datetime);
+    setAppointmentEditForm({
+      ...appt,
+      date: dt.toISOString().slice(0, 10),
+      time: dt.toISOString().slice(11, 16)
+    });
+  };
+
+  const handleCompanyAppointmentSave = async (e: React.FormEvent, companyId: string) => {
+    e.preventDefault();
+    try {
+      const payload = { ...companyAppointmentEditForm, companyId };
+      
+      if (!payload.date || !payload.time) {
+         return;
+      }
+      
+      const datetime = `${payload.date}T${payload.time}`;
+      payload.datetime = datetime;
+      delete payload.date;
+      delete payload.time;
+      delete payload.id;
+
+      if (editingCompanyAppointmentId === 'new') {
+        payload.createdAt = serverTimestamp();
+        const docRef = await addDoc(collection(db, `profiles/${userId}/companyAppointments`), payload);
+        const newAppt = { id: docRef.id, ...payload, createdAt: new Date().toISOString() };
+        setCompanyAppointments([...companyAppointments, newAppt]);
+        fireWebhook('company_appointment_created', newAppt);
+      } else {
+        const updatePayload = {
+          datetime: payload.datetime,
+          status: payload.status,
+          paymentStatus: payload.paymentStatus,
+          invoiceStatus: payload.invoiceStatus || 'pending',
+          serviceDescription: payload.serviceDescription || '',
+          totalAmount: payload.totalAmount,
+          notes: payload.notes || '',
+          companyName: payload.companyName
+        };
+        await updateDoc(doc(db, `profiles/${userId}/companyAppointments/${editingCompanyAppointmentId}`), updatePayload);
+        setCompanyAppointments(companyAppointments.map(a => a.id === editingCompanyAppointmentId ? { ...a, ...updatePayload } : a));
+        fireWebhook('company_appointment_updated', { id: editingCompanyAppointmentId, ...updatePayload });
+      }
+      setEditingCompanyAppointmentId(null);
+    } catch (error: any) {
+      handleFirestoreError(error, editingCompanyAppointmentId === 'new' ? OperationType.CREATE : OperationType.UPDATE, `profiles/${userId}/companyAppointments`);
+    }
+  };
+
+  const handleCompanyInvoiceStatusChange = async (apptId: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, `profiles/${userId}/companyAppointments/${apptId}`), { invoiceStatus: newStatus });
+      setCompanyAppointments(companyAppointments.map(a => a.id === apptId ? { ...a, invoiceStatus: newStatus } : a));
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.UPDATE, `profiles/${userId}/companyAppointments/${apptId}`);
+    }
+  };
+
+  const handleCompanyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, appointmentId: string) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadingAppointmentId(appointmentId);
+      const fileRef = ref(storage, `profiles/${userId}/companyAppointments/${appointmentId}/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      const appointment = companyAppointments.find(a => a.id === appointmentId);
+      const documents = appointment?.documents || [];
+      documents.push({ name: file.name, url: downloadURL });
+
+      const appointmentRef = doc(db, `profiles/${userId}/companyAppointments/${appointmentId}`);
+      await updateDoc(appointmentRef, { documents });
+
+      setCompanyAppointments(companyAppointments.map(a => a.id === appointmentId ? { ...a, documents } : a));
+    } catch (error: any) {
+      console.error(error);
+      alert('Erro ao fazer upload do arquivo. Verifique o tamanho do arquivo e permissões.');
+    } finally {
+      setUploadingAppointmentId(null);
+    }
+  };
+
+  const handleCompanyAppointmentDelete = async (apptId: string) => {
+     if (confirm('Tem certeza que deseja excluir este faturamento/serviço?')) {
+        try {
+           await deleteDoc(doc(db, `profiles/${userId}/companyAppointments/${apptId}`));
+           const deletedAppt = companyAppointments.find(a => a.id === apptId);
+           setCompanyAppointments(companyAppointments.filter(a => a.id !== apptId));
+           if (deletedAppt) fireWebhook('company_appointment_deleted', deletedAppt);
+        } catch (error: any) {
+           handleFirestoreError(error, OperationType.DELETE, `profiles/${userId}/companyAppointments/${apptId}`);
+        }
+     }
+  };
+
+  const handleAppointmentSave = async (e: React.FormEvent, clientId: string) => {
+    e.preventDefault();
+    try {
+      const payload = { ...appointmentEditForm, clientId };
+      
+      if (!payload.date || !payload.time) {
+         return;
+      }
+      
+      // Convert date and time to datetime
+      const datetime = `${payload.date}T${payload.time}`;
+      payload.datetime = datetime;
+      delete payload.date;
+      delete payload.time;
+      delete payload.id;
+
+      if (editingAppointmentId === 'new') {
+        payload.createdAt = serverTimestamp();
+        const docRef = await addDoc(collection(db, `profiles/${userId}/appointments`), payload);
+        const newAppt = { id: docRef.id, ...payload, createdAt: new Date().toISOString() };
+        setAppointments([...appointments, newAppt]);
+        fireWebhook('appointment_created', newAppt);
+      } else {
+        const updatePayload = {
+          datetime: payload.datetime,
+          status: payload.status,
+          paymentStatus: payload.paymentStatus,
+          totalAmount: payload.totalAmount,
+          notes: payload.notes || '',
+          clientName: payload.clientName
+        };
+        await updateDoc(doc(db, `profiles/${userId}/appointments/${editingAppointmentId}`), updatePayload);
+        setAppointments(appointments.map(a => a.id === editingAppointmentId ? { ...a, ...updatePayload } : a));
+        fireWebhook('appointment_updated', { id: editingAppointmentId, ...updatePayload });
+      }
+      setEditingAppointmentId(null);
+    } catch (error: any) {
+      handleFirestoreError(error, editingAppointmentId === 'new' ? OperationType.CREATE : OperationType.UPDATE, `profiles/${userId}/appointments`);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, appointmentId: string) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadingAppointmentId(appointmentId);
+      const fileRef = ref(storage, `profiles/${userId}/appointments/${appointmentId}/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      const appointment = appointments.find(a => a.id === appointmentId);
+      const documents = appointment?.documents || [];
+      documents.push({ name: file.name, url: downloadURL });
+
+      const appointmentRef = doc(db, `profiles/${userId}/appointments/${appointmentId}`);
+      // Only updating specific fields doesn't wipe others. We can use updateDoc.
+      await updateDoc(appointmentRef, { documents });
+
+      setAppointments(appointments.map(a => a.id === appointmentId ? { ...a, documents } : a));
+    } catch (error: any) {
+      console.error(error);
+      alert('Erro ao fazer upload do arquivo. Verifique o tamanho do arquivo e permissões.');
+    } finally {
+      setUploadingAppointmentId(null);
+    }
+  };
+
+  const handleAppointmentDelete = async (apptId: string) => {
+     if (confirm('Tem certeza que deseja excluir esta sessão/agendamento?')) {
+        try {
+           await deleteDoc(doc(db, `profiles/${userId}/appointments/${apptId}`));
+           const deletedAppt = appointments.find(a => a.id === apptId);
+           setAppointments(appointments.filter(a => a.id !== apptId));
+           if (deletedAppt) fireWebhook('appointment_deleted', deletedAppt);
+        } catch(e: any) {
+           handleFirestoreError(e, OperationType.DELETE, `profiles/${userId}/appointments/${apptId}`);
+        }
+     }
+  };
+
+  const handleClientEdit = (client: any) => {
+    setEditingClientId(client.id);
+    setClientEditForm({...client, isActive: client.isActive ?? true});
+  };
+
+  const handleCompanyEdit = (company: any) => {
+    setEditingCompanyId(company.id);
+    setCompanyEditForm({...company, isActive: company.isActive ?? true});
+  };
+
+  const handleCompanySave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload: any = {
+         name: companyEditForm.name,
+         tradeName: companyEditForm.tradeName || '',
+         cnpj: companyEditForm.cnpj,
+         addressStreet: companyEditForm.addressStreet || '',
+         addressNumber: companyEditForm.addressNumber || '',
+         addressZipcode: companyEditForm.addressZipcode || '',
+         addressCity: companyEditForm.addressCity || '',
+         contactPerson: companyEditForm.contactPerson,
+         department: companyEditForm.department || '',
+         email: companyEditForm.email,
+         phone: companyEditForm.phone,
+         isActive: companyEditForm.isActive,
+         notes: companyEditForm.notes || '',
+         source: companyEditForm.source || 'Outros'
+      };
+      
+      if (editingCompanyId === 'new') {
+         payload.lgpdAccepted = true;
+         payload.createdAt = serverTimestamp();
+         payload.statusHistory = [{
+             action: payload.isActive ? 'activated' : 'inactivated',
+             date: new Date().toISOString(),
+             reason: 'Manual registration by professional'
+         }];
+         
+         const compRef = await addDoc(collection(db, `profiles/${userId}/companies`), payload);
+         payload.createdAt = new Date().toISOString();
+         const newCompany = { id: compRef.id, ...payload };
+         setCompanies([...companies, newCompany]);
+         setEditingCompanyId(null);
+         fireWebhook('company_created', newCompany);
+         return;
+      }
+
+      const prevCompany = companies.find(c => c.id === editingCompanyId);
+      const isStatusChanged = prevCompany && (prevCompany.isActive ?? true) !== payload.isActive;
+      
+      if (isStatusChanged) {
+        payload.statusHistory = [
+          ...(prevCompany.statusHistory || []),
+          {
+             action: payload.isActive ? 'activated' : 'inactivated',
+             date: new Date().toISOString(),
+             reason: ''
+          }
+        ];
+      }
+      
+      await updateDoc(doc(db, `profiles/${userId}/companies/${editingCompanyId}`), payload);
+      setCompanies(companies.map(c => c.id === editingCompanyId ? { ...c, ...payload } : c));
+      setEditingCompanyId(null);
+      fireWebhook('company_updated', { id: editingCompanyId, ...payload });
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao salvar dados.');
+    }
+  };
+
+  const handleExportCSV = () => {
+    setExportModalOpen(true);
+  };
+
+  const generateCSVString = () => {
+     const filteredAppointments = appointments.filter(a => {
+       let isMatch = true;
+       if (exportMonth !== 'all' || exportYear !== 'all') {
+          const date = new Date(a.datetime);
+          if (exportYear !== 'all') {
+              if (date.getFullYear() !== exportYear) isMatch = false;
+          }
+          if (exportMonth !== 'all') {
+              if (date.getMonth() !== exportMonth) isMatch = false;
+          }
+       }
+       return isMatch;
+     });
+
+     const headers = [
+       'Paciente', 'Email', 'Telefone', 'CPF', 'Data de Nascimento', 'Frequência', 'Fonte', 'Status Cliente', 'Anotações Cliente',
+       'Data Sessão', 'Status Sessão', 'Pagamento Sessão', 'Valor Sessão', 'Anotações Sessão'
+     ];
+
+     const rows: string[][] = [];
+
+     clients.forEach(c => {
+        const clientAppts = filteredAppointments.filter(a => a.clientId === c.id);
+        const baseClientRow = [
+           `"${(c.name || '').replace(/"/g, '""')}"`,
+           `"${(c.email || '').replace(/"/g, '""')}"`,
+           `"${(c.phone || '').replace(/"/g, '""')}"`,
+           `"${(c.cpf || '').replace(/"/g, '""')}"`,
+           `"${(c.dob || '').replace(/"/g, '""')}"`,
+           `"${(c.frequency || 'Avulso').replace(/"/g, '""')}"`,
+           `"${(c.source || 'Outros').replace(/"/g, '""')}"`,
+           `"${c.isActive ? 'Ativo' : 'Inativo'}"`,
+           `"${(c.notes || '').replace(/"/g, '""')}"`
+        ];
+
+        if (clientAppts.length === 0) {
+           rows.push([...baseClientRow, '""', '""', '""', '""', '""']);
+        } else {
+           clientAppts.sort((a,b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()).forEach(a => {
+              rows.push([
+                 ...baseClientRow,
+                 `"${format(new Date(a.datetime), "dd/MM/yyyy HH:mm")}"`,
+                 `"${a.status}"`,
+                 `"${a.paymentStatus}"`,
+                 `"${a.totalAmount.toFixed(2).replace('.', ',')}"`,
+                 `"${(a.notes || '').replace(/"/g, '""')}"`
+              ]);
+           });
+        }
+     });
+     
+     return [
+        headers.join(','),
+        ...rows.map(r => r.join(','))
+     ].join('\n');
+  };
+
+  const executeExportCSV = () => {
+     if (clients.length === 0) {
+       alert('Nenhum paciente para exportar.');
+       return;
+     }
+     
+     const csvContent = generateCSVString();
+     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+     
+     let dateStr = 'all';
+     if (exportMonth !== 'all' || exportYear !== 'all') {
+         dateStr = `${exportMonth !== 'all' ? (exportMonth as number) + 1 : 'all'}-${exportYear !== 'all' ? exportYear : 'all'}`;
+     }
+     const filename = `pacientes_export_${dateStr}.csv`;
+     
+     const url = URL.createObjectURL(blob);
+     const link = document.createElement('a');
+     link.setAttribute('href', url);
+     link.setAttribute('download', filename);
+     
+     document.body.appendChild(link);
+     link.click();
+     document.body.removeChild(link);
+     
+     setExportModalOpen(false);
+  };
+
+  const [isExportingDrive, setIsExportingDrive] = useState(false);
+
+  const executeExportToDrive = async () => {
+    if (clients.length === 0) {
+      alert('Nenhum paciente para exportar.');
+      return;
+    }
+    setIsExportingDrive(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      
+      if (!token) {
+         throw new Error("Não foi possível obter a permissão do Google Drive. O token está vazio.");
+      }
+
+      const csvContent = generateCSVString();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      let dateStr = 'all';
+      if (exportMonth !== 'all' || exportYear !== 'all') {
+          dateStr = `${exportMonth !== 'all' ? (exportMonth as number) + 1 : 'all'}-${exportYear !== 'all' ? exportYear : 'all'}`;
+      }
+      const filename = `pacientes_export_${dateStr}.csv`;
+
+      const metadata = {
+        name: filename,
+        mimeType: 'text/csv'
+      };
+
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: form
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao fazer upload para o Google Drive. Verifique se possui permissão.');
+      }
+
+      alert('Backup salvo com sucesso no seu Google Drive!');
+      setExportModalOpen(false);
+    } catch (e: any) {
+      if (e.code === 'auth/cancelled-popup-request' || e.code === 'auth/popup-closed-by-user') {
+        // Ignorar
+        return;
+      }
+      console.error("Erro export drive:", e);
+      alert('Erro ao exportar para o Google Drive: ' + (e.message || 'Erro desconhecido.'));
+    } finally {
+      setIsExportingDrive(false);
+    }
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     
+     const text = await file.text();
+     
+     // basic csv parsing to handle quotes
+     const parseCSVLine = (line: string) => {
+         const result = [];
+         let current = '';
+         let inQuotes = false;
+         for (let i = 0; i < line.length; i++) {
+             const char = line[i];
+             if (char === '"' && line[i+1] === '"') {
+                 current += '"';
+                 i++;
+             } else if (char === '"') {
+                 inQuotes = !inQuotes;
+             } else if (char === ',' && !inQuotes) {
+                 result.push(current);
+                 current = '';
+             } else {
+                 current += char;
+             }
+         }
+         result.push(current);
+         return result;
+     };
+
+     const lines = text.split(/\r?\n/).filter(l => l.trim());
+     if (lines.length < 2) return alert('O arquivo parece estar vazio ou inválido.');
+     
+     let addedCount = 0;
+     let updatedCount = 0;
+     let sessionCount = 0;
+
+     // Cache of imported/existing clients by name + dob/cpf to group sessions and avoid duplicate clients
+     const processedClients = new Map<string, string>(); // key -> clientId
+
+     for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 2) continue;
+        
+        const clientPayload: any = {
+           name: cols[0]?.trim() || '',
+           email: cols[1]?.trim() || '',
+           phone: cols[2]?.trim() || '',
+           cpf: cols[3]?.trim() || '',
+           dob: cols[4]?.trim() || '',
+           frequency: cols[5]?.trim() || 'Avulso',
+           source: cols[6]?.trim() || 'Outros',
+           isActive: cols[7]?.trim() !== 'Inativo',
+           notes: cols[8]?.trim() || '',
+           lgpdAccepted: true,
+           rulesAccepted: false,
+        };
+        
+        if (!clientPayload.name) continue;
+        
+        const uniqueKey = `${clientPayload.name.toLowerCase()}_${clientPayload.cpf || clientPayload.dob || ''}`;
+        let clientId = processedClients.get(uniqueKey);
+
+        if (!clientId) {
+            // Check if exists in existing clients
+            const existing = clients.find(c => 
+                c.name.trim().toLowerCase() === clientPayload.name.toLowerCase() && 
+                ((clientPayload.cpf && c.cpf === clientPayload.cpf) || (clientPayload.email && c.email === clientPayload.email) || (!clientPayload.cpf && !clientPayload.email && c.dob === clientPayload.dob))
+            );
+
+            if (existing) {
+               clientId = existing.id;
+               try {
+                   await updateDoc(doc(db, `profiles/${userId}/clients/${existing.id}`), clientPayload);
+                   setClients(prev => prev.map(p => p.id === existing.id ? { ...p, ...clientPayload } : p));
+                   updatedCount++;
+               } catch(ex) {}
+            } else {
+               try {
+                  clientPayload.createdAt = new Date().toISOString();
+                  const clientRef = await addDoc(collection(db, `profiles/${userId}/clients`), clientPayload);
+                  clientId = clientRef.id;
+                  setClients(prev => [...prev, { id: clientId, ...clientPayload }]);
+                  addedCount++;
+               } catch (err: any) {
+                  handleFirestoreError(err, OperationType.CREATE, `profiles/${userId}/clients`);
+               }
+            }
+            if (clientId) processedClients.set(uniqueKey, clientId);
+        }
+
+        // Deal with sessions if they exist in the row
+        if (clientId && cols.length >= 10 && cols[9] && cols[9].trim()) {
+            const dateStr = cols[9].trim(); // "dd/MM/yyyy HH:mm"
+            const status = cols[10]?.trim() || 'Concluído';
+            const paymentStatus = cols[11]?.trim() || 'Pago';
+            const totalAmountStr = cols[12]?.trim() || '0,00';
+            const sessionNotes = cols[13]?.trim() || '';
+
+            let parsedDate = null;
+            try {
+                // simple parse for dd/MM/yyyy HH:mm
+                const parts = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+                if (parts) {
+                   parsedDate = new Date(Number(parts[3]), Number(parts[2])-1, Number(parts[1]), Number(parts[4]), Number(parts[5])).toISOString();
+                } else {
+                   // Try fallback naive parse if the string doesn't match brazilian exact format
+                   const ts = Date.parse(dateStr);
+                   if (!isNaN(ts)) parsedDate = new Date(ts).toISOString();
+                }
+            } catch(e) {}
+
+            if (parsedDate) {
+                // Check if session already exists for this client at this exact time to prevent duplicates
+                // Since `appointments` state might not reflect newly added ones mid-loop easily without extra cache, let's just check state cache
+                const existingAppt = appointments.find(a => a.clientId === clientId && a.datetime === parsedDate);
+                const sessionPayload = {
+                    clientId,
+                    clientName: clientPayload.name,
+                    datetime: parsedDate,
+                    status,
+                    paymentStatus,
+                    totalAmount: Number(totalAmountStr.replace(',', '.').replace(/[^\d.-]/g, '')),
+                    notes: sessionNotes,
+                };
+                if (!existingAppt) {
+                    try {
+                        const sRef = await addDoc(collection(db, `profiles/${userId}/appointments`), { ...sessionPayload, createdAt: serverTimestamp() });
+                        setAppointments(prev => [...prev, { id: sRef.id, ...sessionPayload, createdAt: new Date().toISOString() }]);
+                        sessionCount++;
+                    } catch(e) {
+                        handleFirestoreError(e, OperationType.CREATE, `profiles/${userId}/appointments`);
+                    }
+                }
+            }
+        }
+     }
+     
+     alert(`Importação concluída:\n- ${addedCount} pacientes inseridos\n- ${updatedCount} pacientes já existentes atualizados\n- ${sessionCount} novas sessões registradas`);
+     if (e.target) e.target.value = '';
+  };
+
+  const handleClientSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload: any = {
+         name: clientEditForm.name,
+         dob: clientEditForm.dob,
+         cpf: clientEditForm.cpf,
+         email: clientEditForm.email,
+         phone: clientEditForm.phone,
+         isActive: clientEditForm.isActive,
+         notes: clientEditForm.notes || '',
+         source: clientEditForm.source || 'Outros'
+      };
+      
+      if (editingClientId === 'new') {
+         payload.lgpdAccepted = true; // Assumed since professional is registering
+         payload.rulesAccepted = false; // By default added by professional doesn't have rules accepted
+         payload.createdAt = serverTimestamp();
+         payload.statusHistory = [{
+             action: payload.isActive ? 'activated' : 'inactivated',
+             date: new Date().toISOString(),
+             reason: 'Manual registration by professional'
+         }];
+         
+         const clientRef = await addDoc(collection(db, `profiles/${userId}/clients`), payload);
+         payload.createdAt = new Date().toISOString(); // Mock for local state
+         const newClient = { id: clientRef.id, ...payload };
+         setClients([...clients, newClient]);
+         setEditingClientId(null);
+         fireWebhook('patient_created', newClient);
+         return;
+      }
+
+      const prevClient = clients.find(c => c.id === editingClientId);
+      const isStatusChanged = prevClient && (prevClient.isActive ?? true) !== payload.isActive;
+      
+      if (isStatusChanged) {
+        payload.statusHistory = [
+          ...(prevClient.statusHistory || []),
+          {
+             action: payload.isActive ? 'activated' : 'inactivated',
+             date: new Date().toISOString(),
+             reason: ''
+          }
+        ];
+      }
+      
+      await updateDoc(doc(db, `profiles/${userId}/clients/${editingClientId}`), payload);
+      setClients(clients.map(c => c.id === editingClientId ? {...c, ...payload} : c));
+      setEditingClientId(null);
+      fireWebhook('patient_updated', { id: editingClientId, ...payload });
+    } catch (e: any) {
+      handleFirestoreError(e, editingClientId === 'new' ? OperationType.CREATE : OperationType.UPDATE, `profiles/${userId}/clients/${editingClientId}`);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+      {/* Sidebar */}
+      <aside className="w-full md:w-64 flex-shrink-0">
+         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+            <a 
+              href={`/?t=${userId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition text-amber-500 bg-amber-50 border border-amber-100 justify-center mb-4 text-sm"
+            >
+              Ver Meu Site Público
+            </a>
+            <button 
+              onClick={() => setActiveTab('perfil')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'perfil' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <Settings className="w-5 h-5 flex-shrink-0" />
+              <span>Meu Perfil</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('pacientes')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'pacientes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <User className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de pacientes e faturamento</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('empresas')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'empresas' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <Building className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de empresas e faturamento</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('agenda')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'agenda' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <CalendarIcon className="w-5 h-5 flex-shrink-0" />
+              <span>Minha Agenda</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('avaliacoes')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition flex-1 justify-between", activeTab === 'avaliacoes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 flex-shrink-0" />
+                <span>Avaliações</span>
+              </div>
+              {reviews.filter(r => r.status === 'pending').length > 0 && (
+                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {reviews.filter(r => r.status === 'pending').length}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => setActiveTab('automacoes')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'automacoes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <Zap className="w-5 h-5 flex-shrink-0" />
+              <span>Automações</span>
+            </button>
+         </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1">
+        {activeTab === 'perfil' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">Configurações do Perfil</h2>
+            <form onSubmit={handleProfileSave} className="space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Foto de Capa</label>
+                  <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center group">
+                    {editForm.coverPhoto ? (
+                      <img src={editForm.coverPhoto} alt="Capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-slate-400 font-medium">Nenhuma imagem</span>
+                    )}
+                    <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer">
+                      {uploadingImage === 'coverPhoto' ? (
+                        <span className="text-white text-sm font-medium">Enviando...</span>
+                      ) : (
+                        <span className="text-white text-sm font-medium flex items-center gap-2"><Upload className="w-4 h-4"/> Alterar Capa</span>
+                      )}
+                      <input type="file" accept="image/*" className="hidden" disabled={!!uploadingImage} onChange={(e) => handleImageUpload(e, 'coverPhoto')} />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Foto de Perfil (Circular)</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-24 h-24 rounded-full overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center group shrink-0">
+                      {editForm.profilePhoto ? (
+                        <img src={editForm.profilePhoto} alt="Perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10 text-slate-400" />
+                      )}
+                      <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer">
+                        {uploadingImage === 'profilePhoto' ? (
+                          <span className="text-white text-xs font-medium">...</span>
+                        ) : (
+                          <Upload className="w-5 h-5 text-white" />
+                        )}
+                        <input type="file" accept="image/*" className="hidden" disabled={!!uploadingImage} onChange={(e) => handleImageUpload(e, 'profilePhoto')} />
+                      </label>
+                    </div>
+                    <p className="text-sm text-slate-500">Recomendado: 400x400px. A imagem será recortada em formato circular no seu perfil público.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="py-6 border-b border-slate-100">
+                <label className="block text-sm font-medium text-slate-700 mb-3">Tema do Perfil</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={(editForm.theme || 'auto') === 'auto'} onChange={() => setEditForm({...editForm, theme: 'auto'})} className="text-amber-500 focus:ring-amber-400" />
+                    <span className="flex items-center gap-2 text-sm text-slate-700">
+                      <span className="w-5 h-5 rounded-full shadow-sm border border-slate-200" style={{backgroundColor: editForm.themeColor || '#e2e8f0'}}></span>
+                      Automático (Cores da Capa)
+                    </span>
+                  </label>
+                  {Object.entries(THEMES).map(([themeKey, themeObj]) => (
+                    <label key={themeKey} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" checked={editForm.theme === themeKey} onChange={() => setEditForm({...editForm, theme: themeKey})} className="text-amber-500 focus:ring-amber-400" />
+                      <span className="flex items-center gap-2 text-sm text-slate-700">
+                        <span className="w-5 h-5 rounded-full shadow-sm border border-slate-200" style={{backgroundColor: `rgb(${themeObj.r}, ${themeObj.g}, ${themeObj.b})`}}></span>
+                        {themeObj.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nome</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Ex: Dr. João Silva" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Título Profissional</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.title || ''} onChange={e => setEditForm({...editForm, title: e.target.value})} placeholder="Ex: Psicólogo Clínico" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Frase de Bio / Frase de Efeito</label>
+                <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                  value={editForm.bio || ''} onChange={e => setEditForm({...editForm, bio: e.target.value})} placeholder="Ex: Te ajudando a encontrar o equilíbrio emocional (estilo intro do Instagram)" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Número CRP</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.crp || ''} onChange={e => setEditForm({...editForm, crp: e.target.value})} placeholder="Ex: CRP 00/00000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Cidade e Estado de Atuação</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.city || ''} onChange={e => setEditForm({...editForm, city: e.target.value})} placeholder="Ex: São Paulo, SP" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Sobre Mim</label>
+                <textarea rows={4} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                  value={editForm.about || ''} onChange={e => setEditForm({...editForm, about: e.target.value})} placeholder="Conte um pouco sobre sua formação, experiência e abordagem terapêutica..."></textarea>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp</label>
+                  <input type="tel" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.whatsapp || ''} onChange={e => setEditForm({...editForm, whatsapp: e.target.value})} placeholder="Ex: 5511999999999" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Especialidades (separadas por vírgula)</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={specialtiesText} 
+                    onChange={e => setSpecialtiesText(e.target.value)} 
+                    placeholder="Ex: Ansiedade, Depressão, Terapia de Casal" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Abordagens Psicológicas (separadas por vírgula)</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={approachesText} 
+                    onChange={e => setApproachesText(e.target.value)} 
+                    placeholder="Ex: TCC, Psicanálise, Humanista" />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Pagamento e Recebimento</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Chave Pix (Opcional)</label>
+                    <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.pixKey || ''} onChange={e => setEditForm({...editForm, pixKey: e.target.value})} placeholder="Ex: CPF, E-mail, Telefone ou Aleatória" />
+                    <p className="text-xs text-slate-500 mt-1">Sua chave Pix será exibida no final do agendamento para o paciente realizar o pagamento.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">QR Code Pix (Opcional)</label>
+                    <div className="flex items-center gap-4">
+                      {editForm.pixQrCode && (
+                        <div className="w-16 h-16 p-1 border border-slate-200 rounded-lg bg-white overflow-hidden flex items-center justify-center">
+                          <img src={editForm.pixQrCode} alt="QR Code Pix" className="max-w-full max-h-full object-contain" />
+                        </div>
+                      )}
+                      <label className="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-700 transition flex items-center gap-2">
+                        {uploadingImage === 'pixQrCode' ? 'Enviando...' : (editForm.pixQrCode ? 'Alterar QR Code' : 'Enviar QR Code')}
+                        <input type="file" accept="image/*" className="hidden" disabled={!!uploadingImage} onChange={(e) => handleImageUpload(e, 'pixQrCode')} />
+                      </label>
+                      {editForm.pixQrCode && (
+                        <button type="button" onClick={() => setEditForm({...editForm, pixQrCode: undefined})} className="text-red-500 hover:text-red-600 text-sm font-medium">Remover</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Redes Sociais</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Instagram URL</label>
+                    <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.instagramUrl || ''} onChange={e => setEditForm({...editForm, instagramUrl: e.target.value})} placeholder="Ex: https://instagram.com/seu.perfil" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Facebook URL</label>
+                    <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.facebookUrl || ''} onChange={e => setEditForm({...editForm, facebookUrl: e.target.value})} placeholder="Ex: https://facebook.com/seu.perfil" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">LinkedIn URL</label>
+                    <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.linkedinUrl || ''} onChange={e => setEditForm({...editForm, linkedinUrl: e.target.value})} placeholder="Ex: https://linkedin.com/in/seu-perfil" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">YouTube URL</label>
+                    <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.youtubeUrl || ''} onChange={e => setEditForm({...editForm, youtubeUrl: e.target.value})} placeholder="Ex: https://youtube.com/@seu-canal" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Atendimento Presencial</h3>
+                <label className="flex items-center gap-2 mb-4 text-sm text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={!!editForm.inPersonEnabled} onChange={e => setEditForm({...editForm, inPersonEnabled: e.target.checked})} className="rounded text-amber-500 focus:ring-amber-400" /> 
+                  Disponibilizar endereço para atendimentos presenciais
+                </label>
+                
+                {editForm.inPersonEnabled && (
+                  <div className="grid grid-cols-1 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Endereço Completo</label>
+                      <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                        value={editForm.address || ''} onChange={e => setEditForm({...editForm, address: e.target.value})} placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo - SP" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Como Chegar (Instruções)</label>
+                      <textarea rows={3} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                        value={editForm.howToGetThere || ''} onChange={e => setEditForm({...editForm, howToGetThere: e.target.value})} placeholder="Ex: Próximo à estação Trianon-Masp. Entrada pelo portão principal..."></textarea>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Link do Google Meu Negócio / Maps (Opcional)</label>
+                      <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                        value={editForm.googleMapsUrl || ''} onChange={e => setEditForm({...editForm, googleMapsUrl: e.target.value})} placeholder="Ex: https://g.page/sua-clinica" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Código HTML do Mapa (Iframe do Google Maps - Opcional)</label>
+                      <textarea rows={3} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                        value={editForm.googleMapsEmbed || ''} onChange={e => setEditForm({...editForm, googleMapsEmbed: e.target.value})} placeholder='Ex: <iframe src="https://www.google.com/maps/embed?..." ...'></textarea>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Link de Avaliações no Google (Opcional)</label>
+                      <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                        value={editForm.googleReviewsUrl || ''} onChange={e => setEditForm({...editForm, googleReviewsUrl: e.target.value})} placeholder="Ex: https://g.page/r/...?id=... / Link para avaliações" />
+                      <p className="text-xs text-slate-500 mt-1">Este link será exibido junto ao mapa para pacientes verem suas avaliações.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Dados da Empresa (Opcional)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Empresa</label>
+                    <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.companyName || ''} onChange={e => setEditForm({...editForm, companyName: e.target.value})} placeholder="Sua clínica ou consultório" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">CNPJ</label>
+                    <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.cnpj || ''} onChange={e => setEditForm({...editForm, cnpj: e.target.value})} placeholder="00.000.000/0000-00" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Logotipo da Empresa</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center group shrink-0">
+                      {editForm.companyLogo ? (
+                        <img src={editForm.companyLogo} alt="Logo da Empresa" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-slate-400">Logo</span>
+                      )}
+                      <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer">
+                        {uploadingImage === 'companyLogo' ? (
+                          <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-white" />
+                        )}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'companyLogo')} />
+                      </label>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      <p>Formato circular, ideal para o logotipo da sua clínica.</p>
+                      <p>Envie uma imagem JPG ou PNG.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Informações do Rodapé (Landing Page)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">E-mail de Contato</label>
+                    <input type="email" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.footerEmail || ''} onChange={e => setEditForm({...editForm, footerEmail: e.target.value})} placeholder="contato@empresa.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefone Comercial</label>
+                    <input type="tel" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.footerPhone || ''} onChange={e => setEditForm({...editForm, footerPhone: e.target.value})} placeholder="(00) 0000-0000" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Endereço de Rodapé</label>
+                    <textarea rows={2} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.footerAddress || ''} onChange={e => setEditForm({...editForm, footerAddress: e.target.value})} placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo"></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Pequeno Texto / Resumo</label>
+                    <textarea rows={2} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                      value={editForm.footerText || ''} onChange={e => setEditForm({...editForm, footerText: e.target.value})} placeholder="Ex: Promovendo saúde mental com excelência e acolhimento."></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border border-amber-100 bg-amber-50 rounded-xl mt-6">
+                 <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 mb-2"><RefreshCw className="w-4 h-4"/> Integração Google Workspace (Simulada)</h3>
+                 <div className="flex gap-4">
+                   <label className="flex items-center gap-2 text-sm text-slate-700">
+                     <input type="checkbox" checked={editForm.calendarSync} onChange={e => setEditForm({...editForm, calendarSync: e.target.checked})} className="rounded text-amber-500" /> Sincronizar Google Calendar
+                   </label>
+                   <label className="flex items-center gap-2 text-sm text-slate-700">
+                     <input type="checkbox" checked={editForm.driveSync} onChange={e => setEditForm({...editForm, driveSync: e.target.checked})} className="rounded text-amber-500" /> Conectar Google Drive
+                   </label>
+                 </div>
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Materiais Exclusivos (Links do Google Drive)</label>
+                <div className="space-y-3">
+                  {(editForm.materials || []).map((mat: any, idx: number) => {
+                    const url = typeof mat === 'string' ? mat : (mat.url || '');
+                    const desc = typeof mat === 'string' ? '' : (mat.description || '');
+                    return (
+                    <div key={idx} className="flex flex-col gap-2 p-3 border border-slate-100 rounded-xl bg-slate-50">
+                       <div className="flex gap-2">
+                         <input type="url" className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white font-mono text-sm" 
+                           value={url} 
+                           onChange={e => {
+                             const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
+                             newMaterials[idx].url = e.target.value;
+                             setEditForm({...editForm, materials: newMaterials});
+                           }}
+                           placeholder="https://drive.google.com/..."
+                         />
+                         <button type="button" onClick={() => {
+                             const newMaterials = (editForm.materials || []).filter((_: any, i: number) => i !== idx);
+                             setEditForm({...editForm, materials: newMaterials});
+                         }} className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
+                           <Trash2 className="w-5 h-5" />
+                         </button>
+                       </div>
+                       <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-sm" 
+                         value={desc} 
+                         onChange={e => {
+                           const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
+                           newMaterials[idx].description = e.target.value;
+                           setEditForm({...editForm, materials: newMaterials});
+                         }}
+                         placeholder="Descrição do material (ex: Livro Digital)..."
+                       />
+                    </div>
+                  )})}
+                  <button type="button" onClick={() => {
+                     const currentMaterials = (editForm.materials || []).map((m: any) => typeof m === 'string' ? {url: m, description: ''} : m);
+                     setEditForm({...editForm, materials: [...currentMaterials, { url: '', description: '' }]});
+                  }} className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition">
+                    <Plus className="w-4 h-4" /> Adicionar Link
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-sm font-bold text-slate-700">Meus Serviços</label>
+                  <button type="button" onClick={() => {
+                     setEditForm({
+                       ...editForm, 
+                       services: [{ id: Date.now().toString(), category: 'voce', title: '', description: '', price: 0 }, ...(editForm.services || [])]
+                     });
+                  }} className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition px-3 py-1.5 bg-amber-50 rounded-lg hover:bg-amber-100">
+                    <Plus className="w-4 h-4" /> Novo Serviço
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {(editForm.services || []).map((svc: any, idx: number) => (
+                    <div key={svc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative">
+                       <button type="button" onClick={() => {
+                           const newSvc = (editForm.services || []).filter((_: any, i: number) => i !== idx);
+                           setEditForm({...editForm, services: newSvc});
+                       }} className="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition">
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
+                         <div>
+                           <label className="block text-xs font-medium text-slate-500 mb-1">Título</label>
+                           <input type="text" className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
+                             value={svc.title} 
+                             onChange={e => {
+                               const arr = [...editForm.services];
+                               arr[idx].title = e.target.value;
+                               setEditForm({...editForm, services: arr});
+                             }}
+                             placeholder="Ex: Terapia Individual"
+                           />
+                         </div>
+                         <div className="grid grid-cols-2 gap-2">
+                           <div>
+                             <label className="block text-xs font-medium text-slate-500 mb-1">Público</label>
+                             <select className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
+                               value={svc.category || 'voce'}
+                               onChange={e => {
+                                 const arr = [...editForm.services];
+                                 arr[idx].category = e.target.value;
+                                 setEditForm({...editForm, services: arr});
+                               }}
+                             >
+                               <option value="voce">Para Você (Pacientes)</option>
+                               <option value="empresa">Para sua Empresa</option>
+                               <option value="psicologos">Para Psicólogos</option>
+                               <option value="psicologo">Para Psicólogos (Alternativo)</option>
+                             </select>
+                           </div>
+                           <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Preço</label>
+                            <div className="flex flex-col gap-2">
+                              <select 
+                                className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-amber-400 focus:outline-none"
+                                value={svc.price === 0 ? "combinar" : "fixo"}
+                                onChange={e => {
+                                  const arr = [...(editForm.services || [])];
+                                  if (e.target.value === "combinar") arr[idx].price = 0;
+                                  else arr[idx].price = 150;
+                                  setEditForm({...editForm, services: arr});
+                                }}
+                              >
+                                <option value="fixo">Fixo (Numérico)</option>
+                                <option value="combinar">Entre em contato para saber mais</option>
+                              </select>
+                              {svc.price !== 0 && (
+                                <div className="flex gap-2 items-center">
+                                  <span className="text-sm text-slate-500">R$</span>
+                                  <input type="number" min="1" step="0.01" className="flex-1 p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
+                                    value={svc.price} 
+                                    placeholder="150"
+                                    onChange={e => {
+                                      const arr = [...(editForm.services || [])];
+                                      arr[idx].price = Number(e.target.value);
+                                      setEditForm({...editForm, services: arr});
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <div>
+                         <label className="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
+                         <textarea rows={2} className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
+                           value={svc.description} 
+                           onChange={e => {
+                             const arr = [...editForm.services];
+                             arr[idx].description = e.target.value;
+                             setEditForm({...editForm, services: arr});
+                           }}
+                           placeholder="Descreva o serviço..."
+                         />
+                       </div>
+
+                        <div className="mt-4 border-t border-slate-200 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="col-span-2">
+                            <label className="block text-xs font-bold text-slate-700 mb-2">Opções de Liberação para o Paciente</label>
+                            <div className="flex flex-col gap-2">
+                              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
+                                <input 
+                                  type="checkbox" 
+                                  checked={svc.allowScheduling !== false}
+                                  onChange={e => {
+                                    const arr = [...editForm.services];
+                                    arr[idx].allowScheduling = e.target.checked;
+                                    setEditForm({...editForm, services: arr});
+                                  }}
+                                  className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                                /> 
+                                Liberar Agendamento de Dia e Hora pela plataforma
+                              </label>
+                              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
+                                <input 
+                                  type="checkbox" 
+                                  checked={svc.allowPayment !== false}
+                                  onChange={e => {
+                                    const arr = [...editForm.services];
+                                    arr[idx].allowPayment = e.target.checked;
+                                    setEditForm({...editForm, services: arr});
+                                  }}
+                                  className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                                /> 
+                                Liberar opções de pagamento (PIX ou Combinar por WhatsApp)
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                    </div>
+                  ))}
+                  {(editForm.services || []).length === 0 && (
+                    <div className="text-center p-6 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm bg-white">
+                      Nenhum serviço cadastrado. Adicione seus serviços para exibi-los no perfil.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition">
+                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'agenda' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">Integração com Google Agenda</h2>
+            <p className="text-sm text-slate-600 mb-6">Em vez de preencher manualmente, conecte sua conta Google para extrair seus horários livres. Sua disponibilidade padrão (09:00 - 18:00 em dias úteis) será filtrada automaticamente para remover os horários em que você já tem eventos no calendário.</p>
+            
+            <form onSubmit={handleProfileSave} className="space-y-6 mb-8 border-b border-slate-100 pb-8">
+              <h3 className="font-bold text-slate-800 mb-4 items-center flex gap-2"><CalendarIcon className="w-5 h-5 text-amber-500"/> Incorporar Calendário Público</h3>
+              <p className="text-sm text-slate-600 mb-4">Se você já possui uma página de agendamento no Google Calendar, você pode incorporar o código HTML (iframe) ou disponibilizar o link para que os pacientes agendem diretamente.</p>
+              
+              <div className="grid grid-cols-1 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Link da sua página de agendamento (Google Calendar / Calendly)</label>
+                  <input type="url" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                    value={editForm.calendarUrl || ''} onChange={e => setEditForm({...editForm, calendarUrl: e.target.value})} placeholder="Ex: https://calendar.google.com/calendar/u/0/appointments/schedules/" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Código de Incorporação (iframe)</label>
+                  <textarea rows={3} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                    value={editForm.calendarEmbed || ''} onChange={e => setEditForm({...editForm, calendarEmbed: e.target.value})} placeholder='Ex: <iframe src="https://calendar.google.com/..." width="100%" height="600" ...'></textarea>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-medium hover:bg-amber-600 transition flex items-center gap-2">
+                  {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                  Salvar
+                </button>
+              </div>
+            </form>
+
+            <h3 className="font-bold text-slate-800 mb-4">Sincronização Direta de Horários</h3>
+            <div className="mb-8 p-6 bg-amber-50 border border-amber-100 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-amber-500"/> Status da Conexão</h3>
+                 <p className="text-sm text-slate-600 mt-1">{editForm.calendarSync ? 'Sua conta está vinculada e seus horários foram gerados a partir do Google Agenda.' : 'Conecte sua conta para gerar sua disponibilidade atual.'}</p>
+              </div>
+              <button type="button" onClick={handleCalendarSync} disabled={isSyncing} className={cn("px-6 py-2.5 rounded-xl font-medium transition-colors whitespace-nowrap flex items-center gap-2", editForm.calendarSync ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-amber-500 text-white hover:bg-amber-600 shadow-sm")}>
+                {isSyncing ? <RefreshCw className="w-5 h-5 animate-spin" /> : (editForm.calendarSync ? <><RefreshCw className="w-4 h-4" /> Sincronizar Novamente</> : 'Conectar Google Agenda')}
+              </button>
+            </div>
+
+            <form onSubmit={handleProfileSave} className="space-y-4">
+              <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Seus Horários após Sincronização</h3>
+              {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((day, dIdx) => (
+                <div key={dIdx} className="flex flex-col sm:flex-row sm:items-start gap-4 border-b border-slate-100 pb-4">
+                  <div className="w-32 font-medium text-slate-700 mt-2">{day}</div>
+                  <div className="flex-1 flex flex-wrap gap-2">
+                    {(editForm.schedule?.[dIdx] || []).length > 0 ? (
+                        (editForm.schedule[dIdx] as string[]).map(time => (
+                           <span key={time} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-200">{time}</span>
+                        ))
+                    ) : (
+                        <span className="text-slate-400 text-sm mt-2 italic px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">Sem horários disponíveis</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="pt-4 flex justify-end">
+                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-medium hover:bg-amber-600 transition flex items-center gap-2">
+                  {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                  Salvar Horários Sincronizados
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'pacientes' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+               <div>
+                  <h2 className="text-xl font-bold text-slate-800">Prontuário e Agendamentos</h2>
+                  <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                     Seu link de cadastro: 
+                     <button 
+                        onClick={() => {
+                           navigator.clipboard.writeText(`${window.location.origin}/?register=${userId}`);
+                           alert('Link copiado!');
+                        }}
+                        className="text-amber-500 hover:underline font-medium"
+                     >Copiar Link</button>
+                  </p>
+               </div>
+               <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                 <select 
+                   value={clientFrequencyFilter} 
+                   onChange={e => setClientFrequencyFilter(e.target.value)}
+                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                 >
+                   <option value="all">Todas as Frequências</option>
+                   <option value="Semanal">Semanal</option>
+                   <option value="Quinzenal">Quinzenal</option>
+                   <option value="Mensal">Mensal</option>
+                   <option value="Avulso">Avulso</option>
+                 </select>
+                 <select 
+                   value={clientSourceFilter} 
+                   onChange={e => setClientSourceFilter(e.target.value)}
+                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                 >
+                   <option value="all">Todas as fontes</option>
+                   <option value="Indicação de profissional">Indicação de profissional</option>
+                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                   <option value="Google/ Site">Google/ Site</option>
+                   <option value="Pacientes">Pacientes</option>
+                   <option value="Outros">Outros</option>
+                 </select>
+                 <input 
+                   type="text" 
+                   placeholder="Buscar por nome ou e-mail..." 
+                   className="w-full sm:w-64 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm"
+                   value={clientSearchText}
+                   onChange={e => setClientSearchText(e.target.value)}
+                 />
+                 
+                 <label className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm" title="Importar Pacientes de Planilha (CSV)">
+                   <FileUp className="w-5 h-5"/>
+                   <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                 </label>
+                 <button onClick={handleExportCSV} className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition flex-shrink-0 shadow-sm" title="Exportar Pacientes para Planilha (CSV)">
+                   <Download className="w-5 h-5"/>
+                 </button>
+                 <button onClick={() => { setClientEditForm({ isActive: true }); setEditingClientId('new'); }} className="bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Paciente Manualmente">
+                   <Plus className="w-5 h-5"/>
+                 </button>
+               </div>
+             </div>
+
+             {/* Dashboard Metrics */}
+             {clients.length > 0 && appointments.length > 0 && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                 <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">Origem dos Pacientes</h3>
+                    <div className="h-[200px]">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie 
+                               data={Object.entries(clients.reduce((acc, c) => {
+                                  let s = c.source || 'Não informada';
+                                  acc[s] = (acc[s] || 0) + 1;
+                                  return acc;
+                               }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }))} 
+                               cx="50%" cy="50%" innerRadius={50} outerRadius={80} fill="#8884d8" dataKey="value"
+                            >
+                               {Object.entries(clients.reduce((acc, c) => {
+                                  let s = c.source || 'Não informada';
+                                  acc[s] = (acc[s] || 0) + 1;
+                                  return acc;
+                               }, {} as Record<string, number>)).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'][index % 5]} />
+                               ))}
+                            </Pie>
+                            <RechartsTooltip />
+                          </PieChart>
+                       </ResponsiveContainer>
+                    </div>
+                 </div>
+                 <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">Sessões Realizadas por Mês</h3>
+                    <div className="h-[200px]">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={
+                             Object.entries(appointments.reduce((acc, a) => {
+                                if(!a.datetime) return acc;
+                                const m = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][new Date(a.datetime).getMonth()];
+                                acc[m] = (acc[m] || 0) + 1;
+                                return acc;
+                             }, {} as Record<string, number>)).map(([name, sessions]) => ({ name, sessions }))
+                          }>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                            <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                            <RechartsTooltip cursor={{fill: '#f8fafc'}} />
+                            <Bar dataKey="sessions" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={32} />
+                          </BarChart>
+                       </ResponsiveContainer>
+                    </div>
+                 </div>
+               </div>
+             )}
+
+             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
+                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                      Faturamento e Filtros (Período)
+                   </h3>
+                   <div className="flex flex-wrap items-center gap-2">
+                      <select value={filterMonth} onChange={e => setFilterMonth(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                         {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                             <option key={i} value={i}>{m}</option>
+                         ))}
+                      </select>
+                      <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                         {[2023,2024,2025,2026,2027,2028].map(y => (
+                             <option key={y} value={y}>{y}</option>
+                         ))}
+                      </select>
+                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'all' ? "bg-white border-amber-400 ring-1 ring-blue-400" : "bg-white border-slate-200 hover:border-slate-300")} onClick={() => setGlobalBillingFilter('all')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-slate-500 font-medium mb-1">Total do Mês (Previsto)</p>
+                         <p className="text-2xl font-bold text-slate-800">R$ {(totalPaidInPeriod + totalPendingInPeriod).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'all' && <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />}
+                   </div>
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'paid' ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400" : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50")} onClick={() => setGlobalBillingFilter('paid')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-emerald-700 font-medium mb-1">Recebido</p>
+                         <p className="text-2xl font-bold text-emerald-900">R$ {totalPaidInPeriod.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'paid' && <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />}
+                   </div>
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'pending' ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400" : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50")} onClick={() => setGlobalBillingFilter('pending')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-amber-700 font-medium mb-1">Pendente (À receber)</p>
+                         <p className="text-2xl font-bold text-amber-900">R$ {totalPendingInPeriod.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'pending' && <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />}
+                   </div>
+                </div>
+                {globalBillingFilter !== 'all' && (
+                   <p className="text-xs text-slate-500 mt-4 text-center">
+                      Exibindo apenas pacientes com faturamento <strong>{globalBillingFilter === 'paid' ? 'concluído (pago)' : 'pendente'}</strong> no período selecionado.
+                   </p>
+                )}
+             </div>
+             
+             <CostManager costsStr={profileData?.patientCostsStr} type="patientCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, patientCostsStr: val})} />
+
+             {editingClientId === 'new' && (
+               <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
+                  <form onSubmit={handleClientSave} className="space-y-4">
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                       <h3 className="font-bold text-slate-900 text-lg">Novo Paciente</h3>
+                       <button type="button" onClick={() => setEditingClientId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Nome</label>
+                         <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.name || ''} onChange={e => setClientEditForm({...clientEditForm, name: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">E-mail</label>
+                         <input required type="email" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.email || ''} onChange={e => setClientEditForm({...clientEditForm, email: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Telefone</label>
+                         <input required type="tel" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.phone || ''} onChange={e => setClientEditForm({...clientEditForm, phone: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
+                         <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.source || 'Outros'} onChange={e => setClientEditForm({...clientEditForm, source: e.target.value})}>
+                           <option value="Indicação de profissional">Indicação de profissional</option>
+                           <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                           <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                           <option value="Google/ Site">Google/ Site</option>
+                           <option value="Pacientes">Pacientes</option>
+                           {clients.length > 0 && (
+                             <optgroup label="Pacientes Cadastrados">
+                               {clients.map(c => (
+                                 <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
+                               ))}
+                             </optgroup>
+                           )}
+                           <option value="Outros">Outros</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Frequência</label>
+                         <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.frequency || 'Avulso'} onChange={e => setClientEditForm({...clientEditForm, frequency: e.target.value})}>
+                           <option value="Semanal">Semanal</option>
+                           <option value="Quinzenal">Quinzenal</option>
+                           <option value="Mensal">Mensal</option>
+                           <option value="Avulso">Avulso</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">CPF</label>
+                         <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.cpf || ''} onChange={e => setClientEditForm({...clientEditForm, cpf: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Data de Nascimento</label>
+                         <input required type="date" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.dob || ''} onChange={e => setClientEditForm({...clientEditForm, dob: e.target.value})} />
+                       </div>
+                    </div>
+                    <div>
+                       <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
+                         <span>Anotações / Prontuário</span>
+                         <span className="text-slate-400 font-normal">Campo privado</span>
+                       </label>
+                       <textarea className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white" value={clientEditForm.notes || ''} onChange={e => setClientEditForm({...clientEditForm, notes: e.target.value})} placeholder="Insira seu histórico, notas, evolução..."></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                       <button type="button" onClick={() => setEditingClientId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg bg-white border border-slate-200">Cancelar</button>
+                       <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
+                         <Plus className="w-4 h-4"/> Adicionar Paciente
+                       </button>
+                    </div>
+                  </form>
+               </div>
+             )}
+
+             {clients.length === 0 ? (
+               <p className="text-slate-500">Nenhum paciente cadastrado ainda.</p>
+             ) : filteredClients.length === 0 ? (
+               <p className="text-slate-500">Nenhum paciente encontrado na busca.</p>
+             ) : (
+               <div className="space-y-4">
+                 {filteredClients.map(client => {
+                   const clientAppts = appointments.filter(a => a.clientId === client.id);
+                   const filteredClientAppts = clientAppts.filter(a => {
+                     let match = true;
+                     if (sessionFilter !== 'all') {
+                        match = match && (a.paymentStatus || 'pending') === sessionFilter;
+                     }
+                     if (match && sessionMonthFilter !== 'all') {
+                        match = match && new Date(a.datetime).getMonth() === sessionMonthFilter;
+                     }
+                     if (match && sessionYearFilter !== 'all') {
+                        match = match && new Date(a.datetime).getFullYear() === sessionYearFilter;
+                     }
+                     return match;
+                   });
+                   return (
+                     <div key={client.id} className="border border-slate-200 rounded-xl p-4">
+                        {editingClientId === client.id ? (
+                          <form onSubmit={handleClientSave} className="space-y-4">
+                            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                               <h3 className="font-bold text-slate-900 text-lg">Editar Prontuário</h3>
+                               <button type="button" onClick={() => setEditingClientId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">Nome</label>
+                                 <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm" value={clientEditForm.name || ''} onChange={e => setClientEditForm({...clientEditForm, name: e.target.value})} />
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">E-mail</label>
+                                 <input required type="email" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm" value={clientEditForm.email || ''} onChange={e => setClientEditForm({...clientEditForm, email: e.target.value})} />
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">Telefone</label>
+                                 <input required type="tel" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm" value={clientEditForm.phone || ''} onChange={e => setClientEditForm({...clientEditForm, phone: e.target.value})} />
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
+                                 <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.source || 'Outros'} onChange={e => setClientEditForm({...clientEditForm, source: e.target.value})}>
+                                   <option value="Indicação de profissional">Indicação de profissional</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                                   <option value="Google/ Site">Google/ Site</option>
+                                   <option value="Pacientes">Pacientes</option>
+                                   {clients.length > 0 && (
+                                     <optgroup label="Pacientes Cadastrados">
+                                       {clients.map(c => (
+                                         <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
+                                       ))}
+                                     </optgroup>
+                                   )}
+                                   <option value="Outros">Outros</option>
+                                 </select>
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">Frequência</label>
+                                 <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.frequency || 'Avulso'} onChange={e => setClientEditForm({...clientEditForm, frequency: e.target.value})}>
+                                   <option value="Semanal">Semanal</option>
+                                   <option value="Quinzenal">Quinzenal</option>
+                                   <option value="Mensal">Mensal</option>
+                                   <option value="Avulso">Avulso</option>
+                                 </select>
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">CPF</label>
+                                 <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm" value={clientEditForm.cpf || ''} onChange={e => setClientEditForm({...clientEditForm, cpf: e.target.value})} />
+                               </div>
+                               <div>
+                                 <label className="block text-xs font-medium text-slate-700 mb-1">Data de Nascimento</label>
+                                 <input required type="date" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm" value={clientEditForm.dob || ''} onChange={e => setClientEditForm({...clientEditForm, dob: e.target.value})} />
+                               </div>
+                               <div className="flex items-center gap-2 mt-6">
+                                 <input type="checkbox" id={`active-${client.id}`} className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400" checked={clientEditForm.isActive} onChange={e => setClientEditForm({...clientEditForm, isActive: e.target.checked})} />
+                                 <label htmlFor={`active-${client.id}`} className="text-sm font-medium text-slate-700">Paciente Ativo</label>
+                               </div>
+                            </div>
+                            <div>
+                               <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
+                                 <span>Anotações / Prontuário</span>
+                                 <span className="text-slate-400 font-normal">Campo privado</span>
+                               </label>
+                               <textarea className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px]" value={clientEditForm.notes || ''} onChange={e => setClientEditForm({...clientEditForm, notes: e.target.value})} placeholder="Insira seu histórico, notas, evolução..."></textarea>
+                            </div>
+                            
+                            {(client.statusHistory && client.statusHistory.length > 0) && (
+                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600">
+                                 <p className="font-semibold mb-2">Histórico de Alterações de Status:</p>
+                                 <ul className="list-disc pl-4 space-y-1">
+                                    {(client.statusHistory as any[]).map((h, i) => (
+                                       <li key={i}>{format(new Date(h.date), "dd/MM/yyyy HH:mm")} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
+                                    ))}
+                                 </ul>
+                              </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                               <button type="button" onClick={() => setEditingClientId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Cancelar</button>
+                               <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
+                                 <Check className="w-4 h-4"/> Salvar Prontuário
+                               </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                       <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}>
+                         <div>
+                           <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                             {client.name}
+                             {(client.isActive ?? true) ? (
+                                <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
+                             ) : (
+                                <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
+                             )}
+                           </h3>
+                           <p className="text-sm text-slate-500 mt-1">{client.email} • {client.phone}</p>
+                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CPF: {client.cpf} • Nasc: {client.dob ? format(new Date(client.dob).getTime() + new Date(client.dob).getTimezoneOffset() * 60000, "dd/MM/yyyy") : '-'}</p>
+                           <div className="flex flex-wrap gap-2 items-center">
+                              <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
+                                 Fonte: {client.source || 'Não informada'}
+                              </span>
+                              <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide">
+                                 Frequência: {client.frequency || 'Avulso'}
+                              </span>
+                              {(client.lgpdAccepted || client.rulesAccepted) ? (
+                                 <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Termos Assinados Online
+                                 </span>
+                              ) : (
+                                 <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                    Adicionado Manualmente
+                                 </span>
+                              )}
+                           </div>
+                         </div>
+                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
+                           <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(client); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <Send className="w-4 h-4"/> Notificar
+                           </button>
+                           <button onClick={(e) => { e.stopPropagation(); handleClientEdit(client); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <User className="w-4 h-4"/> Editar
+                           </button>
+                           <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
+                             {expandedClientId === client.id ? 'Esconder Serviços' : 'Ver Histórico'}
+                           </span>
+                         </div>
+                       </div>
+                       
+                       {expandedClientId === client.id && (
+                       <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                          {client.notes && (
+                            <div className="mb-6 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100">
+                               <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2"><Settings className="w-4 h-4 text-slate-400" /> Anotações Gerais do Prontuário</h4>
+                               <p className="text-sm text-slate-700 whitespace-pre-wrap">{client.notes}</p>
+                            </div>
+                          )}
+
+                         <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end mb-4 gap-4">
+                            <div>
+                               <h4 className="text-sm font-bold text-slate-800 mb-2">Histórico de Serviços e Financeiro</h4>
+                               <div className="flex flex-wrap items-center gap-2">
+                                  <button onClick={() => setSessionFilter('all')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'all' ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200")}>Todas</button>
+                                  <button onClick={() => setSessionFilter('paid')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'paid' ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-emerald-700 border-emerald-200")}>Pagas</button>
+                                  <button onClick={() => setSessionFilter('pending')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'pending' ? "bg-amber-500 text-white border-amber-500" : "bg-white text-amber-700 border-amber-200")}>Pendentes</button>
+                                  <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+                                  <select value={sessionMonthFilter} onChange={e => setSessionMonthFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                     <option value="all">Mês: Todos</option>
+                                     {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
+                                         <option key={i} value={i}>{m}</option>
+                                     ))}
+                                  </select>
+                                  <select value={sessionYearFilter} onChange={e => setSessionYearFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                     <option value="all">Ano: Todos</option>
+                                     {[2024,2025,2026,2027,2028].map(y => (
+                                         <option key={y} value={y}>{y}</option>
+                                     ))}
+                                  </select>
+                               </div>
+                            </div>
+                            <button onClick={() => handleAddSession(client.id, client.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
+                               <Plus className="w-4 h-4" /> Novo Serviço
+                            </button>
+                         </div>
+
+                         {editingAppointmentId === 'new' && appointmentEditForm.clientId === client.id && (
+                            <form onSubmit={(e) => handleAppointmentSave(e, client.id)} className="bg-slate-50 p-4 pb-0 rounded-xl border border-slate-200 mb-4 animate-in fade-in">
+                               <h4 className="font-semibold text-slate-800 mb-3">Registrar Novo Serviço</h4>
+                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Data</label>
+                                     <input type="date" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.date} onChange={e => setAppointmentEditForm({...appointmentEditForm, date: e.target.value})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Hora</label>
+                                     <input type="time" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.time} onChange={e => setAppointmentEditForm({...appointmentEditForm, time: e.target.value})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Valor (R$)</label>
+                                     <input type="number" step="0.01" min="0" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.totalAmount} onChange={e => setAppointmentEditForm({...appointmentEditForm, totalAmount: Number(e.target.value)})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Status Financeiro</label>
+                                     <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.paymentStatus} onChange={e => setAppointmentEditForm({...appointmentEditForm, paymentStatus: e.target.value})}>
+                                        <option value="pending">Pendente</option>
+                                        <option value="paid">Pago</option>
+                                     </select>
+                                  </div>
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 text-sm">
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Modalidade</label>
+                                     <select className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.modality || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, modality: e.target.value})}>
+                                        <option value="">Selecione...</option>
+                                        <option value="On line">On line</option>
+                                        <option value="Presencial">Presencial</option>
+                                        <option value="Híbrido">Híbrido</option>
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Local / Conta Faturamento</label>
+                                     <input type="text" list="billingAccounts" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})} placeholder="Para onde foi pago..." />
+                                     <datalist id="billingAccounts">
+                                        <option value="Pix Nubank" />
+                                        <option value="Itaú Pessoa Física" />
+                                        <option value="Bradesco Jurídico" />
+                                        <option value="Dinheiro" />
+                                     </datalist>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Ajuste de Valor (Índice/Alíquota)</label>
+                                     <input type="text" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.priceAdjust || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, priceAdjust: e.target.value})} placeholder="Ex: IGPM, 5% descto..." />
+                                  </div>
+                               </div>
+                               <div className="mb-4 text-sm">
+                                  <label className="block text-slate-600 mb-1">Anotações do Serviço</label>
+                                  <textarea className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white" value={appointmentEditForm.notes} onChange={e => setAppointmentEditForm({...appointmentEditForm, notes: e.target.value})} placeholder="Resumo do atendimento, temas abordados..."></textarea>
+                               </div>
+                               <div className="flex justify-end gap-2 pb-4">
+                                  <button type="button" onClick={() => setEditingAppointmentId(null)} className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 border rounded">Cancelar</button>
+                                  <button type="submit" className="px-3 py-1.5 text-sm text-white bg-amber-500 hover:bg-amber-600 rounded transition">Salvar Serviço</button>
+                               </div>
+                            </form>
+                         )}
+
+                         <div className="w-full overflow-x-auto border border-slate-200 rounded-xl">
+                            <table className="w-full text-left text-sm text-slate-600 border-collapse min-w-[600px]">
+                               <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Detalhes do Serviço</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Data</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Valores / Status</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Anotações</th>
+                                     <th className="p-3 font-semibold text-slate-700 text-right w-[80px]">Ação</th>
+                                  </tr>
+                               </thead>
+                               <tbody>
+                                  {filteredClientAppts.sort((a,b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime()).map(ap => (
+                                     <React.Fragment key={ap.id}>
+                                       {editingAppointmentId === ap.id ? (
+                                          <tr className="bg-amber-50/50 border-b border-slate-100">
+                                             <td colSpan={5} className="p-4">
+                                                <form onSubmit={(e) => handleAppointmentSave(e, client.id)} className="flex flex-col gap-3">
+                                                   <div className="flex flex-wrap gap-3 items-center">
+                                                      <input type="date" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.date || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, date: e.target.value})} />
+                                                      <input type="time" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.time || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, time: e.target.value})} />
+                                                      <div className="flex items-center gap-1">
+                                                         <span className="text-slate-500">R$</span>
+                                                         <input type="number" step="0.01" min="0" required className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.totalAmount} onChange={e => setAppointmentEditForm({...appointmentEditForm, totalAmount: Number(e.target.value)})} />
+                                                      </div>
+                                                      <select required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.paymentStatus} onChange={e => setAppointmentEditForm({...appointmentEditForm, paymentStatus: e.target.value})}>
+                                                         <option value="pending">Pendente</option>
+                                                         <option value="paid">Pago</option>
+                                                      </select>
+                                                   </div>
+                                                   <div className="flex flex-wrap gap-3 items-center">
+                                                      <select className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px]" value={appointmentEditForm.modality || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, modality: e.target.value})}>
+                                                         <option value="">Modalidade...</option>
+                                                         <option value="On line">On line</option>
+                                                         <option value="Presencial">Presencial</option>
+                                                         <option value="Híbrido">Híbrido</option>
+                                                      </select>
+                                                      <input type="text" list="billingAccountsE" className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})} placeholder="Local / Conta..." />
+                                                      <datalist id="billingAccountsE">
+                                                         <option value="Pix Nubank" />
+                                                         <option value="Itaú Pessoa Física" />
+                                                         <option value="Bradesco Jurídico" />
+                                                         <option value="Dinheiro" />
+                                                      </datalist>
+                                                      <input type="text" className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.priceAdjust || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, priceAdjust: e.target.value})} placeholder="Índice / Alíquota" />
+                                                   </div>
+                                                   <div>
+                                                      <input type="text" placeholder="Anotações curtas..." className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.notes || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, notes: e.target.value})} />
+                                                   </div>
+                                                   <div className="flex gap-2 justify-end">
+                                                      <button type="button" onClick={() => setEditingAppointmentId(null)} className="px-3 py-1 text-slate-600 hover:bg-slate-200 border rounded text-xs font-medium">Cancelar</button>
+                                                      <button type="submit" className="px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-medium">Salvar</button>
+                                                   </div>
+                                                </form>
+                                             </td>
+                                          </tr>
+                                       ) : (
+                                          <tr className="border-b border-slate-100 hover:bg-slate-50 group transition-colors">
+                                             <td className="p-3 border-r border-slate-100 font-medium">
+                                                <p>{ap.serviceDescription || 'Sessão Padrão'}</p>
+                                                {(ap.modality || ap.billingAccount || ap.priceAdjust) && (
+                                                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                      {ap.modality && <span className="bg-slate-100 text-slate-600 px-1.5 border border-slate-200 py-0.5 rounded text-[10px] uppercase font-bold">{ap.modality}</span>}
+                                                      {ap.billingAccount && <span className="bg-amber-50 text-amber-600 px-1.5 border border-amber-200 py-0.5 rounded text-[10px] font-bold">{ap.billingAccount}</span>}
+                                                   </div>
+                                                )}
+                                             </td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{format(new Date(ap.datetime), "dd/MM/yyyy HH:mm")}</td>
+                                             <td className="p-3 border-r border-slate-100">
+                                                <div className="flex flex-col gap-1">
+                                                  <span className="text-sm font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>
+                                                  <div className="flex flex-wrap items-center gap-1">
+                                                    {ap.priceAdjust && <span className="bg-slate-800 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{ap.priceAdjust}</span>}
+                                                    {ap.paymentStatus === 'paid' ? (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">Pago</span>
+                                                    ) : (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold items-center gap-1">Pgto Pend.</span>
+                                                    )}
+                                                    {ap.invoiceStatus === 'issued' ? (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">NF Emitida</span>
+                                                    ) : (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold items-center gap-1">NF Pend.</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                             </td>
+                                             <td className="p-3 border-r border-slate-100 text-xs text-slate-600">
+                                                <div className="italic mb-1" title={ap.notes}>{ap.notes || '-'}</div>
+                                                {ap.documents?.length > 0 && (
+                                                   <div className="flex flex-col gap-1 mt-1">
+                                                      {ap.documents.map((doc: any, i: number) => (
+                                                         <a key={i} href={doc.url} target="_blank" rel="noreferrer" className="text-amber-500 hover:underline flex items-center gap-1 truncate max-w-[200px]" title={doc.name}>
+                                                            <Upload className="w-3 h-3" /> {doc.name}
+                                                         </a>
+                                                      ))}
+                                                   </div>
+                                                )}
+                                             </td>
+                                             <td className="p-3 text-right whitespace-nowrap">
+                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                                                   <label className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition cursor-pointer relative" title="Upload Comprovante/Doc">
+                                                      {uploadingAppointmentId === ap.id ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Upload className="w-4 h-4" />}
+                                                      <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, ap.id)} disabled={uploadingAppointmentId === ap.id} />
+                                                   </label>
+                                                   <button onClick={() => handleEditSession(ap)} className="p-1.5 text-amber-500 hover:bg-amber-100 rounded-lg transition" title="Editar"><Edit2 className="w-4 h-4"/></button>
+                                                   <button onClick={() => handleAppointmentDelete(ap.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition" title="Excluir"><Trash2 className="w-4 h-4"/></button>
+                                                </div>
+                                             </td>
+                                          </tr>
+                                       )}
+                                     </React.Fragment>
+                                  ))}
+                                  {filteredClientAppts.length === 0 && editingAppointmentId !== 'new' && (
+                                     <tr>
+                                        <td colSpan={5} className="p-6 text-center text-slate-500 bg-slate-50/50">Nenhuma sessão encontrada para este filtro.</td>
+                                     </tr>
+                                  )}
+                               </tbody>
+                            </table>
+                            {filteredClientAppts.length > 0 && sessionFilter === 'pending' && (
+                               <div className="bg-amber-50 p-4 flex flex-col sm:flex-row justify-between items-center text-sm border-t border-amber-100">
+                                  <span className="font-semibold text-amber-800">Total Pendente:</span>
+                                  <span className="font-bold text-amber-900 text-xl">
+                                     R$ {filteredClientAppts.filter((a: any) => (a.paymentStatus || 'pending') === 'pending').reduce((acc: number, curr: any) => acc + Number(curr.totalAmount || 0), 0).toFixed(2).replace('.', ',')}
+                                  </span>
+                               </div>
+                            )}
+                            {filteredClientAppts.length > 0 && sessionFilter === 'paid' && (
+                               <div className="bg-emerald-50 p-4 flex flex-col sm:flex-row justify-between items-center text-sm border-t border-emerald-100">
+                                  <span className="font-semibold text-emerald-800">Total Pago (Período/Histórico):</span>
+                                  <span className="font-bold text-emerald-900 text-xl">
+                                     R$ {filteredClientAppts.filter((a: any) => (a.paymentStatus || 'pending') === 'paid').reduce((acc: number, curr: any) => acc + Number(curr.totalAmount || 0), 0).toFixed(2).replace('.', ',')}
+                                  </span>
+                               </div>
+                            )}
+                         </div>
+                       </div>
+                       )}
+                          </>
+                        )}
+                     </div>
+                   );
+                 })}
+               </div>
+             )}
+          </div>
+        )}
+
+        {activeTab === 'empresas' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+               <div>
+                  <h2 className="text-xl font-bold text-slate-800">Gestão de Empresas</h2>
+                  <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                     Seu link de cadastro: 
+                     <button 
+                        onClick={() => {
+                           navigator.clipboard.writeText(`${window.location.origin}/?register_company=${userId}`);
+                           alert('Link copiado!');
+                        }}
+                        className="text-amber-500 hover:underline font-medium"
+                     >Copiar Link</button>
+                  </p>
+               </div>
+               <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                 <select 
+                   value={companyGlobalInvoiceFilter} 
+                   onChange={e => setCompanyGlobalInvoiceFilter(e.target.value as any)}
+                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                 >
+                   <option value="all">NF Geral</option>
+                   <option value="issued">C/ NF Emitida</option>
+                   <option value="pending">C/ NF Pendente</option>
+                 </select>
+                 <select 
+                   value={companySourceFilter} 
+                   onChange={e => setCompanySourceFilter(e.target.value)}
+                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                 >
+                   <option value="all">Todas as fontes</option>
+                   <option value="Indicação de profissional">Indicação de profissional</option>
+                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                   <option value="Google/ Site">Google/ Site</option>
+                   <option value="Empresas">Empresas</option>
+                   <option value="Outros">Outros</option>
+                 </select>
+                 <input 
+                   type="text" 
+                   placeholder="Buscar por nome ou e-mail..." 
+                   className="w-full sm:w-64 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm"
+                   value={companySearchText}
+                   onChange={e => setCompanySearchText(e.target.value)}
+                 />
+                 <button onClick={() => { setCompanyEditForm({ isActive: true }); setEditingCompanyId('new'); }} className="bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Empresa Manualmente">
+                   <Plus className="w-5 h-5"/>
+                 </button>
+               </div>
+             </div>
+
+             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
+                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                      Faturamento e Filtros (Período)
+                   </h3>
+                   <div className="flex flex-wrap items-center gap-2">
+                      <select value={filterMonth} onChange={e => setFilterMonth(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                         {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                             <option key={i} value={i}>{m}</option>
+                         ))}
+                      </select>
+                      <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                         {[2023,2024,2025,2026,2027,2028].map(y => (
+                             <option key={y} value={y}>{y}</option>
+                         ))}
+                      </select>
+                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'all' ? "bg-white border-amber-400 ring-1 ring-blue-400" : "bg-white border-slate-200 hover:border-slate-300")} onClick={() => setGlobalBillingFilter('all')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-slate-500 font-medium mb-1">Total do Mês (Previsto)</p>
+                         <p className="text-2xl font-bold text-slate-800">R$ {(totalCompanyPaidInPeriod + totalCompanyPendingInPeriod).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'all' && <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />}
+                   </div>
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'paid' ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400" : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50")} onClick={() => setGlobalBillingFilter('paid')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-emerald-700 font-medium mb-1">Recebido</p>
+                         <p className="text-2xl font-bold text-emerald-900">R$ {totalCompanyPaidInPeriod.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'paid' && <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />}
+                   </div>
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'pending' ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400" : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50")} onClick={() => setGlobalBillingFilter('pending')}>
+                      <div className="z-10 relative">
+                         <p className="text-sm text-amber-700 font-medium mb-1">Pendente (À receber)</p>
+                         <p className="text-2xl font-bold text-amber-900">R$ {totalCompanyPendingInPeriod.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      {globalBillingFilter === 'pending' && <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />}
+                   </div>
+                </div>
+                {globalBillingFilter !== 'all' && (
+                   <p className="text-xs text-slate-500 mt-4 text-center">
+                      Exibindo apenas empresas com faturamento <strong>{globalBillingFilter === 'paid' ? 'concluído (pago)' : 'pendente'}</strong> no período selecionado.
+                   </p>
+                )}
+             </div>
+             
+             <CostManager costsStr={profileData?.companyCostsStr} type="companyCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, companyCostsStr: val})} />
+
+             {editingCompanyId === 'new' && (
+               <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
+                  <form onSubmit={handleCompanySave} className="space-y-4">
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                       <h3 className="font-bold text-slate-900 text-lg">Nova Empresa</h3>
+                       <button type="button" onClick={() => setEditingCompanyId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="md:col-span-2">
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Razão Social</label>
+                         <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.name || ''} onChange={e => setCompanyEditForm({...companyEditForm, name: e.target.value})} />
+                       </div>
+                       <div className="md:col-span-2">
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Nome Fantasia</label>
+                         <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.tradeName || ''} onChange={e => setCompanyEditForm({...companyEditForm, tradeName: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">CNPJ</label>
+                         <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.cnpj || ''} onChange={e => setCompanyEditForm({...companyEditForm, cnpj: e.target.value})} />
+                       </div>
+                       <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="col-span-12 md:col-span-10">
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Logradouro / Rua</label>
+                            <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressStreet || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressStreet: e.target.value})} />
+                          </div>
+                          <div className="col-span-12 md:col-span-2">
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Número</label>
+                            <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressNumber || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressNumber: e.target.value})} />
+                          </div>
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">CEP</label>
+                         <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressZipcode || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressZipcode: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Cidade - UF</label>
+                         <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressCity || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressCity: e.target.value})} placeholder="Ex: Pouso Alegre - MG" />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Pessoa de Contato</label>
+                         <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.contactPerson || ''} onChange={e => setCompanyEditForm({...companyEditForm, contactPerson: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Departamento</label>
+                         <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.department || ''} onChange={e => setCompanyEditForm({...companyEditForm, department: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Telefone</label>
+                         <input required type="tel" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.phone || ''} onChange={e => setCompanyEditForm({...companyEditForm, phone: e.target.value})} />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1">E-mail</label>
+                         <input required type="email" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.email || ''} onChange={e => setCompanyEditForm({...companyEditForm, email: e.target.value})} />
+                       </div>
+                       <div className="md:col-span-2">
+                         <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
+                         <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.source || 'Outros'} onChange={e => setCompanyEditForm({...companyEditForm, source: e.target.value})}>
+                           <option value="Indicação de profissional">Indicação de profissional</option>
+                           <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                           <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                           <option value="Google/ Site">Google/ Site</option>
+                           <option value="Empresas">Empresas</option>
+                           {clients.length > 0 && (
+                             <optgroup label="Pacientes Cadastrados">
+                               {clients.map(c => (
+                                 <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
+                               ))}
+                             </optgroup>
+                           )}
+                           <option value="Outros">Outros</option>
+                         </select>
+                       </div>
+                    </div>
+                    <div>
+                       <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
+                         <span>Anotações</span>
+                         <span className="text-slate-400 font-normal">Campo privado</span>
+                       </label>
+                       <textarea className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white" value={companyEditForm.notes || ''} onChange={e => setCompanyEditForm({...companyEditForm, notes: e.target.value})} placeholder="Insira suas anotações..."></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                       <button type="button" onClick={() => setEditingCompanyId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg bg-white border border-slate-200">Cancelar</button>
+                       <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
+                         <Plus className="w-4 h-4"/> Adicionar Empresa
+                       </button>
+                    </div>
+                  </form>
+               </div>
+             )}
+
+             {companies.length === 0 ? (
+               <p className="text-slate-500">Nenhum empresa cadastrado ainda.</p>
+             ) : filteredCompanies.length === 0 ? (
+               <p className="text-slate-500">Nenhum empresa encontrado na busca.</p>
+             ) : (
+               <div className="space-y-4">
+                 {filteredCompanies.map(company => {
+                   const companyAppts = companyAppointments.filter(a => a.companyId === company.id);
+                   const filteredCompanyAppts = companyAppts.filter(a => {
+                     let match = true;
+                     if (sessionFilter !== 'all') {
+                        match = match && (a.paymentStatus || 'pending') === sessionFilter;
+                     }
+                     if (match && companySessionInvoiceFilter !== 'all') {
+                        match = match && (a.invoiceStatus || 'pending') === companySessionInvoiceFilter;
+                     }
+                     if (match && sessionMonthFilter !== 'all') {
+                        match = match && new Date(a.datetime).getMonth() === sessionMonthFilter;
+                     }
+                     if (match && sessionYearFilter !== 'all') {
+                        match = match && new Date(a.datetime).getFullYear() === sessionYearFilter;
+                     }
+                     return match;
+                   });
+                   return (
+                     <div key={company.id} className="border border-slate-200 rounded-xl p-4">
+                        {editingCompanyId === company.id ? (
+                          <form onSubmit={handleCompanySave} className="space-y-4">
+                            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                               <h3 className="font-bold text-slate-900 text-lg">Editar Prontuário</h3>
+                               <button type="button" onClick={() => setEditingCompanyId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                            </div>                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="md:col-span-2">
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Razão Social</label>
+                                <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.name || ''} onChange={e => setCompanyEditForm({...companyEditForm, name: e.target.value})} />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Nome Fantasia</label>
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.tradeName || ''} onChange={e => setCompanyEditForm({...companyEditForm, tradeName: e.target.value})} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">CNPJ</label>
+                                <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.cnpj || ''} onChange={e => setCompanyEditForm({...companyEditForm, cnpj: e.target.value})} />
+                              </div>
+                              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-12 gap-4">
+                                 <div className="col-span-12 md:col-span-10">
+                                   <label className="block text-xs font-medium text-slate-700 mb-1">Logradouro / Rua</label>
+                                   <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressStreet || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressStreet: e.target.value})} />
+                                 </div>
+                                 <div className="col-span-12 md:col-span-2">
+                                   <label className="block text-xs font-medium text-slate-700 mb-1">Número</label>
+                                   <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressNumber || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressNumber: e.target.value})} />
+                                 </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">CEP</label>
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressZipcode || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressZipcode: e.target.value})} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Cidade - UF</label>
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.addressCity || ''} onChange={e => setCompanyEditForm({...companyEditForm, addressCity: e.target.value})} placeholder="Ex: Pouso Alegre - MG" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Pessoa de Contato</label>
+                                <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.contactPerson || ''} onChange={e => setCompanyEditForm({...companyEditForm, contactPerson: e.target.value})} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Departamento</label>
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.department || ''} onChange={e => setCompanyEditForm({...companyEditForm, department: e.target.value})} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Telefone</label>
+                                <input required type="tel" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.phone || ''} onChange={e => setCompanyEditForm({...companyEditForm, phone: e.target.value})} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">E-mail</label>
+                                <input required type="email" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.email || ''} onChange={e => setCompanyEditForm({...companyEditForm, email: e.target.value})} />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
+                                <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.source || 'Outros'} onChange={e => setCompanyEditForm({...companyEditForm, source: e.target.value})}>
+                                  <option value="Indicação de profissional">Indicação de profissional</option>
+                                  <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
+                                  <option value="Google/ Site">Google/ Site</option>
+                                  <option value="Empresas">Empresas</option>
+                                  {clients.length > 0 && (
+                                    <optgroup label="Pacientes Cadastrados">
+                                      {clients.map(c => (
+                                        <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  <option value="Outros">Outros</option>
+                                </select>
+                              </div>
+                              <div className="md:col-span-2 flex items-center gap-2 mt-6">
+                                <input type="checkbox" id={`active-${company.id}`} className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400" checked={companyEditForm.isActive} onChange={e => setCompanyEditForm({...companyEditForm, isActive: e.target.checked})} />
+                                <label htmlFor={`active-${company.id}`} className="text-sm font-medium text-slate-700">Empresa Ativa</label>
+                              </div>
+                            </div>
+                            <div>
+                               <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
+                                 <span>Anotações</span>
+                                 <span className="text-slate-400 font-normal">Campo privado</span>
+                               </label>
+                               <textarea className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px]" value={companyEditForm.notes || ''} onChange={e => setCompanyEditForm({...companyEditForm, notes: e.target.value})} placeholder="Insira suas anotações..."></textarea>
+                            </div>
+                            
+                            {(company.statusHistory && company.statusHistory.length > 0) && (
+                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600">
+                                 <p className="font-semibold mb-2">Histórico de Alterações de Status:</p>
+                                 <ul className="list-disc pl-4 space-y-1">
+                                    {(company.statusHistory as any[]).map((h, i) => (
+                                       <li key={i}>{format(new Date(h.date), "dd/MM/yyyy HH:mm")} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
+                                    ))}
+                                 </ul>
+                              </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                               <button type="button" onClick={() => setEditingCompanyId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Cancelar</button>
+                               <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
+                                 <Check className="w-4 h-4"/> Salvar Prontuário
+                               </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                       <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => setExpandedCompanyId(expandedCompanyId === company.id ? null : company.id)}>
+                         <div>
+                           <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                             {company.name}
+                             {(company.isActive ?? true) ? (
+                                <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
+                             ) : (
+                                <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
+                             )}
+                           </h3>
+                           <p className="text-sm text-slate-500 mt-1">{company.email} • {company.phone}</p>
+                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CNPJ: {company.cnpj} • Contato: {company.contactPerson || '-'} • Depto: {company.department || '-'}</p>
+                           <div className="flex flex-wrap gap-2 items-center">
+                              <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
+                                 Fonte: {company.source || 'Não informada'}
+                              </span>
+                              {(company.lgpdAccepted || company.rulesAccepted) ? (
+                                 <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Termos Assinados Online
+                                 </span>
+                              ) : (
+                                 <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                    Adicionado Manualmente
+                                 </span>
+                              )}
+                           </div>
+                         </div>
+                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
+                           <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(company); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <Send className="w-4 h-4"/> Notificar
+                           </button>
+                           <button onClick={(e) => { e.stopPropagation(); handleCompanyEdit(company); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <User className="w-4 h-4"/> Editar
+                           </button>
+                           <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
+                             {expandedCompanyId === company.id ? 'Esconder Serviços' : 'Ver Histórico'}
+                           </span>
+                         </div>
+                       </div>
+                       
+                       {expandedCompanyId === company.id && (
+                       <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                          {company.notes && (
+                            <div className="mb-6 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100">
+                               <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2"><Settings className="w-4 h-4 text-slate-400" /> Anotações Gerais do Prontuário</h4>
+                               <p className="text-sm text-slate-700 whitespace-pre-wrap">{company.notes}</p>
+                            </div>
+                          )}
+
+                         <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end mb-4 gap-4">
+                            <div>
+                               <h4 className="text-sm font-bold text-slate-800 mb-2">Histórico de Serviços e Financeiro</h4>
+                               <div className="flex flex-wrap items-center gap-2">
+                                  <button onClick={() => setSessionFilter('all')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'all' ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200")}>Todas</button>
+                                  <button onClick={() => setSessionFilter('paid')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'paid' ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-emerald-700 border-emerald-200")}>Pagas</button>
+                                  <button onClick={() => setSessionFilter('pending')} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border", sessionFilter === 'pending' ? "bg-amber-500 text-white border-amber-500" : "bg-white text-amber-700 border-amber-200")}>Pendentes</button>
+                                  <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+                                  <select value={sessionMonthFilter} onChange={e => setSessionMonthFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                     <option value="all">Mês: Todos</option>
+                                     {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
+                                         <option key={i} value={i}>{m}</option>
+                                     ))}
+                                  </select>
+                                  <select value={sessionYearFilter} onChange={e => setSessionYearFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                     <option value="all">Ano: Todos</option>
+                                     {[2024,2025,2026,2027,2028].map(y => (
+                                         <option key={y} value={y}>{y}</option>
+                                     ))}
+                                  </select>
+                               </div>
+                            </div>
+                            <button onClick={() => handleAddCompanySession(company.id, company.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
+                               <Plus className="w-4 h-4" /> Novo Serviço
+                            </button>
+                         </div>
+
+                         {editingCompanyAppointmentId === 'new' && companyAppointmentEditForm.companyId === company.id && (
+                            <form onSubmit={(e) => handleCompanyAppointmentSave(e, company.id)} className="bg-slate-50 p-4 pb-0 rounded-xl border border-slate-200 mb-4 animate-in fade-in">
+                               <h4 className="font-semibold text-slate-800 mb-3">Registrar Novo Serviço</h4>
+                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
+                                  <div className="md:col-span-2">
+                                     <label className="block text-slate-600 mb-1">Descrição do serviço prestado</label>
+                                     <input type="text" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.serviceDescription || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, serviceDescription: e.target.value})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Data</label>
+                                     <input type="date" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.date} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, date: e.target.value})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Valor (R$)</label>
+                                     <input type="number" step="0.01" min="0" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.totalAmount} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, totalAmount: Number(e.target.value)})} />
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Status Financeiro</label>
+                                     <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.paymentStatus} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, paymentStatus: e.target.value})}>
+                                        <option value="pending">Pendente</option>
+                                        <option value="paid">Pago</option>
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">NF Emitida</label>
+                                     <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.invoiceStatus || 'pending'} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, invoiceStatus: e.target.value})}>
+                                        <option value="pending">Pendente / Não Emitida</option>
+                                        <option value="issued">Emitida</option>
+                                     </select>
+                                  </div>
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 text-sm">
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Modalidade</label>
+                                     <select className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.modality || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, modality: e.target.value})}>
+                                        <option value="">Selecione...</option>
+                                        <option value="On line">On line</option>
+                                        <option value="Presencial">Presencial</option>
+                                        <option value="Híbrido">Híbrido</option>
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Local / Conta Faturamento</label>
+                                     <input type="text" list="companyBillingAccounts" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})} placeholder="Para onde foi pago..." />
+                                     <datalist id="companyBillingAccounts">
+                                        <option value="Pix PJ" />
+                                        <option value="Bradesco PJ" />
+                                        <option value="Boleto" />
+                                     </datalist>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1">Ajuste de Valor (Índice/Alíquota)</label>
+                                     <input type="text" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.priceAdjust || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, priceAdjust: e.target.value})} placeholder="Ex: ISS, Retenção..." />
+                                  </div>
+                               </div>
+                               <div className="mb-4 text-sm">
+                                  <label className="block text-slate-600 mb-1">Anotações do Serviço</label>
+                                  <textarea className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white" value={companyAppointmentEditForm.notes} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, notes: e.target.value})} placeholder="Resumo do atendimento, temas abordados..."></textarea>
+                               </div>
+                               <div className="flex justify-end gap-2 pb-4">
+                                  <button type="button" onClick={() => setEditingCompanyAppointmentId(null)} className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 border rounded">Cancelar</button>
+                                  <button type="submit" className="px-3 py-1.5 text-sm text-white bg-amber-500 hover:bg-amber-600 rounded transition">Salvar Serviço</button>
+                               </div>
+                            </form>
+                         )}
+
+                         <div className="w-full overflow-x-auto border border-slate-200 rounded-xl">
+                            <table className="w-full text-left text-sm text-slate-600 border-collapse min-w-[600px]">
+                               <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Detalhes do Serviço</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Data</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Valores / Status</th>
+                                     <th className="p-3 font-semibold text-slate-700 border-r border-slate-200">Anotações</th>
+                                     <th className="p-3 font-semibold text-slate-700 text-right w-[80px]">Ação</th>
+                                  </tr>
+                               </thead>
+                               <tbody>
+                                  {filteredCompanyAppts.sort((a,b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime()).map(ap => (
+                                     <React.Fragment key={ap.id}>
+                                        {editingCompanyAppointmentId === ap.id ? (
+                                          <tr className="bg-amber-50/50 border-b border-slate-100">
+                                             <td colSpan={5} className="p-4">
+                                                <form onSubmit={(e) => handleCompanyAppointmentSave(e, company.id)} className="flex flex-col gap-3">
+                                                   <div className="flex flex-wrap gap-3 items-center">
+                                                      <input type="text" placeholder="Serviço prestado..." required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-grow" value={companyAppointmentEditForm.serviceDescription || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, serviceDescription: e.target.value})} />
+                                                      <input type="date" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.date || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, date: e.target.value})} />
+                                                      <div className="flex items-center gap-1">
+                                                         <span className="text-slate-500">R$</span>
+                                                         <input type="number" step="0.01" min="0" required className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.totalAmount} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, totalAmount: Number(e.target.value)})} />
+                                                      </div>
+                                                      <select required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.paymentStatus} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, paymentStatus: e.target.value})}>
+                                                         <option value="pending">Pgto Pendente</option>
+                                                         <option value="paid">Pgto Pago</option>
+                                                      </select>
+                                                      <select required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.invoiceStatus || 'pending'} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, invoiceStatus: e.target.value})}>
+                                                         <option value="pending">NF Pendente</option>
+                                                         <option value="issued">NF Emitida</option>
+                                                      </select>
+                                                   </div>
+                                                   <div className="flex flex-wrap gap-3 items-center">
+                                                      <select className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px]" value={companyAppointmentEditForm.modality || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, modality: e.target.value})}>
+                                                         <option value="">Modalidade...</option>
+                                                         <option value="On line">On line</option>
+                                                         <option value="Presencial">Presencial</option>
+                                                         <option value="Híbrido">Híbrido</option>
+                                                      </select>
+                                                      <input type="text" list="companyBillingAccountsET" className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})} placeholder="Local / Conta..." />
+                                                      <datalist id="companyBillingAccountsET">
+                                                         <option value="Pix PJ" />
+                                                         <option value="Bradesco PJ" />
+                                                         <option value="Boleto" />
+                                                      </datalist>
+                                                      <input type="text" className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.priceAdjust || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, priceAdjust: e.target.value})} placeholder="Índice / Alíquota" />
+                                                   </div>
+                                                   <div>
+                                                      <input type="text" placeholder="Anotações curtas..." className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.notes || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, notes: e.target.value})} />
+                                                   </div>
+                                                   <div className="flex gap-2 justify-end">
+                                                      <button type="button" onClick={() => setEditingCompanyAppointmentId(null)} className="px-3 py-1 text-slate-600 hover:bg-slate-200 border rounded text-xs font-medium">Cancelar</button>
+                                                      <button type="submit" className="px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-medium">Salvar</button>
+                                                   </div>
+                                                </form>
+                                             </td>
+                                          </tr>
+                                       ) : (
+                                          <tr className="border-b border-slate-100 hover:bg-slate-50 group transition-colors">
+                                             <td className="p-3 border-r border-slate-100 font-medium">
+                                                <p>{ap.serviceDescription || '-'}</p>
+                                                {(ap.modality || ap.billingAccount || ap.priceAdjust) && (
+                                                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                      {ap.modality && <span className="bg-slate-100 text-slate-600 px-1.5 border border-slate-200 py-0.5 rounded text-[10px] uppercase font-bold">{ap.modality}</span>}
+                                                      {ap.billingAccount && <span className="bg-amber-50 text-amber-600 px-1.5 border border-amber-200 py-0.5 rounded text-[10px] font-bold">{ap.billingAccount}</span>}
+                                                   </div>
+                                                )}
+                                             </td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{format(new Date(ap.datetime), "dd/MM/yyyy")}</td>
+                                             <td className="p-3 border-r border-slate-100">
+                                                <div className="flex flex-col gap-2">
+                                                  <span className="font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    {ap.priceAdjust && <span className="bg-slate-800 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{ap.priceAdjust}</span>}
+                                                    {ap.paymentStatus === 'paid' ? (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">Pago</span>
+                                                    ) : (
+                                                       <span className="inline-flex px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold items-center gap-1">Pendente</span>
+                                                    )}
+                                                    <select 
+                                                      className="text-[10px] p-0.5 border-slate-200 rounded outline-none" 
+                                                      value={ap.invoiceStatus || 'pending'} 
+                                                      onChange={(e) => handleCompanyInvoiceStatusChange(ap.id, e.target.value)}
+                                                    >
+                                                      <option value="pending">NF Pendente</option>
+                                                      <option value="issued">NF Emitida</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                             </td>
+                                             <td className="p-3 border-r border-slate-100 text-xs text-slate-600">
+                                                <div className="italic mb-1" title={ap.notes}>{ap.notes || '-'}</div>
+                                                {ap.documents?.length > 0 && (
+                                                   <div className="flex flex-col gap-1 mt-1">
+                                                      {ap.documents.map((doc: any, i: number) => (
+                                                         <a key={i} href={doc.url} target="_blank" rel="noreferrer" className="text-amber-500 hover:underline flex items-center gap-1 truncate max-w-[200px]" title={doc.name}>
+                                                            <Upload className="w-3 h-3" /> {doc.name}
+                                                         </a>
+                                                      ))}
+                                                   </div>
+                                                )}
+                                             </td>
+                                             <td className="p-3 text-right whitespace-nowrap">
+                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                                                   <label className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition cursor-pointer relative" title="Upload Comprovante/Doc">
+                                                      {uploadingAppointmentId === ap.id ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Upload className="w-4 h-4" />}
+                                                      <input type="file" className="hidden" onChange={(e) => handleCompanyFileUpload(e, ap.id)} disabled={uploadingAppointmentId === ap.id} />
+                                                   </label>
+                                                   <button onClick={() => handleEditCompanySession(ap)} className="p-1.5 text-amber-500 hover:bg-amber-100 rounded-lg transition" title="Editar"><Edit2 className="w-4 h-4"/></button>
+                                                   <button onClick={() => handleCompanyAppointmentDelete(ap.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition" title="Excluir"><Trash2 className="w-4 h-4"/></button>
+                                                </div>
+                                             </td>
+                                          </tr>
+                                       )}
+                                     </React.Fragment>
+                                  ))}
+                                  {filteredCompanyAppts.length === 0 && editingCompanyAppointmentId !== 'new' && (
+                                     <tr>
+                                        <td colSpan={5} className="p-6 text-center text-slate-500 bg-slate-50/50">Nenhuma sessão encontrada para este filtro.</td>
+                                     </tr>
+                                  )}
+                               </tbody>
+                            </table>
+                            {filteredCompanyAppts.length > 0 && sessionFilter === 'pending' && (
+                               <div className="bg-amber-50 p-4 flex flex-col sm:flex-row justify-between items-center text-sm border-t border-amber-100">
+                                  <span className="font-semibold text-amber-800">Total Pendente:</span>
+                                  <span className="font-bold text-amber-900 text-xl">
+                                     R$ {filteredCompanyAppts.filter((a: any) => (a.paymentStatus || 'pending') === 'pending').reduce((acc: number, curr: any) => acc + Number(curr.totalAmount || 0), 0).toFixed(2).replace('.', ',')}
+                                  </span>
+                               </div>
+                            )}
+                            {filteredCompanyAppts.length > 0 && sessionFilter === 'paid' && (
+                               <div className="bg-emerald-50 p-4 flex flex-col sm:flex-row justify-between items-center text-sm border-t border-emerald-100">
+                                  <span className="font-semibold text-emerald-800">Total Pago (Período/Histórico):</span>
+                                  <span className="font-bold text-emerald-900 text-xl">
+                                     R$ {filteredCompanyAppts.filter((a: any) => (a.paymentStatus || 'pending') === 'paid').reduce((acc: number, curr: any) => acc + Number(curr.totalAmount || 0), 0).toFixed(2).replace('.', ',')}
+                                  </span>
+                               </div>
+                            )}
+                         </div>
+                       </div>
+                       )}
+                          </>
+                        )}
+                     </div>
+                   );
+                 })}
+               </div>
+             )}
+          </div>
+        )}
+
+        
+        {activeTab === 'avaliacoes' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">Moderação de Avaliações</h2>
+            {reviews.length === 0 ? (
+               <p className="text-slate-500">Nenhuma avaliação recebida.</p>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map(rev => (
+                  <div key={rev.id} className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-slate-900 mb-1">{rev.authorName}</p>
+                      <p className="text-slate-600 italic text-sm mb-2">"{rev.content}"</p>
+                      <span className={cn(
+                        "text-xs font-semibold px-2 py-1 rounded inline-block",
+                        rev.status === 'pending' && "bg-amber-100 text-amber-700",
+                        rev.status === 'approved' && "bg-emerald-100 text-emerald-700",
+                        rev.status === 'hidden' && "bg-slate-100 text-slate-700"
+                      )}>Status: {rev.status}</span>
+                    </div>
+                    {rev.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleReviewAction(rev.id, 'approved')} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg transition" title="Aprovar">
+                          <Check className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="Ocultar">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                    {rev.status === 'approved' && (
+                       <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="text-sm text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition">Ocultar</button>
+                    )}
+                    {rev.status === 'hidden' && (
+                       <button onClick={() => handleReviewAction(rev.id, 'approved')} className="text-sm border border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition">Desocultar</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'automacoes' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+               <Zap className="w-5 h-5 text-amber-500"/> Integração com Webhooks (Zapier, Make, etc)
+            </h2>
+            <p className="text-sm text-slate-600 mb-6">
+               Configure um Webhook para sincronizar automaticamente os dados dos seus pacientes e sessões com outras ferramentas em tempo real. Sempre que um paciente ou sessão for adicionado, editado ou excluído, enviaremos um POST para a URL configurada abaixo.
+            </p>
+            
+            <form onSubmit={handleProfileSave} className="space-y-6">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <label className="block text-sm font-medium text-slate-700 mb-2">URL do Webhook</label>
+                <input 
+                   type="url" 
+                   className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white" 
+                   value={editForm.webhookUrl || ''} 
+                   onChange={e => setEditForm({...editForm, webhookUrl: e.target.value})} 
+                   placeholder="Ex: https://hooks.zapier.com/hooks/catch/..." 
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                   Deixe em branco para desativar a sincronização automática.
+                </p>
+              </div>
+              
+              <div className="flex justify-end pt-2">
+                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition flex items-center gap-2">
+                  {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                  Salvar Webhook
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-8 border-t border-slate-100 pt-8">
+               <h3 className="font-bold text-slate-800 mb-4">Como funciona?</h3>
+               <div className="text-sm text-slate-600 space-y-4">
+                  <p>Enviaremos um JSON no corpo da requisição POST com a seguinte estrutura:</p>
+                  <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-xs font-mono">
+{`{
+  "event": "appointment_created", // ou patient_created, appointment_updated...
+  "data": {
+    "id": "...", 
+    // dados do paciente ou sessão
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}`}
+                  </pre>
+               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Export Modal */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl flex flex-col">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur z-10">
+                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Download className="w-5 h-5 text-amber-500"/>
+                    Exportar Pacientes
+                 </h2>
+                 <button onClick={() => setExportModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition">
+                    <X className="w-5 h-5"/>
+                 </button>
+              </div>
+              <div className="p-6 flex-1 space-y-4">
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Mês (Sessões)</label>
+                    <select className="w-full p-2 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm bg-white" value={exportMonth} onChange={e => setExportMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                       <option value="all">Todos os Meses</option>
+                       <option value="0">Janeiro</option>
+                       <option value="1">Fevereiro</option>
+                       <option value="2">Março</option>
+                       <option value="3">Abril</option>
+                       <option value="4">Maio</option>
+                       <option value="5">Junho</option>
+                       <option value="6">Julho</option>
+                       <option value="7">Agosto</option>
+                       <option value="8">Setembro</option>
+                       <option value="9">Outubro</option>
+                       <option value="10">Novembro</option>
+                       <option value="11">Dezembro</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Ano (Sessões)</label>
+                    <select className="w-full p-2 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm bg-white" value={exportYear} onChange={e => setExportYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                       <option value="all">Todos os Anos</option>
+                       {Array.from(new Set([...appointments.map(a => new Date(a.datetime).getFullYear()), new Date().getFullYear()])).sort().map(year => (
+                         <option key={year} value={year}>{year}</option>
+                       ))}
+                    </select>
+                 </div>
+                 <p className="text-xs text-slate-500 mt-4 leading-relaxed">
+                   Será gerada uma planilha com todos os pacientes. Pacientes com sessões no período selecionado terão essas sessões desmembradas em linhas, facilitando o acompanhamento detalhado.
+                 </p>
+              </div>
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
+                 <button onClick={executeExportToDrive} disabled={isExportingDrive} className="w-full px-4 py-2.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 shadow-sm">
+                    {isExportingDrive ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Upload className="w-4 h-4"/>}
+                    {isExportingDrive ? 'Salvando...' : 'Salvar direto no Google Drive'}
+                 </button>
+                 <div className="flex justify-end gap-3">
+                    <button onClick={() => setExportModalOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-200 border border-slate-200 rounded-lg font-medium transition disabled:opacity-50" disabled={isExportingDrive}>
+                       Cancelar
+                    </button>
+                    <button onClick={executeExportCSV} disabled={isExportingDrive} className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 disabled:opacity-50">
+                       <Download className="w-4 h-4"/> Baixar Planilha
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Notification Modal */}
+      {notificationModalClient && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
+                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <Send className="w-5 h-5 text-amber-500"/>
+                    Central de Notificações - {notificationModalClient.name.split(' ')[0]}
+                 </h2>
+                 <button onClick={() => setNotificationModalClient(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition">
+                    <X className="w-5 h-5"/>
+                 </button>
+              </div>
+              <div className="p-6 flex-1">
+                 <div className="mb-6">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Selecione o Tipo de Mensagem</label>
+                    <div className="flex flex-wrap gap-2">
+                       <button onClick={() => handleTemplateChange('financial', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'financial' ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                          Fechamento Financeiro
+                       </button>
+                       <button onClick={() => handleTemplateChange('referral', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'referral' ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                          Encaminhamentos / Documentos
+                       </button>
+                       <button onClick={() => handleTemplateChange('reminder', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'reminder' ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                          Lembrete de Sessão
+                       </button>
+                       <button onClick={() => handleTemplateChange('other', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'other' ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                          Outro
+                       </button>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div>
+                       <label className="block text-sm font-semibold text-slate-700 mb-1">Assunto (Visível apenas para E-mail)</label>
+                       <input 
+                         type="text" 
+                         className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                         value={notificationSubject}
+                         onChange={(e) => setNotificationSubject(e.target.value)}
+                       />
+                    </div>
+                    <div>
+                       <label className="block text-sm font-semibold text-slate-700 mb-1">Mensagem</label>
+                       <p className="text-xs text-slate-500 mb-2">Edite a mensagem abaixo conforme necessário antes de enviar.</p>
+                       <textarea 
+                         className="w-full p-4 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none min-h-[250px] leading-relaxed resize-y"
+                         value={notificationMessage}
+                         onChange={(e) => setNotificationMessage(e.target.value)}
+                       />
+                    </div>
+                 </div>
+              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex flex-col md:flex-row justify-end gap-3">
+                 <button onClick={() => setNotificationModalClient(null)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-200 border border-slate-200 rounded-xl font-medium transition">
+                    Cancelar
+                 </button>
+                 <a 
+                   href={`mailto:${notificationModalClient.email}?subject=${encodeURIComponent(notificationSubject)}&body=${encodeURIComponent(notificationMessage)}`}
+                   target="_blank"
+                   rel="noreferrer"
+                   onClick={() => setNotificationModalClient(null)}
+                   className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition flex items-center justify-center gap-2"
+                 >
+                    <Mail className="w-4 h-4"/> Enviar por E-mail
+                 </a>
+                 <a 
+                   href={`https://wa.me/55${notificationModalClient.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(notificationMessage)}`}
+                   target="_blank"
+                   rel="noreferrer"
+                   onClick={() => setNotificationModalClient(null)}
+                   className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition flex items-center justify-center gap-2"
+                 >
+                    <MessageCircle className="w-4 h-4"/> Enviar via WhatsApp
+                 </a>
+              </div>
+           </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Professional Profile",
+      "description": "Public profile configuration for the therapist",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "Professional Name" },
+        "title": { "type": "string", "description": "Professional Title (e.g. Psicólogo Clínico)" },
+        "bio": { "type": "string", "description": "Short bio phrase" },
+        "about": { "type": "string" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "crp": { "type": "string" },
+        "city": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "coverPhoto": { "type": "string" },
+        "profilePhoto": { "type": "string" },
+        "theme": { "type": "string", "enum": ["auto", "blue", "rose", "sage", "amber", "slate"] },
+        "themeColor": { "type": "string" },
+        "calendarSync": { "type": "boolean" },
+        "calendarUrl": { "type": "string", "description": "Link to external calendar" },
+        "calendarEmbed": { "type": "string", "description": "Embed code for external calendar" },
+        "driveSync": { "type": "boolean" },
+        "inPersonEnabled": { "type": "boolean" },
+        "address": { "type": "string" },
+        "howToGetThere": { "type": "string" },
+        "googleMapsUrl": { "type": "string" },
+        "googleMapsEmbed": { "type": "string" },
+        "googleReviewsUrl": { "type": "string" },
+        "pixKey": { "type": "string" },
+        "paymentFlow": { "type": "string", "enum": ["pix", "whatsapp"] },
+        "instagramUrl": { "type": "string" },
+        "facebookUrl": { "type": "string" },
+        "linkedinUrl": { "type": "string" },
+        "youtubeUrl": { "type": "string" },
+        "tiktokUrl": { "type": "string" },
+        "materials": { "type": "array", "items": { "type": "string" }, "description": "Drive Links for patients" },
+        "approaches": { "type": "array", "items": { "type": "string" } },
+        "companyName": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "companyLogo": { "type": "string" },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+               "id": { "type": "string" },
+               "category": { "type": "string" },
+               "title": { "type": "string" },
+               "description": { "type": "string" },
+               "price": { "type": "number" }
+            }
+          }
+        },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "past_due"] },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Master Admin",
+      "description": "Administrator of the platform",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "Review": {
+      "title": "Patient Review",
+      "description": "Review written by a patient. Moderated by the therapist.",
+      "type": "object",
+      "properties": {
+        "authorName": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "hidden"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["authorName", "content", "status", "createdAt"]
+    },
+    "Client": {
+      "title": "Registered Client",
+      "description": "Patient data collected before checkout",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "dob": { "type": "string" },
+        "cpf": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "lgpdAccepted": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "statusHistory": { 
+          "type": "array",
+          "items": {
+             "type": "object",
+             "properties": {
+                "action": { "type": "string" },
+                "date": { "type": "string" },
+                "reason": { "type": "string" }
+             }
+          }
+        },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "dob", "cpf", "email", "phone", "lgpdAccepted", "createdAt"]
+    },
+    "Appointment": {
+      "title": "Session Appointment",
+      "description": "Scheduled appointment linked to a client",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "datetime": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "totalAmount": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["clientId", "clientName", "datetime", "status", "totalAmount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "Master admins of the platform."
+    },
+    "/profiles/{profileId}": {
+      "schema": { "$ref": "#/entities/Profile" },
+      "description": "Therapist profiles. profileId is the user's uid."
+    },
+    "/profiles/{profileId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Reviews for the therapist."
+    },
+    "/profiles/{profileId}/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Clients registered with the therapist."
+    },
+    "/profiles/{profileId}/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Appointments for the therapist."
+    }
+  }
+}
