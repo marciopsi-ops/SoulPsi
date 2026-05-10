@@ -345,6 +345,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (ctx) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL('image/jpeg', 0.8));
           } else {

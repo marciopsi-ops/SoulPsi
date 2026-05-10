@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { THEMES, hexToRgb } from '../lib/themes';
-import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube } from 'lucide-react';
+import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight } from 'lucide-react';
+
 import { cn } from '../lib/utils';
 
 export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { therapistId: string, profileData: any, onBook: (data: any) => void, isLoggedIn?: boolean }) {
@@ -44,17 +45,18 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
   const [selectedService, setSelectedService] = useState<any>(null);
 
   const dummyProfile = {
-    name: 'Dr. João Silva',
+    name: 'Marcio Rocha',
     title: 'Psicólogo Clínico',
-    crp: 'CRP 00/00000',
+    crp: '06/128410',
     city: 'São Paulo, SP',
     about: 'Olá, sou especialista no tratamento de transtornos de ansiedade e depressão. Minha missão é te ajudar a encontrar equilíbrio emocional e melhorar sua qualidade de vida através da Terapia Cognitivo-Comportamental.',
     specialties: ['Ansiedade', 'Depressão', 'Terapia de Casal', 'Autoconhecimento'],
     approaches: ['Terapia Cognitivo-Comportamental', 'Mindfulness'],
-    companyName: 'Clínica Silva',
+    companyName: 'ELO Soluções Humanas',
     cnpj: '00.000.000/0000-00',
     coverPhoto: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&q=80&w=1600&h=400',
     profilePhoto: 'https://images.unsplash.com/photo-1594824432258-2bafe75cdbeb?auto=format&fit=crop&q=80&w=400&h=400',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/ELO_logo.svg/1200px-ELO_logo.svg.png',
     whatsapp: '5511999999999',
   };
 
@@ -201,14 +203,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
   };
 
   const renderSocialButtons = () => (
-    <div className="flex flex-wrap items-center gap-3">
-      <a 
-        href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}`}
-        target="_blank" rel="noreferrer"
-        className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-slate-50 hover:bg-green-50 text-green-600 transition-colors border border-slate-100 shadow-sm" title="WhatsApp"
-      >
-        <MessageCircle className="w-5 h-5" />
-      </a>
+    <div className="flex flex-wrap items-center justify-center gap-3">
       {finalProfile.instagramUrl && (
         <a href={finalProfile.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-slate-50 hover:bg-pink-50 text-pink-600 transition-colors border border-slate-100 shadow-sm" title="Instagram">
           <Instagram className="w-5 h-5" />
@@ -229,18 +224,6 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           <Youtube className="w-5 h-5" />
         </a>
       )}
-      {finalProfile.tiktokUrl && (
-        <a href={finalProfile.tiktokUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center h-11 px-4 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors font-semibold border border-slate-100 shadow-sm text-sm" title="TikTok">
-          TikTok
-        </a>
-      )}
-      <button
-        onClick={handleShare}
-        className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors border border-slate-100 shadow-sm"
-        title="Copiar link do perfil"
-      >
-        {copiedLink ? <Check className="w-5 h-5 text-green-600" /> : <Share2 className="w-5 h-5" />}
-      </button>
     </div>
   );
 
@@ -252,9 +235,16 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               <img 
                 src={finalProfile.coverPhoto} 
                 alt="Cover" 
-                className="w-full h-full object-cover"
+                className="absolute -inset-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              {finalProfile.logoUrl && (
+                <img 
+                  src={finalProfile.logoUrl} 
+                  alt="Logo" 
+                  className="absolute bottom-4 right-4 z-10 max-w-[120px] max-h-[80px] object-contain drop-shadow-md"
+                />
+              )}
             </div>
             <div className="px-6 sm:px-10 pb-10 relative">
               <div className="flex flex-col sm:flex-row gap-6 relative -top-16 mb-[-3rem]">
@@ -272,9 +262,8 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
             </div>
          </div>
          <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
-           <h2 className="text-2xl font-bold text-slate-800 mb-4">Agenda Temporariamente Indisponível</h2>
-           <p className="text-slate-600 max-w-md mx-auto mb-8">No momento, o agendamento online através desta plataforma encontra-se desativado. Por favor, entre em contato diretamente via nossos canais de atendimento.</p>
-           {renderSocialButtons()}
+           <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-4">Agenda Temporariamente Indisponível</h2>
+           <p className="text-sm sm:text-base text-slate-600 max-w-md mx-auto mb-8 px-4">No momento, o agendamento online através desta plataforma encontra-se desativado. Por favor, entre em contato diretamente via nossos canais de atendimento.</p>
          </div>
        </div>
      );
@@ -289,10 +278,19 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
       )}
       {/* Profile Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-        <div 
-          className="h-48 md:h-64 w-full bg-cover bg-center bg-[rgb(var(--theme-primary)_/_0.2)]"
-          style={{ backgroundImage: `url(${finalProfile.coverPhoto})` }}
-        />
+        <div className="relative w-full h-48 md:h-64 overflow-hidden bg-[rgb(var(--theme-primary)_/_0.2)]">
+          <div 
+            className="absolute -inset-2 bg-cover bg-center"
+            style={{ backgroundImage: `url(${finalProfile.coverPhoto})` }}
+          />
+          {finalProfile.logoUrl && (
+            <img 
+              src={finalProfile.logoUrl} 
+              alt="Logo" 
+              className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-10 max-w-[120px] sm:max-w-[160px] max-h-[80px] sm:max-h-[100px] object-contain drop-shadow-md"
+            />
+          )}
+        </div>
         <div className="px-6 pb-6 relative">
           <div className="absolute -top-16 md:-top-24 left-6 border-4 border-white rounded-full bg-white shadow-sm overflow-hidden">
             <img 
@@ -305,10 +303,9 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           <div className="pt-20 md:pt-28">
             <div className="flex flex-col xl:flex-row justify-between items-start gap-4 mb-2">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">{finalProfile.name}</h1>
-                <p className="text-slate-600 font-medium text-lg">{finalProfile.title}</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{finalProfile.name}</h1>
+                <p className="text-slate-600 font-medium text-base sm:text-lg">{finalProfile.title}</p>
               </div>
-              {renderSocialButtons()}
             </div>
             {finalProfile.bio && (
               <p className="text-slate-700 italic mb-3">"{finalProfile.bio}"</p>
@@ -329,7 +326,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               )}
             </div>
 
-            <p className="text-slate-700 leading-relaxed max-w-3xl mb-6">
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed max-w-3xl mb-6">
               {finalProfile.about}
             </p>
 
@@ -366,31 +363,35 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-slate-200 mb-8 w-full">
+      <div className="flex items-center justify-end gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2 px-2">
+        <span>Deslize</span>
+        <ArrowLeftRight className="w-3 h-3 animate-pulse" />
+      </div>
+      <div className="relative flex overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-slate-200 mb-8 w-full">
         <button 
           onClick={() => setActiveTab('voce')}
-          className={cn("px-6 py-4 font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'voce' ? "border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))]" : "border-transparent text-slate-500 hover:text-slate-800")}
+          className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'voce' ? "border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))]" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-2"><Calendar className="w-4 h-4"/> Para Você</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><Calendar className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> Você</div>
         </button>
         <button 
           onClick={() => setActiveTab('empresa')}
-          className={cn("px-6 py-4 font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'empresa' ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-800")}
+          className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'empresa' ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-2"><Building className="w-4 h-4"/> Para sua Empresa</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><Building className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> <span className="hidden sm:inline">sua </span>Empresa</div>
         </button>
         <button 
           onClick={() => setActiveTab('psicologos')}
-          className={cn("px-6 py-4 font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'psicologos' ? "border-purple-500 text-purple-600" : "border-transparent text-slate-500 hover:text-slate-800")}
+          className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'psicologos' ? "border-purple-500 text-purple-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-2"><GraduationCap className="w-4 h-4"/> Para Psicólogos</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> Psicólogos</div>
         </button>
         {isLoggedIn && (
           <button 
             onClick={() => setActiveTab('materiais')}
-            className={cn("px-6 py-4 font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'materiais' ? "border-amber-500 text-amber-600" : "border-transparent text-slate-500 hover:text-slate-800")}
+            className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'materiais' ? "border-amber-500 text-amber-600" : "border-transparent text-slate-500 hover:text-slate-800")}
           >
-            <div className="flex items-center gap-2"><FileText className="w-4 h-4"/> Materiais Exclusivos</div>
+            <div className="flex items-center gap-1.5 sm:gap-2"><FileText className="w-4 h-4"/> Materiais</div>
           </button>
         )}
       </div>
@@ -403,20 +404,20 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
             {finalProfile.services?.filter((s: any) => s.category === 'voce').length > 0 ? (
               <div className="space-y-4 mb-8">
                 {finalProfile.services.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
-                  <div key={idx} className="border border-slate-200 rounded-xl p-6 bg-white overflow-hidden">
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">{svc.title}</h3>
-                    <p className="text-slate-600 mb-6">{svc.description}</p>
+                  <div key={idx} className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-2">{svc.title}</h3>
+                    <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6">{svc.description}</p>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                       <button 
                         onClick={() => openScheduleModal(svc)}
-                        className="flex-[1_1_250px] bg-[rgb(var(--theme-primary))] text-white px-6 py-3 rounded-xl font-semibold shadow-sm hover:opacity-90 transition-opacity text-center"
+                        className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center"
                       >{svc.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Online'}</button>
                       {finalProfile.inPersonEnabled && (
                         <button 
                           onClick={() => openScheduleModal(svc, true)}
-                          className="flex-[1_1_250px] bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
+                          className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
                         >
-                          <MapPin className="w-4 h-4" />
+                          <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
                           {svc.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Presencial'}
                         </button>
                       )}
@@ -424,7 +425,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                         href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                         target="_blank" 
                         rel="noreferrer"
-                        className="flex-[1_1_250px] bg-slate-50 border border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
+                        className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
                       >
                         Tirar dúvidas pelo whatsapp
                       </a>
@@ -434,21 +435,21 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               </div>
             ) : (
               <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4 text-slate-800">Terapia Individual</h2>
-                <p className="text-slate-600 mb-6 max-w-2xl">
+                <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Terapia Individual</h2>
+                <p className="text-sm sm:text-base text-slate-600 mb-6 max-w-2xl">
                   Agende uma sessão e dê o primeiro passo para o seu bem-estar emocional. As sessões duram 50 minutos e ocorrem de forma online.
                 </p>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                   <button 
                     onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling })}
-                    className="flex-[1_1_250px] bg-[rgb(var(--theme-primary))] text-white px-6 py-3 rounded-xl font-semibold shadow-sm hover:opacity-90 transition-opacity text-lg"
+                    className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:opacity-90 transition-opacity"
                   >{finalProfile.services?.[0]?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Online'}</button>
                   {finalProfile.inPersonEnabled && (
                     <button 
                       onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling }, true)}
-                      className="flex-[1_1_250px] bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2 text-lg"
+                      className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
                     >
-                      <MapPin className="w-5 h-5" />
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
                       {finalProfile.services?.[0]?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Presencial'}
                     </button>
                   )}
@@ -456,7 +457,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
                     target="_blank" 
                     rel="noreferrer"
-                    className="flex-[1_1_250px] bg-slate-50 border border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center text-lg hidden md:flex gap-2"
+                    className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center hidden md:flex gap-2"
                   >
                     Tirar dúvidas pelo whatsapp
                   </a>
@@ -470,13 +471,13 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           <div className="animate-in fade-in">
             {finalProfile.services?.filter((s: any) => s.category === 'empresa').length > 0 ? (
                <div className="space-y-4">
-                 <h2 className="text-xl font-bold mb-4 text-slate-800">Serviços Corporativos</h2>
+                 <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Serviços Corporativos</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
-                    <div key={idx} className="border border-emerald-100 rounded-xl p-6 bg-emerald-50">
-                      <h3 className="text-lg font-bold text-emerald-900 mb-2">{svc.title}</h3>
-                      <p className="text-emerald-800 mb-6">{svc.description}</p>
+                    <div key={idx} className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50">
+                      <h3 className="text-base sm:text-lg font-bold text-emerald-900 mb-2">{svc.title}</h3>
+                      <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex justify-start">
-                        <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="inline-block bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
+                        <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
                       </div>
                     </div>
                  ))}
@@ -489,7 +490,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  </p>
                  <div className="p-6 border border-emerald-100 bg-emerald-50 rounded-xl text-center">
                    <p className="text-emerald-800 font-medium mb-4">Tem interesse em levar meu trabalho para sua equipe?</p>
-                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa.`)}`} target="_blank" rel="noreferrer" className="inline-block bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
+                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa.`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
                  </div>
                </>
             )}
@@ -500,21 +501,21 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           <div className="animate-in fade-in">
             {finalProfile.services?.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').length > 0 ? (
                <div className="space-y-4">
-                 <h2 className="text-xl font-bold mb-4 text-slate-800">Cursos e Supervisão</h2>
+                 <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Cursos e Supervisão</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
-                    <div key={idx} className="border border-purple-100 rounded-xl p-6 bg-purple-50">
-                      <h3 className="text-lg font-bold text-purple-900 mb-2">{svc.title}</h3>
-                      <p className="text-purple-800 mb-6">{svc.description}</p>
+                    <div key={idx} className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50">
+                      <h3 className="text-base sm:text-lg font-bold text-purple-900 mb-2">{svc.title}</h3>
+                      <p className="text-sm sm:text-base text-purple-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <button 
                           onClick={() => openScheduleModal(svc)}
-                          className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-purple-700 transition-colors text-center"
+                          className="w-full sm:flex-1 bg-purple-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-purple-700 transition-colors text-center"
                         >{svc?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Agora'}</button>
                         <a 
                           href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                           target="_blank" 
                           rel="noreferrer"
-                          className="flex-1 bg-white border border-purple-200 text-purple-700 px-6 py-3 rounded-xl font-semibold shadow-sm hover:bg-purple-50 transition-colors text-center flex items-center justify-center"
+                          className="w-full sm:flex-1 bg-white border border-purple-200 text-purple-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-purple-50 transition-colors text-center flex items-center justify-center"
                         >
                           Tirar dúvidas pelo whatsapp
                         </a>
@@ -530,7 +531,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  </p>
                  <div className="p-6 border border-purple-100 bg-purple-50 rounded-xl text-center">
                    <p className="text-purple-800 font-medium mb-4">Vagas limitadas para grupos de estudo e supervisão individual.</p>
-                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors">Falar sobre Supervisão</a>
+                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-purple-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-purple-700 transition-colors">Falar sobre Supervisão</a>
                  </div>
                </>
             )}
@@ -539,8 +540,8 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
 
         {activeTab === 'materiais' && isLoggedIn && (
           <div className="animate-in fade-in">
-            <h2 className="text-xl font-bold mb-4 text-slate-800">Materiais Exclusivos</h2>
-            <p className="text-slate-600 mb-6 max-w-2xl">
+            <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Materiais Exclusivos</h2>
+            <p className="text-sm sm:text-base text-slate-600 mb-6 max-w-2xl">
               Links para conteúdos, exercícios e documentos disponibilizados via Google Drive.
             </p>
             {(!finalProfile.materials || finalProfile.materials.length === 0) ? (
@@ -569,7 +570,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
 
       {finalProfile.inPersonEnabled && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mt-8 mb-8">
-          <h4 className="font-semibold text-slate-800 flex items-center gap-2 mb-2 text-lg">
+          <h4 className="font-semibold text-slate-800 flex items-center gap-2 mb-2 text-base sm:text-lg">
             <MapPin className="w-5 h-5 text-[rgb(var(--theme-primary))]" /> 
             Atendimento Presencial
           </h4>
@@ -616,20 +617,25 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
         </div>
       )}
 
-      {/* Action Area Below Content */}
+      {/* Social Links Section */}
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 mt-8 mb-8 flex flex-col items-center">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 text-center">Entre em contato pelas redes ou compartilhe</h3>
+        <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-6 text-center">Acompanhe minhas redes sociais</h3>
         {renderSocialButtons()}
       </div>
 
       {/* Reviews Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mt-8 mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800"><Star className="w-5 h-5 text-amber-500 fill-amber-500" /> Depoimentos</h3>
+          <h3 className="text-base sm:text-lg font-bold flex items-center gap-2 text-slate-800"><Star className="w-5 h-5 text-amber-500 fill-amber-500" /> Depoimentos</h3>
           <button onClick={() => setShowReviewModal(true)} className="text-sm font-medium text-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-primary)_/_0.05)] px-4 py-2 rounded-lg hover:bg-[rgb(var(--theme-primary)_/_0.1)] transition">Deixar Avaliação</button>
         </div>
         {reviews.length > 0 ? (
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <>
+            <div className="flex items-center justify-end gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2 mt-2 px-2">
+              <span>Deslize</span>
+              <ArrowLeftRight className="w-3 h-3 animate-pulse" />
+            </div>
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {reviews.map((rev) => (
               <div key={rev.id} className="bg-slate-50 p-6 rounded-xl border border-slate-100 min-w-[300px] sm:min-w-[350px] shrink-0 snap-start flex flex-col justify-between">
                 <p className="text-slate-700 italic mb-4 leading-relaxed">"{rev.content}"</p>
@@ -641,35 +647,104 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         ) : (
           <p className="text-slate-500 text-sm py-4">Nenhum depoimento ainda. Seja o primeiro a avaliar!</p>
         )}
       </div>
 
-      <footer className="w-full border-t border-slate-100 py-12 px-6 mt-12 bg-white/50">
-        <div className="max-w-[720px] mx-auto text-center flex flex-col items-center gap-6">
-          {(finalProfile.footerEmail || finalProfile.footerPhone) && (
-             <div className="flex flex-wrap justify-center gap-6 text-slate-600 text-sm">
-                {finalProfile.footerEmail && (
-                   <a href={`mailto:${finalProfile.footerEmail}`} className="hover:text-[rgb(var(--theme-primary))] transition">{finalProfile.footerEmail}</a>
-                )}
-                {finalProfile.footerPhone && (
-                   <a href={`tel:${finalProfile.footerPhone}`} className="hover:text-[rgb(var(--theme-primary))] transition">{finalProfile.footerPhone}</a>
-                )}
-             </div>
-          )}
-          {finalProfile.footerAddress && (
-             <p className="text-slate-500 text-sm">{finalProfile.footerAddress}</p>
-          )}
-          {finalProfile.footerText && (
-             <p className="text-slate-400 text-xs max-w-sm leading-relaxed">{finalProfile.footerText}</p>
-          )}
-          <div className="text-slate-300 text-xs font-medium pt-6">
-             © {new Date().getFullYear()} {finalProfile.companyName || finalProfile.name}.
+      <footer className="w-full bg-white rounded-2xl border border-slate-100 p-8 sm:p-10 text-slate-600 shadow-sm mt-8 mb-8 overflow-hidden">
+        
+        <div className="relative z-10">
+          {/* Linha 1: Logo e Nome */}
+          <div className="flex items-center gap-2 mb-4">
+              <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-2 rounded-xl shadow-sm">
+                <span className="font-black text-white text-sm tracking-wider leading-none flex items-center justify-center w-6 h-6">ELO</span>
+              </div>
+              <span className="font-bold text-lg sm:text-2xl tracking-tight text-slate-600">Soluções Humanas</span>
+            </div>
+
+            {/* Linha 2: Descrição e Redes Sociais */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+              <p className="text-sm leading-relaxed text-slate-500 max-w-3xl">
+                Conectando pessoas e organizações através da psicologia aplicada e tecnologia para o desenvolvimento humano.
+              </p>
+            </div>
+
+            {/* Linha 3: Áreas em 3 colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-t border-slate-100 pt-10">
+              
+              {/* Coluna 1: Para Você */}
+              <div>
+                <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Você</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  {finalProfile.services?.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
+                    <li key={idx}>
+                      <button onClick={() => { setActiveTab('voce'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
+                        {svc.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Coluna 2: Para a Empresa */}
+              <div>
+                <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para sua Empresa</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  {finalProfile.services?.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
+                    <li key={idx}>
+                      <button onClick={() => { setActiveTab('empresa'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
+                        {svc.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Coluna 3: Para Psicólogos */}
+              <div>
+                <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Psicólogos</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  {finalProfile.services?.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
+                    <li key={idx}>
+                      <button onClick={() => { setActiveTab('psicologos'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
+                        {svc.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+            </div>
+
           </div>
-        </div>
-      </footer>
+
+          {/* Divisor */}
+          <div className="border-t border-slate-200 pt-8 mt-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-xs text-slate-500 space-y-2 text-center md:text-left">
+              <p>
+                © {new Date().getFullYear()} ELO Soluções Humanas. Todos os direitos reservados. CNPJ: {finalProfile.cnpj || '00.000.000/0001-00'}
+              </p>
+              <p>
+                Responsável Técnico: {finalProfile.name} {finalProfile.crp ? `– CRP ${finalProfile.crp}` : ''}
+              </p>
+              <p className="mt-2 text-slate-500">
+                Atenção: Este site segue rigorosamente as normas do <strong>Código de Ética do Conselho Federal de Psicologia (CFP)</strong>. 
+                O atendimento psicológico online é regulamentado e reconhecido. 
+              </p>
+              <p className="text-slate-500">
+                Em caso de crise suicida, ligue para o <strong>CVV - Centro de Valorização da Vida (188)</strong>, com atendimento gratuito e sigiloso 24 horas por dia. Se houver emergência, dirija-se ao hospital mais próximo.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <button className="hover:text-amber-500 transition">Política de Privacidade</button>
+              <button className="hover:text-amber-500 transition">Termos de Uso</button>
+            </div>
+          </div>
+        </footer>
 
       {/* Registration Modal */}
       {showScheduleModal && (
@@ -677,8 +752,8 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-slate-800">Agendar {selectedService?.title || 'Sessão'}</h3>
-                <p className="text-[rgb(var(--theme-primary))] font-medium text-sm mt-1">Valor: {selectedService?.price === 0 ? 'Entre em contato para saber mais' : `R$ ${selectedService?.price}`}</p>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-800">Agendar {selectedService?.title || 'Sessão'}</h3>
+                <p className="text-[rgb(var(--theme-primary))] font-medium text-xs sm:text-sm mt-1">Valor: {selectedService?.price === 0 ? 'Entre em contato para saber mais' : `R$ ${selectedService?.price}`}</p>
               </div>
               <button onClick={() => setShowScheduleModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
             </div>
@@ -817,8 +892,8 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                       <Calendar className="w-10 h-10 text-[rgb(var(--theme-primary))]" />
                     </div>
                     <div>
-                      <h4 className="text-2xl font-bold text-slate-800 mb-2">Agendamento Externo</h4>
-                      <p className="text-slate-600 max-w-sm mx-auto leading-relaxed">
+                      <h4 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">Agendamento Externo</h4>
+                      <p className="text-sm sm:text-base text-slate-600 max-w-sm mx-auto leading-relaxed">
                         O agendamento para as sessões de {finalProfile.name} é feito diretamente de forma segura usando o Google Calendar.
                       </p>
                     </div>
@@ -905,7 +980,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h3 className="text-xl font-bold text-slate-800">Deixar Avaliação</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800">Deixar Avaliação</h3>
               <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
             </div>
             <form onSubmit={handleReviewSubmit} className="p-6 flex flex-col gap-4">
@@ -928,6 +1003,28 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           </div>
         </div>
       )}
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col gap-3 items-end pointer-events-auto">
+        <button
+          onClick={handleShare}
+          className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-slate-600 hover:bg-slate-800 hover:scale-105 transition-all backdrop-blur-md"
+          title="Compartilhar Perfil"
+        >
+          {copiedLink ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
+        </button>
+        
+        {finalProfile.whatsapp && (
+          <a
+            href={`https://wa.me/${finalProfile.whatsapp.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)] hover:bg-emerald-600 hover:scale-105 transition-all backdrop-blur-md"
+            title="Fale no WhatsApp"
+          >
+            <MessageCircle className="w-7 h-7" />
+          </a>
+        )}
+      </div>
     </div>
   );
 }

@@ -71,6 +71,8 @@ export default function App() {
         }
 
         if (adminStatus) {
+           setTherapistId(currUser.uid);
+           await initTherapistProfile(currUser.uid, currUser.displayName || '', currUser.email || '');
            setView('admin');
         } else if (paramTherapistId && paramTherapistId !== currUser.uid) {
            setTherapistId(paramTherapistId);
@@ -110,11 +112,22 @@ export default function App() {
 
   const fetchDemoProfile = async () => {
     try {
-      const q = query(collection(db, 'profiles'), limit(1));
+      // Pega os primeiros 10 perfis e encontra o mais 'configurado' (com mais serviços)
+      const q = query(collection(db, 'profiles'), limit(10));
       const snap = await getDocs(q);
       if (!snap.empty) {
-         setTherapistId(snap.docs[0].id);
-         setProfileData(snap.docs[0].data());
+         let bestProfile = snap.docs[0];
+         let maxScore = 0;
+         snap.docs.forEach(doc => {
+            const data = doc.data();
+            const score = (data.services?.length || 0) + (data.about?.length || 0) / 100;
+            if (score > maxScore) {
+               maxScore = score;
+               bestProfile = doc;
+            }
+         });
+         setTherapistId(bestProfile.id);
+         setProfileData(bestProfile.data());
       } else {
          setTherapistId('demo-therapist-id');
       }
@@ -127,19 +140,20 @@ export default function App() {
     try {
       const docRef = doc(db, 'profiles', uid);
       const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) {
-        let initialStatus = 'pending';
-        if (email) {
-          try {
-            const allowedSnap = await getDoc(doc(db, 'allowed_users', email.toLowerCase()));
-            if (allowedSnap.exists()) {
-               initialStatus = allowedSnap.data().status || 'active';
-            }
-          } catch(err) {
-             console.error("Error checking allowed user:", err);
+      
+      let finalStatus = 'pending';
+      if (email) {
+        try {
+          const allowedSnap = await getDoc(doc(db, 'allowed_users', email.toLowerCase()));
+          if (allowedSnap.exists()) {
+             finalStatus = allowedSnap.data().status || 'active';
           }
+        } catch(err) {
+           console.error("Error checking allowed user:", err);
         }
-        
+      }
+
+      if (!docSnap.exists()) {
         const newProfile = {
           userId: uid,
           name: name || 'Dr. Therapist',
@@ -152,17 +166,32 @@ export default function App() {
           calendarSync: false,
           driveSync: false,
           materials: [],
-          subscriptionStatus: initialStatus,
+          subscriptionStatus: finalStatus,
           services: [
-             { id: 's1', category: 'voce', title: 'Terapia Individual', description: 'Agende uma sessão e dê o primeiro passo para o seu bem-estar emocional. As sessões duram 50 minutos e ocorrem de forma online.', price: 200 },
-             { id: 's2', category: 'psicologos', title: 'Supervisão Clínica', description: 'Orientação técnica e discussão de casos para recém-formados e profissionais que buscam aprimoramento em Terapia Cognitivo-Comportamental.', price: 250 }
+             { id: 's1', category: 'voce', title: 'Terapia Individual', description: 'Acolhimento e suporte especializado focado no autoconhecimento e no diagnóstico de doenças psicológicas. Oferecemos um espaço seguro para o enfrentamento de problemas variados e desafios do cotidiano.', price: 200 },
+             { id: 's2', category: 'voce', title: 'Terapia Familiar', description: 'Suporte especializado para o fortalecimento dos vínculos familiares. Auxiliamos na mediação de conflitos e na construção de uma comunicação mais harmoniosa e funcional.', price: 250 },
+             { id: 's3', category: 'voce', title: 'Terapia de Casal', description: 'Espaço de diálogo para casais que buscam superar crises, melhorar a parceria e ressignificar a relação, focando no entendimento mútuo.', price: 280 },
+             { id: 's4', category: 'voce', title: 'Orientação Vocacional', description: 'Apoio estratégico para a escolha da primeira profissão ou redirecionamento de carreira com ferramentas de mapeamento de perfil.', price: 150 },
+             { id: 's5', category: 'voce', title: 'Laudo para Cirurgias', description: 'Avaliação psicológica técnica e criteriosa para procedimentos cirúrgicos específicos (Bariátrica, Vasectomia e outras).', price: 300 },
+             { id: 's6', category: 'empresa', title: 'Treinamento, Consultoria e Palestras', description: 'Desenvolvimento humano sob medida para empresas e grupos. Soluções focadas em liderança e performance.', price: 500 },
+             { id: 's7', category: 'empresa', title: 'Mapeamento de Risco (NR1)', description: 'Diagnóstico e gestão dos fatores psicossociais no ambiente de trabalho. Conformidade com a NR1.', price: 800 },
+             { id: 's8', category: 'empresa', title: 'Consultoria em Gestão de Pessoas', description: 'Apoio técnico para estruturação de processos de RH e desenvolvimento de equipes.', price: 700 },
+             { id: 's9', category: 'psicologos', title: 'Supervisão Clínica', description: 'Acompanhamento técnico e suporte para psicólogos. Foco no manejo de casos complexos.', price: 250 },
+             { id: 's10', category: 'psicologos', title: 'Consultoria Financeira/Fiscal', description: 'Orientação especializada para gestão de consultórios: Carnê-Leão e planejamento tributário.', price: 300 },
+             { id: 's11', category: 'psicologos', title: 'Marketing para Psicólogos', description: 'Estratégias de posicionamento e visibilidade com rigor ético.', price: 350 },
+             { id: 's12', category: 'psicologos', title: 'Soluções em Tecnologia', description: 'Desenvolvimento de sites e implementação de plataformas de gestão para clínicas.', price: 400 }
           ],
           updatedAt: serverTimestamp()
         };
         await setDoc(docRef, newProfile);
         setProfileData(newProfile);
       } else {
-        setProfileData(docSnap.data());
+        const existingData = docSnap.data();
+        if (existingData.subscriptionStatus !== 'active' && finalStatus === 'active') {
+           existingData.subscriptionStatus = 'active';
+           await updateDoc(docRef, { subscriptionStatus: 'active' });
+        }
+        setProfileData(existingData);
       }
     } catch (e: any) {
       if (e.message && e.message.includes('missing or insufficient permissions')) {
@@ -179,11 +208,14 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        // Ignorar interrupções de popup
         return;
       }
       console.error("Login failed", error);
-      alert("Falha no login: " + error.message);
+      if (error.code === 'auth/unauthorized-domain') {
+         alert("O domínio atual não está autorizado.\n\nPor favor, acesse o painel do Firebase > Authentication > Settings > Authorized domains e adicione o domínio atual à lista.");
+      } else {
+         alert("Falha no login. Verifique sua conexão ou configuração de cookies/popups de terceiros.\nErro: " + error.message);
+      }
     }
   };
 
@@ -205,22 +237,23 @@ export default function App() {
       {/* Global Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => {
+          <div className="flex items-center gap-1.5 sm:gap-2 cursor-pointer" onClick={() => {
             if (window.history.pushState) {
               window.history.pushState({}, '', window.location.pathname);
             }
-            if (!user && !isAdminUser) {
+            if (!user || isAdminUser) {
               fetchDemoProfile();
-            } else if (user && !isAdminUser) {
+            } else {
               setTherapistId(user.uid);
               fetchPublicProfile(user.uid);
             }
             setView('landing');
           }}>
-            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-2 rounded-xl shadow-sm">
-              <span className="font-black text-white text-sm tracking-wider leading-none flex items-center justify-center w-6 h-6">ELO</span>
+            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-1.5 sm:p-2 rounded-xl shadow-sm">
+              <span className="font-black text-white text-[9px] sm:text-sm tracking-wider leading-none flex items-center justify-center w-4 h-4 sm:w-6 sm:h-6">ELO</span>
             </div>
-            <span className="font-bold text-lg sm:text-2xl tracking-tight text-slate-600">Soluções Humanas</span>
+            <span className="font-bold text-sm sm:text-2xl tracking-tight text-slate-600 whitespace-nowrap hidden min-[360px]:inline">Soluções Humanas</span>
+            <span className="font-bold text-sm tracking-tight text-slate-600 whitespace-nowrap min-[360px]:hidden">Soluções</span>
           </div>
           <nav>
             {user ? (
@@ -233,14 +266,12 @@ export default function App() {
                     Painel Admin
                   </button>
                 )}
-                {!isAdminUser && (
-                  <button 
-                    onClick={() => setView('dashboard')}
-                    className={`text-sm font-medium transition-colors ${view === 'dashboard' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    Dashboard
-                  </button>
-                )}
+                <button 
+                  onClick={() => setView('dashboard')}
+                  className={`text-sm font-medium transition-colors ${view === 'dashboard' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Dashboard
+                </button>
                 <button 
                   onClick={() => signOut(auth)}
                   className="text-sm font-medium text-slate-500 hover:text-red-600"
@@ -251,10 +282,11 @@ export default function App() {
             ) : (
               <button 
                 onClick={handleLogin}
-                className="flex items-center gap-2 text-sm font-medium text-amber-500 bg-amber-50 px-4 py-2 rounded-full hover:bg-amber-100 transition-colors"
+                className="flex items-center gap-2 sm:gap-2 text-sm font-medium text-amber-500 bg-amber-50 px-3 py-2 sm:px-4 sm:py-2 rounded-full hover:bg-amber-100 transition-colors whitespace-nowrap"
               >
                 <LogIn className="w-4 h-4" />
-                Acesso Profissional
+                <span className="hidden sm:inline">Acesso Profissional</span>
+                <span className="sm:hidden">Acesso</span>
               </button>
             )}
           </nav>

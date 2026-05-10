@@ -52,6 +52,16 @@ export function AdminDashboard() {
     }
   };
 
+  const handleDeleteProfile = async (profileId: string, profileName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente o usuário ${profileName}?`)) return;
+    try {
+      await deleteDoc(doc(db, 'profiles', profileId));
+      setProfiles(profiles.filter(p => p.id !== profileId));
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.DELETE, `profiles/${profileId}`);
+    }
+  };
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
@@ -164,14 +174,23 @@ export function AdminDashboard() {
                              </span>
                           </td>
                           <td className="p-4 text-right">
-                             <select 
-                               className="text-sm border border-slate-300 rounded-lg p-2 focus:ring-amber-400 focus:outline-none"
-                               value={p.subscriptionStatus || 'pending'}
-                               onChange={e => handleUpdateStatus(p.id, e.target.value)}
-                             >
-                               <option value="active">Permitir Acesso</option>
-                               <option value="pending">Bloquear Acesso</option>
-                             </select>
+                             <div className="flex items-center justify-end gap-2">
+                               <select 
+                                 className="text-sm border border-slate-300 rounded-lg p-2 focus:ring-amber-400 focus:outline-none"
+                                 value={p.subscriptionStatus || 'pending'}
+                                 onChange={e => handleUpdateStatus(p.id, e.target.value)}
+                               >
+                                 <option value="active">Permitir Acesso</option>
+                                 <option value="pending">Bloquear Acesso</option>
+                               </select>
+                               <button 
+                                 onClick={() => handleDeleteProfile(p.id, p.name || p.email)}
+                                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                 title="Excluir usuário"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
+                             </div>
                           </td>
                         </tr>
                       );

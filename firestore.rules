@@ -117,10 +117,12 @@ service cloud.firestore {
                         isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
                           'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
                           'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
-                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'webhookUrl', 'updatedAt', 'isPublicSiteActive'
+                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus'
                         ])
                       )
                     );
+                    
+      allow delete: if isAdmin() && isValidId(profileId);
     }
 
     // --- Reviews ---
