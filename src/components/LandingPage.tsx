@@ -839,7 +839,9 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     value={clientForm.referralSource} onChange={e => { setClientForm({...clientForm, referralSource: e.target.value}); setFormErrors({...formErrors, referralSource: ''}); }}>
                     <option value="" disabled>Selecione uma opção...</option>
                     <option value="Indicação de profissional">Indicação de profissional</option>
-                    <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                     <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                     <option value="Google/ Site">Google/ Site</option>
                     <option value="Instagram/ Redes Sociais">Instagram/ Redes Sociais</option>

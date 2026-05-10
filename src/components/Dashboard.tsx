@@ -1912,7 +1912,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  >
                    <option value="all">Todas as fontes</option>
                    <option value="Indicação de profissional">Indicação de profissional</option>
-                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                    <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                    <option value="Google/ Site">Google/ Site</option>
                    <option value="Pacientes">Pacientes</option>
@@ -2067,7 +2069,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
                          <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.source || 'Outros'} onChange={e => setClientEditForm({...clientEditForm, source: e.target.value})}>
                            <option value="Indicação de profissional">Indicação de profissional</option>
-                           <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                            <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                            <option value="Google/ Site">Google/ Site</option>
                            <option value="Pacientes">Pacientes</option>
@@ -2163,6 +2167,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                  <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
                                  <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={clientEditForm.source || 'Outros'} onChange={e => setClientEditForm({...clientEditForm, source: e.target.value})}>
                                    <option value="Indicação de profissional">Indicação de profissional</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
                                    <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                                    <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                                    <option value="Google/ Site">Google/ Site</option>
@@ -2547,7 +2553,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  >
                    <option value="all">Todas as fontes</option>
                    <option value="Indicação de profissional">Indicação de profissional</option>
-                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                    <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                    <option value="Google/ Site">Google/ Site</option>
                    <option value="Empresas">Empresas</option>
@@ -2675,7 +2683,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
                          <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.source || 'Outros'} onChange={e => setCompanyEditForm({...companyEditForm, source: e.target.value})}>
                            <option value="Indicação de profissional">Indicação de profissional</option>
-                           <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                            <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                            <option value="Google/ Site">Google/ Site</option>
                            <option value="Empresas">Empresas</option>
@@ -2790,7 +2800,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 <label className="block text-xs font-medium text-slate-700 mb-1">Fonte</label>
                                 <select required className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.source || 'Outros'} onChange={e => setCompanyEditForm({...companyEditForm, source: e.target.value})}>
                                   <option value="Indicação de profissional">Indicação de profissional</option>
-                                  <option value="Instituição/ Igreja">Instituição/ Igreja</option>
+                                  <option value="Projetos">Projetos</option>
+                                  <option value="Plataformas">Plataformas</option>
+                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
                                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                                   <option value="Google/ Site">Google/ Site</option>
                                   <option value="Empresas">Empresas</option>
