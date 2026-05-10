@@ -3,7 +3,7 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
@@ -189,6 +189,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes'>('perfil');
   const [clients, setClients] = useState<any[]>([]);
+  const [importStatus, setImportStatus] = useState<{isOpen: boolean, message: string, progress: number, total: number, finished: boolean, added: number, updated: number, sessions: number}>({isOpen: false, message: '', progress: 0, total: 0, finished: false, added: 0, updated: 0, sessions: 0});
   const [appointments, setAppointments] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [companyAppointments, setCompanyAppointments] = useState<any[]>([]);
@@ -1044,6 +1045,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
      const lines = text.split(/\r?\n/).filter(l => l.trim());
      if (lines.length < 2) return alert('O arquivo parece estar vazio ou inválido.');
      
+     setImportStatus({
+       isOpen: true,
+       message: 'Iniciando importação...',
+       progress: 0,
+       total: lines.length - 1,
+       finished: false,
+       added: 0,
+       updated: 0,
+       sessions: 0
+     });
+
      let addedCount = 0;
      let updatedCount = 0;
      let sessionCount = 0;
@@ -1052,6 +1064,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
      const processedClients = new Map<string, string>(); // key -> clientId
 
      for (let i = 1; i < lines.length; i++) {
+        setImportStatus(prev => ({ ...prev, progress: i, message: `Processando linha ${i} de ${lines.length - 1}...` }));
+        
+        // Yield to let React render the progress
+        if (i % 5 === 0) {
+           await new Promise(r => setTimeout(r, 0));
+        }
+
         const cols = parseCSVLine(lines[i]);
         if (cols.length < 2) continue;
         
@@ -1071,7 +1090,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         
         if (!clientPayload.name) continue;
         
-        const uniqueKey = `${clientPayload.name.toLowerCase()}_${clientPayload.cpf || clientPayload.dob || ''}`;
+        const uniqueKey = `${clientPayload.name.toLowerCase()} _ ${clientPayload.cpf || clientPayload.dob || ''}`;
         let clientId = processedClients.get(uniqueKey);
 
         if (!clientId) {
@@ -1149,7 +1168,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         }
      }
      
-     alert(`Importação concluída:\n- ${addedCount} pacientes inseridos\n- ${updatedCount} pacientes já existentes atualizados\n- ${sessionCount} novas sessões registradas`);
+     setImportStatus(prev => ({
+       ...prev,
+       finished: true,
+       message: 'Importação concluída com sucesso!',
+       added: addedCount,
+       updated: updatedCount,
+       sessions: sessionCount
+     }));
+
      if (e.target) e.target.value = '';
   };
 
