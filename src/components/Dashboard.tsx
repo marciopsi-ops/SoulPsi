@@ -906,7 +906,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
            clientAppts.sort((a,b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()).forEach(a => {
               rows.push([
                  ...baseClientRow,
-                 `"${format(new Date(a.datetime), "dd/MM/yyyy HH:mm")}"`,
+                 `"${(!isNaN(new Date(a.datetime).getTime()) ? format(new Date(a.datetime), "dd/MM/yyyy HH:mm") : a.datetime)}"`,
                  `"${a.status}"`,
                  `"${a.paymentStatus}"`,
                  `"${a.totalAmount.toFixed(2).replace('.', ',')}"`,
@@ -1074,16 +1074,22 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         const cols = parseCSVLine(lines[i]);
         if (cols.length < 2) continue;
         
+        let parsedDob = cols[4]?.trim() || '';
+        const dobMatch = parsedDob.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (dobMatch) {
+            parsedDob = `${dobMatch[3]}-${dobMatch[2]}-${dobMatch[1]}`;
+        }
+        
         const clientPayload: any = {
-           name: cols[0]?.trim() || '',
-           email: cols[1]?.trim() || '',
-           phone: cols[2]?.trim() || '',
-           cpf: cols[3]?.trim() || '',
-           dob: cols[4]?.trim() || '',
-           frequency: cols[5]?.trim() || 'Avulso',
-           source: cols[6]?.trim() || 'Outros',
+           name: (cols[0]?.trim() || '').substring(0, 100),
+           email: (cols[1]?.trim() || '').substring(0, 100),
+           phone: (cols[2]?.trim() || '').substring(0, 20),
+           cpf: (cols[3]?.trim() || '').substring(0, 20),
+           dob: parsedDob.substring(0, 20),
+           frequency: (cols[5]?.trim() || 'Avulso').substring(0, 50),
+           source: (cols[6]?.trim() || 'Outros').substring(0, 150),
            isActive: cols[7]?.trim() !== 'Inativo',
-           notes: cols[8]?.trim() || '',
+           notes: (cols[8]?.trim() || '').substring(0, 5000),
            lgpdAccepted: true,
            rulesAccepted: false,
         };
@@ -1103,14 +1109,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             if (existing) {
                clientId = existing.id;
                try {
-                   await updateDoc(doc(db, `profiles/${userId}/clients/${existing.id}`), clientPayload);
+                   const updatePayload = { ...clientPayload };
+                   delete updatePayload.lgpdAccepted;
+                   await updateDoc(doc(db, `profiles/${userId}/clients/${existing.id}`), updatePayload);
                    setClients(prev => prev.map(p => p.id === existing.id ? { ...p, ...clientPayload } : p));
                    updatedCount++;
                } catch(ex) {}
             } else {
                try {
-                  clientPayload.createdAt = new Date().toISOString();
+                  clientPayload.createdAt = serverTimestamp();
                   const clientRef = await addDoc(collection(db, `profiles/${userId}/clients`), clientPayload);
+                  clientPayload.createdAt = new Date().toISOString();
                   clientId = clientRef.id;
                   setClients(prev => [...prev, { id: clientId, ...clientPayload }]);
                   addedCount++;
@@ -1184,12 +1193,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     e.preventDefault();
     try {
       const payload: any = {
-         name: clientEditForm.name,
-         dob: clientEditForm.dob,
-         cpf: clientEditForm.cpf,
-         email: clientEditForm.email,
-         phone: clientEditForm.phone,
-         isActive: clientEditForm.isActive,
+         name: clientEditForm.name || '',
+         dob: clientEditForm.dob || '',
+         cpf: clientEditForm.cpf || '',
+         email: clientEditForm.email || '',
+         phone: clientEditForm.phone || '',
+         isActive: clientEditForm.isActive !== false,
          notes: clientEditForm.notes || '',
          source: clientEditForm.source || 'Outros'
       };
@@ -2245,7 +2254,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                  <p className="font-semibold mb-2">Histórico de Alterações de Status:</p>
                                  <ul className="list-disc pl-4 space-y-1">
                                     {(client.statusHistory as any[]).map((h, i) => (
-                                       <li key={i}>{format(new Date(h.date), "dd/MM/yyyy HH:mm")} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
+                                       <li key={i}>{(!isNaN(new Date(h.date).getTime()) ? format(new Date(h.date), "dd/MM/yyyy HH:mm") : h.date)} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
                                     ))}
                                  </ul>
                               </div>
@@ -2271,7 +2280,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                              )}
                            </h3>
                            <p className="text-sm text-slate-500 mt-1">{client.email} • {client.phone}</p>
-                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CPF: {client.cpf} • Nasc: {client.dob ? format(new Date(client.dob).getTime() + new Date(client.dob).getTimezoneOffset() * 60000, "dd/MM/yyyy") : '-'}</p>
+                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CPF: {client.cpf} • Nasc: {client.dob ? (!isNaN(new Date(client.dob).getTime()) ? format(new Date(client.dob).getTime() + new Date(client.dob).getTimezoneOffset() * 60000, 'dd/MM/yyyy') : client.dob) : '-'}</p>
                            <div className="flex flex-wrap gap-2 items-center">
                               <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
                                  Fonte: {client.source || 'Não informada'}
@@ -2466,7 +2475,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                    </div>
                                                 )}
                                              </td>
-                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{format(new Date(ap.datetime), "dd/MM/yyyy HH:mm")}</td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy HH:mm") : ap.datetime)}</td>
                                              <td className="p-3 border-r border-slate-100">
                                                 <div className="flex flex-col gap-1">
                                                   <span className="text-sm font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>
@@ -2861,7 +2870,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                  <p className="font-semibold mb-2">Histórico de Alterações de Status:</p>
                                  <ul className="list-disc pl-4 space-y-1">
                                     {(company.statusHistory as any[]).map((h, i) => (
-                                       <li key={i}>{format(new Date(h.date), "dd/MM/yyyy HH:mm")} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
+                                       <li key={i}>{(!isNaN(new Date(h.date).getTime()) ? format(new Date(h.date), "dd/MM/yyyy HH:mm") : h.date)} - {h.action === 'activated' ? 'Conta Ativada' : 'Conta Inativada'}</li>
                                     ))}
                                  </ul>
                               </div>
@@ -3088,7 +3097,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                    </div>
                                                 )}
                                              </td>
-                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{format(new Date(ap.datetime), "dd/MM/yyyy")}</td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy") : ap.datetime)}</td>
                                              <td className="p-3 border-r border-slate-100">
                                                 <div className="flex flex-col gap-2">
                                                   <span className="font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>
