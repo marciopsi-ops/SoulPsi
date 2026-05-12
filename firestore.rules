@@ -84,6 +84,7 @@ service cloud.firestore {
         && data.get('footerText', '') is string && data.get('footerText', '').size() <= 500
         && data.get('patientCostsStr', '[]') is string && data.get('patientCostsStr', '[]').size() <= 50000
         && data.get('companyCostsStr', '[]') is string && data.get('companyCostsStr', '[]').size() <= 50000
+        && data.get('contractTerms', '') is string && data.get('contractTerms', '').size() <= 100000
         && data.get('webhookUrl', '') is string && data.get('webhookUrl', '').size() <= 500
         && data.get('driveSync', false) is bool
         && data.get('inPersonEnabled', false) is bool
@@ -117,7 +118,7 @@ service cloud.firestore {
                         isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
                           'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
                           'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
-                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus'
+                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'contractTerms', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus'
                         ])
                       )
                     );
@@ -156,7 +157,7 @@ service cloud.firestore {
     // --- Clients ---
     function isValidClient(data) {
        return data.keys().hasAll(['name', 'dob', 'cpf', 'email', 'phone', 'lgpdAccepted', 'createdAt'])
-         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+         && data.name is string && data.name.size() >= 0 && data.name.size() <= 100
          && data.dob is string && data.dob.size() <= 20
          && data.cpf is string && data.cpf.size() <= 20
          && data.email is string && data.email.size() <= 100
@@ -168,7 +169,7 @@ service cloud.firestore {
          && data.get('rulesAccepted', false) is bool
          && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
          && (data.get('statusHistory', []) is list && data.get('statusHistory', []).size() <= 100)
-         && data.createdAt == request.time;
+         && data.createdAt is timestamp;
     }
 
     match /profiles/{profileId}/clients/{clientId} {
@@ -181,7 +182,7 @@ service cloud.firestore {
                     
       allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(clientId)
                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dob', 'cpf', 'email', 'phone', 'isActive', 'notes', 'statusHistory', 'source', 'frequency', 'rulesAccepted'])
-                    && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+                    && incoming().name is string && incoming().name.size() >= 0 && incoming().name.size() <= 100
                     && incoming().dob is string && incoming().dob.size() <= 20
                     && incoming().cpf is string && incoming().cpf.size() <= 20
                     && incoming().email is string && incoming().email.size() <= 100
@@ -238,7 +239,7 @@ service cloud.firestore {
     // --- Companies ---
     function isValidCompany(data) {
        return data.keys().hasAll(['name', 'cnpj', 'contactPerson', 'email', 'phone', 'createdAt'])
-         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+         && data.name is string && data.name.size() >= 0 && data.name.size() <= 100
          && data.get('tradeName', '') is string && data.get('tradeName', '').size() <= 100
          && data.cnpj is string && data.cnpj.size() <= 20
          && data.get('addressStreet', '') is string && data.get('addressStreet', '').size() <= 150
@@ -254,7 +255,7 @@ service cloud.firestore {
          && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
          && data.get('department', '') is string && data.get('department', '').size() <= 100
          && (data.get('statusHistory', []) is list && data.get('statusHistory', []).size() <= 100)
-         && data.createdAt == request.time;
+         && data.createdAt is timestamp;
     }
 
     match /profiles/{profileId}/companies/{companyId} {
@@ -266,7 +267,7 @@ service cloud.firestore {
                     
       allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(companyId)
                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'tradeName', 'cnpj', 'addressStreet', 'addressNumber', 'addressZipcode', 'addressCity', 'contactPerson', 'email', 'phone', 'isActive', 'notes', 'statusHistory', 'source', 'department'])
-                    && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+                    && incoming().name is string && incoming().name.size() >= 0 && incoming().name.size() <= 100
                     && incoming().get('tradeName', '') is string && incoming().get('tradeName', '').size() <= 100
                     && incoming().cnpj is string && incoming().cnpj.size() <= 20
                     && incoming().get('addressStreet', '') is string && incoming().get('addressStreet', '').size() <= 150
@@ -322,6 +323,27 @@ service cloud.firestore {
                     && (incoming().get('documents', []) is list && incoming().get('documents', []).size() <= 20);
                     
       allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId);
+    }
+    // --- Signatures ---
+    function isValidSignature(data) {
+       return data.keys().hasAll(['name', 'identifier', 'email', 'type', 'termsAccepted', 'termsText', 'signedAt'])
+         && data.name is string && data.name.size() > 0 && data.name.size() <= 150
+         && data.identifier is string && data.identifier.size() > 0 && data.identifier.size() <= 30
+         && data.email is string && data.email.size() > 0 && data.email.size() <= 150
+         && data.type is string && data.type in ['client', 'company']
+         && data.termsAccepted is bool && data.termsAccepted == true
+         && data.termsText is string && data.termsText.size() <= 100000
+         && data.signedAt == request.time;
+    }
+
+    match /profiles/{profileId}/signatures/{signatureId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(signatureId)
+                    && isValidSignature(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+                    
+      allow update, delete: if false; // Signatures are immutable
     }
   }
 }

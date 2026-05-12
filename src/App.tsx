@@ -8,9 +8,10 @@ import { Checkout } from './components/Checkout';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PatientRegistration } from './components/PatientRegistration';
 import { CompanyRegistration } from './components/CompanyRegistration';
+import { ClientTerms } from './components/ClientTerms';
 import { LogIn, Loader2, CheckCircle2 } from 'lucide-react';
 
-export type ViewState = 'landing' | 'dashboard' | 'checkout' | 'admin' | 'registration' | 'company_registration';
+export type ViewState = 'landing' | 'dashboard' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,6 +31,26 @@ export default function App() {
     const paramTherapistId = params.get('t');
     const paramRegisterId = params.get('register');
     const paramRegisterCompanyId = params.get('register_company');
+    const paramTermsId = params.get('terms');
+    const paramTermsCompanyId = params.get('terms_company');
+
+    if (paramTermsId) {
+       setTherapistId(paramTermsId);
+       fetchPublicProfile(paramTermsId).then(() => {
+         setView('terms');
+         setLoading(false);
+       });
+       return;
+    }
+
+    if (paramTermsCompanyId) {
+       setTherapistId(paramTermsCompanyId);
+       fetchPublicProfile(paramTermsCompanyId).then(() => {
+         setView('terms_company');
+         setLoading(false);
+       });
+       return;
+    }
 
     if (paramRegisterId) {
        setTherapistId(paramRegisterId);
@@ -350,6 +371,26 @@ export default function App() {
         {view === 'company_registration' && (
           <CompanyRegistration 
             therapistId={therapistId}
+            onSuccess={() => {
+              if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
+              setView('landing');
+            }}
+          />
+        )}
+        {view === 'terms' && (
+          <ClientTerms
+            therapistId={therapistId}
+            isCompany={false}
+            onSuccess={() => {
+              if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
+              setView('landing');
+            }}
+          />
+        )}
+        {view === 'terms_company' && (
+          <ClientTerms
+            therapistId={therapistId}
+            isCompany={true}
             onSuccess={() => {
               if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
               setView('landing');

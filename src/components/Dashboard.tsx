@@ -3,7 +3,7 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
@@ -194,6 +194,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [companyAppointments, setCompanyAppointments] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [signatures, setSignatures] = useState<any[]>([]);
   
   // Profile Editable Form
   const [editForm, setEditForm] = useState(profileData || {});
@@ -281,12 +282,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     // Fetch dashboard data
     const fetchDashboardData = async () => {
       try {
-        const [cliSnap, apptSnap, revSnap, compSnap, compApptSnap] = await Promise.all([
+        const [cliSnap, apptSnap, revSnap, compSnap, compApptSnap, sigSnap] = await Promise.all([
           getDocs(query(collection(db, `profiles/${userId}/clients`))),
           getDocs(query(collection(db, `profiles/${userId}/appointments`))),
           getDocs(query(collection(db, `profiles/${userId}/reviews`))),
           getDocs(query(collection(db, `profiles/${userId}/companies`))),
-          getDocs(query(collection(db, `profiles/${userId}/companyAppointments`)))
+          getDocs(query(collection(db, `profiles/${userId}/companyAppointments`))),
+          getDocs(query(collection(db, `profiles/${userId}/signatures`)))
         ]);
         
         setClients(cliSnap.docs.map(d => ({id: d.id, ...d.data()})));
@@ -294,6 +296,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         setReviews(revSnap.docs.map(d => ({id: d.id, ...d.data()})));
         setCompanies(compSnap.docs.map(d => ({id: d.id, ...d.data()})));
         setCompanyAppointments(compApptSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setSignatures(sigSnap.docs.map(d => ({id: d.id, ...d.data()})));
       } catch (e: any) {
         console.error(e);
       }
@@ -520,6 +523,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [clientEditForm, setClientEditForm] = useState<any>({});
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
   const [companyEditForm, setCompanyEditForm] = useState<any>({});
+  const [confirmDialog, setConfirmDialog] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  
+  const askConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmDialog({ isOpen: true, title, message, onConfirm });
+  };
   
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
@@ -583,6 +591,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     });
   };
 
+  const handleDuplicateLastCompanySession = (companyId: string, companyName: string) => {
+    const compAppts = companyAppointments.filter(a => a.companyId === companyId).sort((a,b) => {
+       const da = !isNaN(new Date(a.datetime).getTime()) ? new Date(a.datetime).getTime() : 0;
+       const db = !isNaN(new Date(b.datetime).getTime()) ? new Date(b.datetime).getTime() : 0;
+       return db - da;
+    });
+    if (compAppts.length === 0) {
+        alert("Não há serviços anteriores para duplicar.");
+        return;
+    }
+    const lastSession = compAppts[0];
+    setEditingCompanyAppointmentId('new');
+    setCompanyAppointmentEditForm({
+      companyId,
+      companyName,
+      date: new Date().toISOString().slice(0, 10),
+      time: '09:00',
+      status: lastSession.status || 'scheduled',
+      totalAmount: lastSession.totalAmount || 0,
+      paymentStatus: lastSession.paymentStatus || 'pending',
+      invoiceStatus: lastSession.invoiceStatus || 'pending',
+      serviceDescription: lastSession.serviceDescription || '',
+      modality: lastSession.modality || '',
+      billingAccount: lastSession.billingAccount || '',
+      priceAdjust: lastSession.priceAdjust || ''
+    });
+  };
+
   const handleEditCompanySession = (appt: any) => {
     setEditingCompanyAppointmentId(appt.id);
     const dateObj = new Date(appt.datetime);
@@ -604,6 +640,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       paymentStatus: 'pending',
       totalAmount: profileData?.services?.[0]?.price || 0,
       notes: ''
+    });
+  };
+
+  const handleDuplicateLastSession = (clientId: string, clientName: string) => {
+    const clientAppts = appointments.filter(a => a.clientId === clientId).sort((a,b) => {
+       const da = !isNaN(new Date(a.datetime).getTime()) ? new Date(a.datetime).getTime() : 0;
+       const db = !isNaN(new Date(b.datetime).getTime()) ? new Date(b.datetime).getTime() : 0;
+       return db - da;
+    });
+    if (clientAppts.length === 0) {
+        alert("Não há serviços anteriores para duplicar.");
+        return;
+    }
+    const lastSession = clientAppts[0];
+    setEditingAppointmentId('new');
+    setAppointmentEditForm({
+      clientId,
+      clientName,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toISOString().slice(11, 16),
+      status: lastSession.status || 'completed',
+      paymentStatus: lastSession.paymentStatus || 'pending',
+      totalAmount: lastSession.totalAmount || 0,
+      notes: lastSession.notes || '',
+      modality: lastSession.modality || '',
+      billingAccount: lastSession.billingAccount || '',
+      priceAdjust: lastSession.priceAdjust || ''
     });
   };
 
@@ -695,16 +758,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleCompanyAppointmentDelete = async (apptId: string) => {
-     if (confirm('Tem certeza que deseja excluir este faturamento/serviço?')) {
+     askConfirm('Excluir Faturamento', 'Tem certeza que deseja excluir este faturamento/serviço?', async () => {
         try {
            await deleteDoc(doc(db, `profiles/${userId}/companyAppointments/${apptId}`));
-           const deletedAppt = companyAppointments.find(a => a.id === apptId);
-           setCompanyAppointments(companyAppointments.filter(a => a.id !== apptId));
-           if (deletedAppt) fireWebhook('company_appointment_deleted', deletedAppt);
+           setCompanyAppointments(prev => {
+              const deletedAppt = prev.find(a => a.id === apptId);
+              if (deletedAppt) fireWebhook('company_appointment_deleted', deletedAppt);
+              return prev.filter(a => a.id !== apptId);
+           });
         } catch (error: any) {
            handleFirestoreError(error, OperationType.DELETE, `profiles/${userId}/companyAppointments/${apptId}`);
         }
-     }
+     });
   };
 
   const handleAppointmentSave = async (e: React.FormEvent, clientId: string) => {
@@ -776,16 +841,48 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleAppointmentDelete = async (apptId: string) => {
-     if (confirm('Tem certeza que deseja excluir esta sessão/agendamento?')) {
+     askConfirm('Excluir Sessão', 'Tem certeza que deseja excluir esta sessão/agendamento?', async () => {
         try {
            await deleteDoc(doc(db, `profiles/${userId}/appointments/${apptId}`));
-           const deletedAppt = appointments.find(a => a.id === apptId);
-           setAppointments(appointments.filter(a => a.id !== apptId));
-           if (deletedAppt) fireWebhook('appointment_deleted', deletedAppt);
+           setAppointments(prev => {
+              const deletedAppt = prev.find(a => a.id === apptId);
+              if (deletedAppt) fireWebhook('appointment_deleted', deletedAppt);
+              return prev.filter(a => a.id !== apptId);
+           });
         } catch(e: any) {
            handleFirestoreError(e, OperationType.DELETE, `profiles/${userId}/appointments/${apptId}`);
         }
-     }
+     });
+  };
+
+  const handleClientDelete = async (clientId: string) => {
+     askConfirm('Excluir Paciente', 'Tem certeza que deseja excluir permanentemente este paciente e todos os seus dados?', async () => {
+        try {
+           await deleteDoc(doc(db, `profiles/${userId}/clients/${clientId}`));
+           setClients(prev => {
+              const deletedClient = prev.find(c => c.id === clientId);
+              if (deletedClient) fireWebhook('patient_deleted', deletedClient);
+              return prev.filter(c => c.id !== clientId);
+           });
+        } catch(e: any) {
+           handleFirestoreError(e, OperationType.DELETE, `profiles/${userId}/clients/${clientId}`);
+        }
+     });
+  };
+
+  const handleCompanyDelete = async (companyId: string) => {
+     askConfirm('Excluir Empresa', 'Tem certeza que deseja excluir permanentemente esta empresa e todos os seus dados?', async () => {
+        try {
+           await deleteDoc(doc(db, `profiles/${userId}/companies/${companyId}`));
+           setCompanies(prev => {
+              const deletedCompany = prev.find(c => c.id === companyId);
+              if (deletedCompany) fireWebhook('company_deleted', deletedCompany);
+              return prev.filter(c => c.id !== companyId);
+           });
+        } catch(e: any) {
+           handleFirestoreError(e, OperationType.DELETE, `profiles/${userId}/companies/${companyId}`);
+        }
+     });
   };
 
   const handleClientEdit = (client: any) => {
@@ -1449,7 +1546,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   value={editForm.about || ''} onChange={e => setEditForm({...editForm, about: e.target.value})} placeholder="Conte um pouco sobre sua formação, experiência e abordagem terapêutica..."></textarea>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Termos de Contrato e Prestação de Serviços Técnicos (LGPD e Regras)</label>
+                <p className="text-xs text-slate-500 mb-2">Este texto será exibido aos pacientes quando você enviar o link para assinatura online.</p>
+                <textarea rows={8} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none placeholder-slate-400" 
+                  value={editForm.contractTerms || ''} onChange={e => setEditForm({...editForm, contractTerms: e.target.value})} placeholder="Ex: Cláusula 1..."></textarea>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 mt-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp</label>
                   <input type="tel" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
@@ -1915,21 +2019,51 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === 'pacientes' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+             <div className="flex flex-col mb-6 gap-4">
                <div>
                   <h2 className="text-xl font-bold text-slate-800">Prontuário e Agendamentos</h2>
-                  <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                     Seu link de cadastro: 
-                     <button 
-                        onClick={() => {
-                           navigator.clipboard.writeText(`${window.location.origin}/?register=${userId}`);
-                           alert('Link copiado!');
-                        }}
-                        className="text-amber-500 hover:underline font-medium"
-                     >Copiar Link</button>
-                  </p>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                       <p className="text-sm text-slate-500 flex items-center gap-2">
+                          Link de Cadastro: 
+                          <button 
+                             onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/?register=${userId}`);
+                                alert('Link copiado!');
+                             }}
+                             className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                          >
+                             <Copy className="w-3.5 h-3.5" /> Copiar Link
+                          </button>
+                       </p>
+                       <p className="text-sm text-slate-500 flex items-center gap-2">
+                          Termos/Contrato: 
+                          <button 
+                             onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/?terms=${userId}`);
+                                alert('Link de Termos copiado!');
+                             }}
+                             className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                          >
+                             <Copy className="w-3.5 h-3.5" /> Copiar Link
+                          </button>
+                       </p>
+                    </div>
+                    <p className="text-sm text-slate-500 flex items-center gap-2">
+                       Assinatura de Termos: 
+                       <button 
+                          onClick={() => {
+                             navigator.clipboard.writeText(`${window.location.origin}/?terms=${userId}`);
+                             alert('Link de assinatura copiado! Envie este link para os pacientes assinarem as atualizações contratuais.');
+                          }}
+                          className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                       >
+                          <Copy className="w-3.5 h-3.5" /> Copiar Link
+                       </button>
+                    </p>
+                  </div>
                </div>
-               <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+               <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
                  <select 
                    value={clientFrequencyFilter} 
                    onChange={e => setClientFrequencyFilter(e.target.value)}
@@ -2288,15 +2422,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide">
                                  Frequência: {client.frequency || 'Avulso'}
                               </span>
-                              {(client.lgpdAccepted || client.rulesAccepted) ? (
-                                 <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Termos Assinados Online
-                                 </span>
-                              ) : (
-                                 <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                    Adicionado Manualmente
-                                 </span>
-                              )}
+                               <div className="flex gap-1.5 flex-wrap">
+                                 {client.lgpdAccepted ? (
+                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                       <Check className="w-3 h-3" /> LGPD Aceito
+                                    </span>
+                                 ) : (
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                       LGPD Pendente
+                                    </span>
+                                 )}
+                                 {signatures.some(s => s.identifier === client.cpf && s.type === 'client') ? (
+                                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                       <Check className="w-3 h-3" /> Contrato Assinado
+                                    </span>
+                                 ) : (
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                       Contrato Pendente
+                                    </span>
+                                 )}
+                              </div>
                            </div>
                          </div>
                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
@@ -2306,6 +2451,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                            <button onClick={(e) => { e.stopPropagation(); handleClientEdit(client); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
                              <User className="w-4 h-4"/> Editar
                            </button>
+                           <button onClick={(e) => { e.stopPropagation(); handleClientDelete(client.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <Trash2 className="w-4 h-4"/> Excluir
+                           </button>
                            <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
                              {expandedClientId === client.id ? 'Esconder Serviços' : 'Ver Histórico'}
                            </span>
@@ -2314,6 +2462,29 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        
                        {expandedClientId === client.id && (
                        <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                         {signatures.filter(s => s.identifier === client.cpf && s.type === 'client').length > 0 && (
+                            <div className="mb-6 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                               <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                  Histórico de Assinaturas (Contrato e LGPD)
+                               </h4>
+                               <div className="grid gap-2">
+                                  {signatures.filter(s => s.identifier === client.cpf && s.type === 'client')
+                                    .sort((a, b) => (b.signedAt?.toMillis ? b.signedAt.toMillis() : 0) - (a.signedAt?.toMillis ? a.signedAt.toMillis() : 0))
+                                    .map(sig => (
+                                       <div key={sig.id} className="bg-white border border-emerald-100 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                          <div>
+                                             <div className="font-semibold text-slate-800 text-sm">{sig.name}</div>
+                                             <div className="text-slate-500 text-xs mt-0.5">CPF: {sig.identifier} • E-mail: {sig.email}</div>
+                                          </div>
+                                          <div className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md self-start sm:self-auto flex-shrink-0">
+                                             {sig.signedAt?.toDate ? sig.signedAt.toDate().toLocaleString('pt-BR') : 'Data não disponível'}
+                                          </div>
+                                       </div>
+                                    ))}
+                               </div>
+                            </div>
+                         )}
                           {client.notes && (
                             <div className="mb-6 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100">
                                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2"><Settings className="w-4 h-4 text-slate-400" /> Anotações Gerais do Prontuário</h4>
@@ -2343,9 +2514,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </select>
                                </div>
                             </div>
-                            <button onClick={() => handleAddSession(client.id, client.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
-                               <Plus className="w-4 h-4" /> Novo Serviço
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0">
+                               <button onClick={() => handleDuplicateLastSession(client.id, client.name)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto" title="Duplicar informações do último serviço registrado">
+                                  <Copy className="w-4 h-4" /> Duplicar Anterior
+                               </button>
+                               <button onClick={() => handleAddSession(client.id, client.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
+                                  <Plus className="w-4 h-4" /> Novo Serviço
+                               </button>
+                            </div>
                          </div>
 
                          {editingAppointmentId === 'new' && appointmentEditForm.clientId === client.id && (
@@ -2558,21 +2734,51 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === 'empresas' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+             <div className="flex flex-col mb-6 gap-4">
                <div>
                   <h2 className="text-xl font-bold text-slate-800">Gestão de Empresas</h2>
-                  <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                     Seu link de cadastro: 
-                     <button 
-                        onClick={() => {
-                           navigator.clipboard.writeText(`${window.location.origin}/?register_company=${userId}`);
-                           alert('Link copiado!');
-                        }}
-                        className="text-amber-500 hover:underline font-medium"
-                     >Copiar Link</button>
-                  </p>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                       <p className="text-sm text-slate-500 flex items-center gap-2">
+                          Link de Cadastro: 
+                          <button 
+                             onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/?register_company=${userId}`);
+                                alert('Link copiado!');
+                             }}
+                             className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                          >
+                             <Copy className="w-3.5 h-3.5" /> Copiar Link
+                          </button>
+                       </p>
+                       <p className="text-sm text-slate-500 flex items-center gap-2">
+                          Termos/Contrato: 
+                          <button 
+                             onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/?terms_company=${userId}`);
+                                alert('Link de Termos copiado!');
+                             }}
+                             className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                          >
+                             <Copy className="w-3.5 h-3.5" /> Copiar Link
+                          </button>
+                       </p>
+                    </div>
+                    <p className="text-sm text-slate-500 flex items-center gap-2">
+                       Assinatura de Termos: 
+                       <button 
+                          onClick={() => {
+                             navigator.clipboard.writeText(`${window.location.origin}/?terms_company=${userId}`);
+                             alert('Link de assinatura copiado! Envie este link para as empresas assinarem os termos.');
+                          }}
+                          className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                       >
+                          <Copy className="w-3.5 h-3.5" /> Copiar Link
+                       </button>
+                    </p>
+                  </div>
                </div>
-               <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+               <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
                  <select 
                    value={companyGlobalInvoiceFilter} 
                    onChange={e => setCompanyGlobalInvoiceFilter(e.target.value as any)}
@@ -2901,15 +3107,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
                                  Fonte: {company.source || 'Não informada'}
                               </span>
-                              {(company.lgpdAccepted || company.rulesAccepted) ? (
-                                 <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Termos Assinados Online
-                                 </span>
-                              ) : (
-                                 <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                    Adicionado Manualmente
-                                 </span>
-                              )}
+                               <div className="flex gap-1.5 flex-wrap">
+                                 {company.lgpdAccepted ? (
+                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                       <Check className="w-3 h-3" /> LGPD Aceito
+                                    </span>
+                                 ) : (
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                       LGPD Pendente
+                                    </span>
+                                 )}
+                                 {signatures.some(s => s.identifier === company.cnpj && s.type === 'company') ? (
+                                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                       <Check className="w-3 h-3" /> Contrato Assinado
+                                    </span>
+                                 ) : (
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                       Contrato Pendente
+                                    </span>
+                                 )}
+                              </div>
                            </div>
                          </div>
                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
@@ -2919,6 +3136,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                            <button onClick={(e) => { e.stopPropagation(); handleCompanyEdit(company); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
                              <User className="w-4 h-4"/> Editar
                            </button>
+                           <button onClick={(e) => { e.stopPropagation(); handleCompanyDelete(company.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
+                             <Trash2 className="w-4 h-4"/> Excluir
+                           </button>
                            <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
                              {expandedCompanyId === company.id ? 'Esconder Serviços' : 'Ver Histórico'}
                            </span>
@@ -2927,6 +3147,29 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        
                        {expandedCompanyId === company.id && (
                        <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                         {signatures.filter(s => s.identifier === company.cnpj && s.type === 'company').length > 0 && (
+                            <div className="mb-6 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                               <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                  Histórico de Assinaturas (Contrato e LGPD)
+                               </h4>
+                               <div className="grid gap-2">
+                                  {signatures.filter(s => s.identifier === company.cnpj && s.type === 'company')
+                                    .sort((a, b) => (b.signedAt?.toMillis ? b.signedAt.toMillis() : 0) - (a.signedAt?.toMillis ? a.signedAt.toMillis() : 0))
+                                    .map(sig => (
+                                       <div key={sig.id} className="bg-white border border-emerald-100 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                          <div>
+                                             <div className="font-semibold text-slate-800 text-sm">{sig.name}</div>
+                                             <div className="text-slate-500 text-xs mt-0.5">CNPJ: {sig.identifier} • E-mail: {sig.email}</div>
+                                          </div>
+                                          <div className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md self-start sm:self-auto flex-shrink-0">
+                                             {sig.signedAt?.toDate ? sig.signedAt.toDate().toLocaleString('pt-BR') : 'Data não disponível'}
+                                          </div>
+                                       </div>
+                                    ))}
+                               </div>
+                            </div>
+                         )}
                           {company.notes && (
                             <div className="mb-6 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100">
                                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2"><Settings className="w-4 h-4 text-slate-400" /> Anotações Gerais do Prontuário</h4>
@@ -2956,9 +3199,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </select>
                                </div>
                             </div>
-                            <button onClick={() => handleAddCompanySession(company.id, company.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
-                               <Plus className="w-4 h-4" /> Novo Serviço
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0">
+                               <button onClick={() => handleDuplicateLastCompanySession(company.id, company.name)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto" title="Duplicar informações do último serviço registrado">
+                                  <Copy className="w-4 h-4" /> Duplicar Anterior
+                               </button>
+                               <button onClick={() => handleAddCompanySession(company.id, company.name)} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition w-full sm:w-auto">
+                                  <Plus className="w-4 h-4" /> Novo Serviço
+                               </button>
+                            </div>
                          </div>
 
                          {editingCompanyAppointmentId === 'new' && companyAppointmentEditForm.companyId === company.id && (
@@ -3414,6 +3662,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  >
                     <MessageCircle className="w-4 h-4"/> Enviar via WhatsApp
                  </a>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
+              <div className="p-6">
+                 <h3 className="text-xl font-bold text-slate-900 mb-2">{confirmDialog.title}</h3>
+                 <p className="text-slate-600 mb-6">{confirmDialog.message}</p>
+                 <div className="flex justify-end gap-3">
+                    <button 
+                       onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} 
+                       className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition"
+                    >
+                       Cancelar
+                    </button>
+                    <button 
+                       onClick={() => {
+                          confirmDialog.onConfirm();
+                          setConfirmDialog({ ...confirmDialog, isOpen: false });
+                       }} 
+                       className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                    >
+                       Confirmar Exclusão
+                    </button>
+                 </div>
               </div>
            </div>
         </div>

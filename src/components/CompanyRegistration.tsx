@@ -22,8 +22,7 @@ export function CompanyRegistration({ therapistId, onSuccess }: { therapistId: s
     addressZipcode: '',
     addressCity: '',
     source: '',
-    lgpdAccepted: false,
-    rulesAccepted: false
+    lgpdAccepted: false
   });
   
   const [submitting, setSubmitting] = useState(false);
@@ -56,8 +55,8 @@ export function CompanyRegistration({ therapistId, onSuccess }: { therapistId: s
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.lgpdAccepted || !form.rulesAccepted) {
-      alert('Você precisa aceitar os termos de LGPD e Ciente das Regras para prosseguir.');
+    if (!form.lgpdAccepted) {
+      alert('Você precisa aceitar os termos de LGPD para prosseguir.');
       return;
     }
     if (!form.source) {
@@ -196,22 +195,13 @@ export function CompanyRegistration({ therapistId, onSuccess }: { therapistId: s
                       <input type="checkbox" required className="w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-400" checked={form.lgpdAccepted} onChange={e => setForm({...form, lgpdAccepted: e.target.checked})} />
                    </div>
                    <div className="text-sm text-slate-600 leading-relaxed">
-                      <strong>Termo de Consentimento (LGPD):</strong> Autorizo a coleta, armazenamento e tratamento dos meus dados pessoais informados neste formulário pela clínica profissional, estritamente para as finalidades de prestação de serviços psicológicos, contatos de agendamento, emissão de recibos/notas fiscais e cumprimento de obrigações legais, conforme estabelecido pelas leis e pela Lei Geral de Proteção de Dados (LGPD).
-                   </div>
-                </label>
-                
-                <label className="flex items-start gap-3 cursor-pointer group">
-                   <div className="mt-1 flex-shrink-0">
-                      <input type="checkbox" required className="w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-400" checked={form.rulesAccepted} onChange={e => setForm({...form, rulesAccepted: e.target.checked})} />
-                   </div>
-                   <div className="text-sm text-slate-600 leading-relaxed">
-                      <strong>Contrato Terapeuta-Empresa (Ciente das Regras):</strong> Declaro estar ciente e de acordo com as regras de funcionamento das sessões (presenciais ou online), incluindo valores, formas de pagamento, e a política de cancelamentos (avisos necessários com antecedência mínima negociada), garantindo o compromisso bilateral durante todo o processo terapêutico.
+                      <strong>Ciente sobre o uso de dados (LGPD):</strong> Autorizo a coleta, armazenamento e tratamento dos meus dados pessoais informados neste formulário pela clínica profissional, estritamente para as finalidades de prestação de serviços psicológicos, contatos de agendamento, emissão de recibos/notas fiscais e cumprimento de obrigações legais, conforme estabelecido pelas leis e pela Lei Geral de Proteção de Dados (LGPD).
                    </div>
                 </label>
              </div>
 
              <button type="submit" disabled={submitting} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-lg py-4 rounded-xl transition shadow-sm hover:shadow flex items-center justify-center gap-2">
-                {submitting ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Finalizar Cadastro e Concordar com Termos'}
+                {submitting ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Finalizar Cadastro'}
              </button>
           </form>
        </div>
