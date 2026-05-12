@@ -57,6 +57,16 @@ export function ClientTerms({ therapistId, isCompany, onSuccess }: { therapistId
         termsText: profileData?.contractTerms || 'Termos padrão aceitos',
         signedAt: serverTimestamp()
       });
+      
+      try {
+        await addDoc(collection(db, `profiles/${therapistId}/system_notifications`), {
+           title: 'Nova Assinatura de Termos',
+           message: `${form.name} assinou os termos e contrato.`,
+           isRead: false,
+           createdAt: new Date().toISOString()
+        });
+      } catch(e) {}
+      
       setSubmitted(true);
     } catch (e: any) {
       console.error(e);

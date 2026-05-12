@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, query, updateDoc } from 'firebase/firestore';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -60,11 +60,48 @@ export function PatientRegistration({ therapistId, onSuccess }: { therapistId: s
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, `profiles/${therapistId}/clients`), {
-        ...form,
-        isActive: true,
-        createdAt: serverTimestamp()
-      });
+      if (form.cpf) {
+         const cleanCpf = form.cpf.replace(/\D/g, '');
+         const clientsRef = collection(db, `profiles/${therapistId}/clients`);
+         const q = query(clientsRef);
+         const querySnapshot = await getDocs(q);
+         
+         let existingClient = null;
+         querySnapshot.forEach((doc) => {
+             const data = doc.data();
+             if (data.cpf && data.cpf.replace(/\D/g, '') === cleanCpf) {
+                 existingClient = { id: doc.id, ...data };
+             }
+         });
+
+         if (existingClient) {
+             const updatePayload = { ...form };
+             delete (updatePayload as any).lgpdAccepted;
+             await updateDoc(doc(db, `profiles/${therapistId}/clients/${existingClient.id}`), updatePayload);
+         } else {
+             await addDoc(collection(db, `profiles/${therapistId}/clients`), {
+               ...form,
+               isActive: true,
+               createdAt: serverTimestamp()
+             });
+         }
+      } else {
+          await addDoc(collection(db, `profiles/${therapistId}/clients`), {
+            ...form,
+            isActive: true,
+            createdAt: serverTimestamp()
+          });
+      }
+      
+      try {
+        await addDoc(collection(db, `profiles/${therapistId}/system_notifications`), {
+           title: 'Novo Cadastro de Paciente',
+           message: `${form.name} preencheu a ficha de cadastro de pacientes.`,
+           isRead: false,
+           createdAt: new Date().toISOString()
+        });
+      } catch(e) {}
+      
       setSubmitted(true);
       setTimeout(() => {
          onSuccess();

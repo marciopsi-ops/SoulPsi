@@ -3,21 +3,19 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
 import { THEMES } from '../lib/themes';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-function CostManager({ costsStr, type, userId, onUpdates }: { costsStr: string, type: 'patientCostsStr' | 'companyCostsStr', userId: string, onUpdates: (newStr: string) => void }) {
+function CostManager({ costsStr, type, userId, onUpdates, filterMonths, filterYear }: { costsStr: string, type: 'patientCostsStr' | 'companyCostsStr', userId: string, onUpdates: (newStr: string) => void, filterMonths: number[], filterYear: number }) {
    const [costs, setCosts] = useState<{id: string, name: string, amount: number, month?: string, year?: string}[]>(() => {
       try { return JSON.parse(costsStr || '[]'); } catch { return []; }
    });
    const currentYear = new Date().getFullYear().toString();
    const [form, setForm] = useState({ name: '', amount: '', month: '', year: currentYear });
-   const [filterMonth, setFilterMonth] = useState<string>('');
-   const [filterYear, setFilterYear] = useState<string>(currentYear);
    const [saving, setSaving] = useState(false);
 
    const suggestions = type === 'patientCostsStr' 
@@ -52,17 +50,18 @@ function CostManager({ costsStr, type, userId, onUpdates }: { costsStr: string, 
        }
    };
 
+   const monthsArray = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+   const stringMonths = filterMonths.map(i => monthsArray[i]);
+
    const filteredCosts = costs.filter(c => {
-      if (!filterMonth) return true; // Show all if no month is selected as a general view?
       if (!c.month) return true; // Fixed costs are shown in all months
-      if (filterMonth && filterYear) return c.month === filterMonth && c.year === filterYear;
-      if (filterMonth && !filterYear) return c.month === filterMonth;
+      if (stringMonths.length > 0) {
+         return stringMonths.includes(c.month) && c.year === filterYear.toString();
+      }
       return true;
    });
 
    const currentTotal = filteredCosts.reduce((a,b)=>a+b.amount,0);
-
-   const yearsList = Array.from(new Set([currentYear, ...costs.filter(c => c.year).map(c => c.year as string)])).sort();
 
    return (
        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
@@ -71,39 +70,14 @@ function CostManager({ costsStr, type, userId, onUpdates }: { costsStr: string, 
                 <DollarSign className="w-5 h-5 text-red-500" />
                 Custos e Despesas
              </h3>
-             <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">Visualizar:</span>
-                <select className="px-2 py-1.5 border rounded-lg text-xs bg-white focus:ring-amber-400" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-                   <option value="">Geral (Todos)</option>
-                   <option value="Jan">Janeiro</option>
-                   <option value="Fev">Fevereiro</option>
-                   <option value="Mar">Março</option>
-                   <option value="Abr">Abril</option>
-                   <option value="Mai">Maio</option>
-                   <option value="Jun">Junho</option>
-                   <option value="Jul">Julho</option>
-                   <option value="Ago">Agosto</option>
-                   <option value="Set">Setembro</option>
-                   <option value="Out">Outubro</option>
-                   <option value="Nov">Novembro</option>
-                   <option value="Dez">Dezembro</option>
-                </select>
-                {filterMonth && (
-                   <select className="px-2 py-1.5 border rounded-lg text-xs bg-white focus:ring-amber-400" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-                      {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
-                   </select>
-                )}
-             </div>
           </div>
 
-          {filterMonth && (
-             <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-100 flex items-center justify-between mb-4">
-                <div className="text-sm font-semibold">
-                   Total de {filterMonth}/{filterYear} <span className="text-red-500 font-normal text-xs ml-1">(inclui custos fixos)</span>
-                </div>
-                <div className="text-lg font-bold">R$ {currentTotal.toFixed(2).replace('.', ',')}</div>
+          <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-100 flex items-center justify-between mb-4">
+             <div className="text-sm font-semibold">
+                Total para o Período Filtrado <span className="text-red-500 font-normal text-xs ml-1">(inclui custos fixos)</span>
              </div>
-          )}
+             <div className="text-lg font-bold">R$ {currentTotal.toFixed(2).replace('.', ',')}</div>
+          </div>
 
           <div className="flex flex-wrap gap-2 mb-4">
              {suggestions.map(s => (
@@ -187,12 +161,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes'>('perfil');
+  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes' | 'notificacoes'>('perfil');
   const [clients, setClients] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<{isOpen: boolean, message: string, progress: number, total: number, finished: boolean, added: number, updated: number, sessions: number}>({isOpen: false, message: '', progress: 0, total: 0, finished: false, added: 0, updated: 0, sessions: 0});
   const [appointments, setAppointments] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [companyAppointments, setCompanyAppointments] = useState<any[]>([]);
+  const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [signatures, setSignatures] = useState<any[]>([]);
   
@@ -282,13 +257,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     // Fetch dashboard data
     const fetchDashboardData = async () => {
       try {
-        const [cliSnap, apptSnap, revSnap, compSnap, compApptSnap, sigSnap] = await Promise.all([
+        const [cliSnap, apptSnap, revSnap, compSnap, compApptSnap, sigSnap, notifSnap] = await Promise.all([
           getDocs(query(collection(db, `profiles/${userId}/clients`))),
           getDocs(query(collection(db, `profiles/${userId}/appointments`))),
           getDocs(query(collection(db, `profiles/${userId}/reviews`))),
           getDocs(query(collection(db, `profiles/${userId}/companies`))),
           getDocs(query(collection(db, `profiles/${userId}/companyAppointments`))),
-          getDocs(query(collection(db, `profiles/${userId}/signatures`)))
+          getDocs(query(collection(db, `profiles/${userId}/signatures`))),
+          getDocs(query(collection(db, `profiles/${userId}/system_notifications`)))
         ]);
         
         setClients(cliSnap.docs.map(d => ({id: d.id, ...d.data()})));
@@ -297,6 +273,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         setCompanies(compSnap.docs.map(d => ({id: d.id, ...d.data()})));
         setCompanyAppointments(compApptSnap.docs.map(d => ({id: d.id, ...d.data()})));
         setSignatures(sigSnap.docs.map(d => ({id: d.id, ...d.data()})));
+        setSystemNotifications(notifSnap.docs.map(d => ({id: d.id, ...d.data()})));
       } catch (e: any) {
         console.error(e);
       }
@@ -414,6 +391,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
+  const getPublicLink = (path: string) => {
+      let base = profileData?.publicDomain ? profileData.publicDomain : window.location.origin;
+      if (base.endsWith('/')) base = base.slice(0, -1);
+      if (!base.startsWith('http')) base = 'https://' + base;
+      return `${base}${path}`;
+  };
+
   const [clientSearchText, setClientSearchText] = useState('');
   const [showBirthdays, setShowBirthdays] = useState(false);
   const [clientSourceFilter, setClientSourceFilter] = useState<string>('all');
@@ -423,19 +407,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [companyGlobalInvoiceFilter, setCompanyGlobalInvoiceFilter] = useState<'all' | 'issued' | 'pending'>('all');
   
   const [globalBillingFilter, setGlobalBillingFilter] = useState<'all' | 'paid' | 'pending'>('all');
-  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
+  const [filterMonths, setFilterMonths] = useState<number[]>([new Date().getMonth()]);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
 
   const appointmentsInPeriod = appointments.filter(appt => {
     if (!appt.datetime) return false;
     const date = new Date(appt.datetime);
-    return date.getMonth() === filterMonth && date.getFullYear() === filterYear;
+    return filterMonths.includes(date.getMonth()) && date.getFullYear() === filterYear;
   });
 
   const companyAppointmentsInPeriod = companyAppointments.filter(appt => {
     if (!appt.datetime) return false;
     const date = new Date(appt.datetime);
-    return date.getMonth() === filterMonth && date.getFullYear() === filterYear;
+    return filterMonths.includes(date.getMonth()) && date.getFullYear() === filterYear;
   });
 
   const totalPendingInPeriod = appointmentsInPeriod
@@ -450,9 +434,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     .filter(a => (a.paymentStatus || 'pending') === 'paid')
     .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
 
+  const totalByBillingAccount = appointmentsInPeriod.reduce((acc, a) => {
+    if ((a.paymentStatus || 'pending') === 'paid') {
+      const account = a.billingAccount || 'Não informado';
+      acc[account] = (acc[account] || 0) + Number(a.totalAmount || 0);
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   const totalCompanyPaidInPeriod = companyAppointmentsInPeriod
     .filter(a => (a.paymentStatus || 'pending') === 'paid')
     .reduce((sum, a) => sum + Number(a.totalAmount || 0), 0);
+    
+  const totalCompanyByBillingAccount = companyAppointmentsInPeriod.reduce((acc, a) => {
+    if ((a.paymentStatus || 'pending') === 'paid') {
+      const account = a.billingAccount || 'Não informado';
+      acc[account] = (acc[account] || 0) + Number(a.totalAmount || 0);
+    }
+    return acc;
+  }, {} as Record<string, number>);
 
   const clientIdsWithBillingFilter = new Set(appointmentsInPeriod
     .filter(a => globalBillingFilter === 'all' ? true : (a.paymentStatus || 'pending') === globalBillingFilter)
@@ -547,8 +547,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [notificationSubject, setNotificationSubject] = useState('');
   
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportMonth, setExportMonth] = useState<number | 'all'>('all');
-  const [exportYear, setExportYear] = useState<number | 'all'>('all');
 
   const handleOpenNotification = (client: any) => {
     setNotificationModalClient(client);
@@ -963,17 +961,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const generateCSVString = () => {
      const filteredAppointments = appointments.filter(a => {
-       let isMatch = true;
-       if (exportMonth !== 'all' || exportYear !== 'all') {
-          const date = new Date(a.datetime);
-          if (exportYear !== 'all') {
-              if (date.getFullYear() !== exportYear) isMatch = false;
-          }
-          if (exportMonth !== 'all') {
-              if (date.getMonth() !== exportMonth) isMatch = false;
-          }
-       }
-       return isMatch;
+       if (!a.datetime) return false;
+       const date = new Date(a.datetime);
+       return filterMonths.includes(date.getMonth()) && date.getFullYear() === filterYear;
      });
 
      const headers = [
@@ -1028,10 +1018,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
      const csvContent = generateCSVString();
      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
      
-     let dateStr = 'all';
-     if (exportMonth !== 'all' || exportYear !== 'all') {
-         dateStr = `${exportMonth !== 'all' ? (exportMonth as number) + 1 : 'all'}-${exportYear !== 'all' ? exportYear : 'all'}`;
-     }
+     let dateStr = `${filterMonths.map(m => m + 1).join('-')}_${filterYear}`;
      const filename = `pacientes_export_${dateStr}.csv`;
      
      const url = URL.createObjectURL(blob);
@@ -1069,10 +1056,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       const csvContent = generateCSVString();
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       
-      let dateStr = 'all';
-      if (exportMonth !== 'all' || exportYear !== 'all') {
-          dateStr = `${exportMonth !== 'all' ? (exportMonth as number) + 1 : 'all'}-${exportYear !== 'all' ? exportYear : 'all'}`;
-      }
+      let dateStr = `${filterMonths.map(m => m + 1).join('-')}_${filterYear}`;
       const filename = `pacientes_export_${dateStr}.csv`;
 
       const metadata = {
@@ -1193,24 +1177,46 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         
         if (!clientPayload.name) continue;
         
-        const uniqueKey = `${clientPayload.name.toLowerCase()} _ ${clientPayload.cpf || clientPayload.dob || ''}`;
+        const cleanCpf = clientPayload.cpf ? clientPayload.cpf.replace(/\D/g, '') : null;
+        let uniqueKey = '';
+        if (cleanCpf) {
+            uniqueKey = `cpf_${cleanCpf}`;
+        } else {
+            uniqueKey = `name_${clientPayload.name.toLowerCase()}`;
+        }
+        
         let clientId = processedClients.get(uniqueKey);
 
         if (!clientId) {
             // Check if exists in existing clients
-            const existing = clients.find(c => 
-                c.name.trim().toLowerCase() === clientPayload.name.toLowerCase() && 
-                ((clientPayload.cpf && c.cpf === clientPayload.cpf) || (clientPayload.email && c.email === clientPayload.email) || (!clientPayload.cpf && !clientPayload.email && c.dob === clientPayload.dob))
-            );
+            const existing = clients.find(c => {
+                if (cleanCpf && c.cpf) {
+                    return c.cpf.replace(/\D/g, '') === cleanCpf;
+                }
+                return c.name.trim().toLowerCase() === clientPayload.name.trim().toLowerCase();
+            });
 
             if (existing) {
                clientId = existing.id;
+               processedClients.set(uniqueKey, clientId);
                try {
-                   const updatePayload = { ...clientPayload };
+                   // Somente atualizar informações diferentes que não sejam vazias e existam no CSV
+                   const updatePayload: any = {};
+                   Object.keys(clientPayload).forEach(key => {
+                       if (clientPayload[key] !== '' && clientPayload[key] !== undefined && clientPayload[key] !== existing[key as keyof typeof existing]) {
+                           updatePayload[key] = clientPayload[key];
+                       }
+                   });
+                   
+                   // Nunca sobrepor os aceites com falsos do CSV, nem apagar LGPD
                    delete updatePayload.lgpdAccepted;
-                   await updateDoc(doc(db, `profiles/${userId}/clients/${existing.id}`), updatePayload);
-                   setClients(prev => prev.map(p => p.id === existing.id ? { ...p, ...clientPayload } : p));
-                   updatedCount++;
+                   delete updatePayload.rulesAccepted;
+
+                   if (Object.keys(updatePayload).length > 0) {
+                      await updateDoc(doc(db, `profiles/${userId}/clients/${existing.id}`), updatePayload);
+                      setClients(prev => prev.map(p => p.id === existing.id ? { ...p, ...updatePayload } : p));
+                      updatedCount++;
+                   }
                } catch(ex) {}
             } else {
                try {
@@ -1218,6 +1224,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   const clientRef = await addDoc(collection(db, `profiles/${userId}/clients`), clientPayload);
                   clientPayload.createdAt = new Date().toISOString();
                   clientId = clientRef.id;
+                  processedClients.set(uniqueKey, clientId);
                   setClients(prev => [...prev, { id: clientId, ...clientPayload }]);
                   addedCount++;
                } catch (err: any) {
@@ -1363,6 +1370,20 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <span>Meu Perfil</span>
             </button>
             <button 
+              onClick={() => setActiveTab('notificacoes')}
+              className={cn("w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition", activeTab === 'notificacoes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <div className="flex items-center gap-3">
+                 <Bell className="w-5 h-5 flex-shrink-0" />
+                 <span>Notificações</span>
+              </div>
+              {systemNotifications.filter(n => !n.isRead).length > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                   {systemNotifications.filter(n => !n.isRead).length}
+                </span>
+              )}
+            </button>
+            <button 
               onClick={() => setActiveTab('pacientes')}
               className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'pacientes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
             >
@@ -1409,6 +1430,39 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       {/* Main Content */}
       <div className="flex-1">
+        {['pacientes', 'empresas', 'avaliacoes', 'agenda'].includes(activeTab) && (
+           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 z-20">
+              <div className="flex items-center gap-2 text-slate-800 font-bold">
+                 <CalendarIcon className="w-5 h-5 text-amber-500" />
+                 Filtro Global de Período
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                 <div className="flex flex-wrap gap-1 items-center bg-slate-50 border border-slate-200 p-1 rounded-xl">
+                    {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
+                        <button 
+                           key={i} 
+                           type="button"
+                           onClick={() => {
+                              if (filterMonths.includes(i)) {
+                                 if (filterMonths.length > 1) setFilterMonths(filterMonths.filter(x => x !== i));
+                              } else {
+                                 setFilterMonths([...filterMonths, i]);
+                              }
+                           }}
+                           className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border border-transparent border-slate-200", filterMonths.includes(i) ? "bg-amber-500 text-white border-amber-500 shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100")}
+                        >
+                           {m}
+                        </button>
+                    ))}
+                 </div>
+                 <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="p-2 border border-slate-300 rounded-xl text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                    {[2023,2024,2025,2026,2027,2028].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                 </select>
+              </div>
+           </div>
+        )}
         {activeTab === 'perfil' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
             <div className="flex justify-between items-center mb-6">
@@ -1553,11 +1607,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   value={editForm.contractTerms || ''} onChange={e => setEditForm({...editForm, contractTerms: e.target.value})} placeholder="Ex: Cláusula 1..."></textarea>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp</label>
                   <input type="tel" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
                     value={editForm.whatsapp || ''} onChange={e => setEditForm({...editForm, whatsapp: e.target.value})} placeholder="Ex: 5511999999999" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">URL do Site Público (Opcional)</label>
+                  <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
+                    value={editForm.publicDomain || ''} onChange={e => setEditForm({...editForm, publicDomain: e.target.value})} placeholder="Ex: https://meusite.com.br" />
+                  <p className="text-xs text-slate-500 mt-1">Preencha este campo se você publicou o sistema em outro endereço. Os links dos pacientes serão gerados com ele.</p>
                 </div>
               </div>
               
@@ -2017,6 +2077,56 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           </div>
         )}
 
+        {activeTab === 'notificacoes' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+             <div className="flex justify-between items-center mb-6">
+               <h2 className="text-xl font-bold text-slate-800">Notificações do Sistema</h2>
+               <button 
+                 onClick={async () => {
+                   try {
+                     await Promise.all(systemNotifications.filter(n => !n.isRead).map(n => updateDoc(doc(db, `profiles/${userId}/system_notifications/${n.id}`), { isRead: true })));
+                     setSystemNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                   } catch(e) {}
+                 }}
+                 className="text-sm text-slate-500 hover:text-amber-600 transition"
+               >
+                 Marcar todas como lidas
+               </button>
+             </div>
+             <div className="flex flex-col gap-3">
+               {systemNotifications.length === 0 ? (
+                 <div className="text-center py-12 text-slate-500">
+                    Nenhuma notificação recebida ainda.
+                 </div>
+               ) : (
+                 systemNotifications.sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).map(notif => (
+                   <div key={notif.id} className={cn("p-4 rounded-xl border transition", notif.isRead ? "bg-slate-50 border-slate-200" : "bg-amber-50/50 border-amber-200")}>
+                     <div className="flex justify-between items-start mb-1">
+                       <h3 className={cn("font-bold", notif.isRead ? "text-slate-700" : "text-amber-900")}>{notif.title}</h3>
+                       {notif.createdAt && (
+                         <span className="text-xs text-slate-400">
+                           {format(new Date(notif.createdAt), "dd/MM/yyyy 'às' HH:mm")}
+                         </span>
+                       )}
+                     </div>
+                     <p className={cn("text-sm", notif.isRead ? "text-slate-600" : "text-amber-800")}>{notif.message}</p>
+                     {!notif.isRead && (
+                       <button onClick={async () => {
+                         try {
+                           await updateDoc(doc(db, `profiles/${userId}/system_notifications/${notif.id}`), { isRead: true });
+                           setSystemNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+                         } catch(e) {}
+                       }} className="mt-3 text-xs font-semibold text-amber-600 hover:text-amber-700 transition">
+                         Marcar como lida
+                       </button>
+                     )}
+                   </div>
+                 ))
+               )}
+             </div>
+          </div>
+        )}
+
         {activeTab === 'pacientes' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
              <div className="flex flex-col mb-6 gap-4">
@@ -2028,7 +2138,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           Link de Cadastro: 
                           <button 
                              onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/?register=${userId}`);
+                                navigator.clipboard.writeText(getPublicLink(`/?register=${userId}`));
                                 alert('Link copiado!');
                              }}
                              className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
@@ -2040,7 +2150,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           Termos/Contrato: 
                           <button 
                              onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/?terms=${userId}`);
+                                navigator.clipboard.writeText(getPublicLink(`/?terms=${userId}`));
                                 alert('Link de Termos copiado!');
                              }}
                              className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
@@ -2049,18 +2159,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </button>
                        </p>
                     </div>
-                    <p className="text-sm text-slate-500 flex items-center gap-2">
-                       Assinatura de Termos: 
-                       <button 
-                          onClick={() => {
-                             navigator.clipboard.writeText(`${window.location.origin}/?terms=${userId}`);
-                             alert('Link de assinatura copiado! Envie este link para os pacientes assinarem as atualizações contratuais.');
-                          }}
-                          className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
-                       >
-                          <Copy className="w-3.5 h-3.5" /> Copiar Link
-                       </button>
-                    </p>
+                    {!profileData?.publicDomain && (
+                        <div className="bg-amber-50 text-amber-700/80 p-3 rounded-lg text-xs leading-relaxed max-w-2xl mt-1 border border-amber-100 flex gap-2 items-start">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
+                            <div>
+                               <strong className="font-semibold block mb-1">Atenção: Endereço do Sistema não Configurado</strong>
+                               O link atual de testes (ais-pre-...) dará um erro de <strong className="font-semibold">"Acesso Negado (403)"</strong> caso seja enviado para os pacientes, pois é de uso exclusivo no ambiente de desenvolvimento.<br/>Para resolver, é necessário <strong>publicar o sistema</strong> e preencher o campo "URL do Site Público" em Meu Perfil.
+                            </div>
+                        </div>
+                    )}
                   </div>
                </div>
                <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
@@ -2104,6 +2211,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  </label>
                  <button onClick={handleExportCSV} className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition flex-shrink-0 shadow-sm" title="Exportar Pacientes para Planilha (CSV)">
                    <Download className="w-5 h-5"/>
+                 </button>
+                 <button onClick={() => setShowBirthdays(!showBirthdays)} className={cn("p-2 rounded-lg border transition flex-shrink-0 shadow-sm", showBirthdays ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50")} title="Filtrar Aniversariantes do Mês">
+                   <Gift className="w-5 h-5"/>
                  </button>
                  <button onClick={() => { setClientEditForm({ isActive: true }); setEditingClientId('new'); }} className="bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Paciente Manualmente">
                    <Plus className="w-5 h-5"/>
@@ -2168,20 +2278,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
                       <DollarSign className="w-5 h-5 text-emerald-600" />
-                      Faturamento e Filtros (Período)
+                      Faturamento da Unidade / Conta (Período Filtrado)
                    </h3>
-                   <div className="flex flex-wrap items-center gap-2">
-                      <select value={filterMonth} onChange={e => setFilterMonth(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
-                         {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
-                             <option key={i} value={i}>{m}</option>
-                         ))}
-                      </select>
-                      <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
-                         {[2023,2024,2025,2026,2027,2028].map(y => (
-                             <option key={y} value={y}>{y}</option>
-                         ))}
-                      </select>
-                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'all' ? "bg-white border-amber-400 ring-1 ring-blue-400" : "bg-white border-slate-200 hover:border-slate-300")} onClick={() => setGlobalBillingFilter('all')}>
@@ -2206,6 +2304,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       {globalBillingFilter === 'pending' && <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />}
                    </div>
                 </div>
+
+                 {Object.keys(totalByBillingAccount).length > 0 && (
+                   <div className="mt-6 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-700 mb-3">Recebido por Conta / Local (Pacientes)</h4>
+                      <div className="flex flex-wrap gap-3">
+                         {Object.entries(totalByBillingAccount).sort((a,b) => b[1] - a[1]).map(([account, total]) => (
+                            <div key={account} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3">
+                               <span className="font-medium text-slate-600">{account}</span>
+                               <span className="font-bold text-emerald-700">R$ {total.toFixed(2).replace('.', ',')}</span>
+                            </div>
+                         ))}
+                      </div>
+                   </div>
+                 )}
+
                 {globalBillingFilter !== 'all' && (
                    <p className="text-xs text-slate-500 mt-4 text-center">
                       Exibindo apenas pacientes com faturamento <strong>{globalBillingFilter === 'paid' ? 'concluído (pago)' : 'pendente'}</strong> no período selecionado.
@@ -2213,7 +2326,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 )}
              </div>
              
-             <CostManager costsStr={profileData?.patientCostsStr} type="patientCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, patientCostsStr: val})} />
+             <CostManager costsStr={profileData?.patientCostsStr} type="patientCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, patientCostsStr: val})} filterMonths={filterMonths} filterYear={filterYear} />
 
              {editingClientId === 'new' && (
                <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
@@ -2403,62 +2516,64 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </form>
                         ) : (
                           <>
-                       <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}>
-                         <div>
-                           <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                             {client.name}
-                             {(client.isActive ?? true) ? (
-                                <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
+                       <div className="flex flex-col cursor-pointer" onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}>
+                          <div className="flex flex-wrap sm:flex-nowrap items-center justify-start sm:justify-end gap-2 mb-3 w-full" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(client); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-emerald-100 flex-1 sm:flex-none">
+                              <Send className="w-4 h-4"/> Notificar
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleClientEdit(client); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-amber-100 flex-1 sm:flex-none">
+                              <User className="w-4 h-4"/> Editar
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleClientDelete(client.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-red-100 flex-1 sm:flex-none">
+                              <Trash2 className="w-4 h-4"/> Excluir
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); setExpandedClientId(expandedClientId === client.id ? null : client.id); }} className="flex items-center justify-center gap-1.5 text-slate-500 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap flex-1 sm:flex-none">
+                              <span className="underline underline-offset-4 decoration-slate-200">
+                                {expandedClientId === client.id ? 'Esconder Histórico' : 'Ver Histórico'}
+                              </span>
+                            </button>
+                          </div>
+                          
+                          <h3 className="font-bold text-slate-900 text-lg sm:text-xl flex items-center gap-2 mb-1">
+                            {client.name}
+                            {(client.isActive ?? true) ? (
+                               <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
+                            ) : (
+                               <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
+                            )}
+                          </h3>
+                          
+                          <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+                            <span className="hidden sm:inline">{client.email} • </span>{client.phone} • CPF: {client.cpf} • Nasc: {client.dob ? (!isNaN(new Date(client.dob).getTime()) ? format(new Date(client.dob).getTime() + new Date(client.dob).getTimezoneOffset() * 60000, 'dd/MM/yyyy') : client.dob) : '-'}
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                             <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
+                                Fonte: {client.source || 'Não informada'}
+                             </span>
+                             <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide">
+                                Frequência: {client.frequency || 'Avulso'}
+                             </span>
+                             {client.lgpdAccepted ? (
+                                <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                   <Check className="w-3 h-3" /> LGPD Aceito
+                                </span>
                              ) : (
-                                <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
+                                <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                   LGPD Pendente
+                                </span>
                              )}
-                           </h3>
-                           <p className="text-sm text-slate-500 mt-1">{client.email} • {client.phone}</p>
-                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CPF: {client.cpf} • Nasc: {client.dob ? (!isNaN(new Date(client.dob).getTime()) ? format(new Date(client.dob).getTime() + new Date(client.dob).getTimezoneOffset() * 60000, 'dd/MM/yyyy') : client.dob) : '-'}</p>
-                           <div className="flex flex-wrap gap-2 items-center">
-                              <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
-                                 Fonte: {client.source || 'Não informada'}
-                              </span>
-                              <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide">
-                                 Frequência: {client.frequency || 'Avulso'}
-                              </span>
-                               <div className="flex gap-1.5 flex-wrap">
-                                 {client.lgpdAccepted ? (
-                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                       <Check className="w-3 h-3" /> LGPD Aceito
-                                    </span>
-                                 ) : (
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                       LGPD Pendente
-                                    </span>
-                                 )}
-                                 {signatures.some(s => s.identifier === client.cpf && s.type === 'client') ? (
-                                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                       <Check className="w-3 h-3" /> Contrato Assinado
-                                    </span>
-                                 ) : (
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                       Contrato Pendente
-                                    </span>
-                                 )}
-                              </div>
-                           </div>
-                         </div>
-                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
-                           <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(client); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <Send className="w-4 h-4"/> Notificar
-                           </button>
-                           <button onClick={(e) => { e.stopPropagation(); handleClientEdit(client); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <User className="w-4 h-4"/> Editar
-                           </button>
-                           <button onClick={(e) => { e.stopPropagation(); handleClientDelete(client.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <Trash2 className="w-4 h-4"/> Excluir
-                           </button>
-                           <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
-                             {expandedClientId === client.id ? 'Esconder Serviços' : 'Ver Histórico'}
-                           </span>
-                         </div>
-                       </div>
+                             {signatures.some(s => s.identifier === client.cpf && s.type === 'client') ? (
+                                <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                   <Check className="w-3 h-3" /> Contrato Assinado
+                                </span>
+                             ) : (
+                                <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                   Contrato Pendente
+                                </span>
+                             )}
+                          </div>
+                        </div>
                        
                        {expandedClientId === client.id && (
                        <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
@@ -2560,13 +2675,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Local / Conta Faturamento</label>
-                                     <input type="text" list="billingAccounts" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})} placeholder="Para onde foi pago..." />
-                                     <datalist id="billingAccounts">
-                                        <option value="Pix Nubank" />
-                                        <option value="Itaú Pessoa Física" />
-                                        <option value="Bradesco Jurídico" />
-                                        <option value="Dinheiro" />
-                                     </datalist>
+                                     <select className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})}>
+                                        <option value="">Para onde foi pago...</option>
+                                        <option value="ELO">ELO</option>
+                                        <option value="MEI Carla">MEI Carla</option>
+                                        <option value="CPF Marcio">CPF Marcio</option>
+                                        <option value="CPF Carla">CPF Carla</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                     </select>
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Ajuste de Valor (Índice/Alíquota)</label>
@@ -2621,13 +2737,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                          <option value="Presencial">Presencial</option>
                                                          <option value="Híbrido">Híbrido</option>
                                                       </select>
-                                                      <input type="text" list="billingAccountsE" className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})} placeholder="Local / Conta..." />
-                                                      <datalist id="billingAccountsE">
-                                                         <option value="Pix Nubank" />
-                                                         <option value="Itaú Pessoa Física" />
-                                                         <option value="Bradesco Jurídico" />
-                                                         <option value="Dinheiro" />
-                                                      </datalist>
+                                                      <select className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={appointmentEditForm.billingAccount || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, billingAccount: e.target.value})}>
+                                                         <option value="">Local / Conta...</option>
+                                                         <option value="ELO">ELO</option>
+                                                         <option value="MEI Carla">MEI Carla</option>
+                                                         <option value="CPF Marcio">CPF Marcio</option>
+                                                         <option value="CPF Carla">CPF Carla</option>
+                                                         <option value="Dinheiro">Dinheiro</option>
+                                                      </select>
                                                       <input type="text" className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.priceAdjust || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, priceAdjust: e.target.value})} placeholder="Índice / Alíquota" />
                                                    </div>
                                                    <div>
@@ -2743,7 +2860,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           Link de Cadastro: 
                           <button 
                              onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/?register_company=${userId}`);
+                                navigator.clipboard.writeText(getPublicLink(`/?register_company=${userId}`));
                                 alert('Link copiado!');
                              }}
                              className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
@@ -2755,7 +2872,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           Termos/Contrato: 
                           <button 
                              onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/?terms_company=${userId}`);
+                                navigator.clipboard.writeText(getPublicLink(`/?terms_company=${userId}`));
                                 alert('Link de Termos copiado!');
                              }}
                              className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
@@ -2764,18 +2881,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </button>
                        </p>
                     </div>
-                    <p className="text-sm text-slate-500 flex items-center gap-2">
-                       Assinatura de Termos: 
-                       <button 
-                          onClick={() => {
-                             navigator.clipboard.writeText(`${window.location.origin}/?terms_company=${userId}`);
-                             alert('Link de assinatura copiado! Envie este link para as empresas assinarem os termos.');
-                          }}
-                          className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
-                       >
-                          <Copy className="w-3.5 h-3.5" /> Copiar Link
-                       </button>
-                    </p>
+                    {!profileData?.publicDomain && (
+                        <div className="bg-amber-50 text-amber-700/80 p-3 rounded-lg text-xs leading-relaxed max-w-2xl mt-1 border border-amber-100 flex gap-2 items-start">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
+                            <div>
+                               <strong className="font-semibold block mb-1">Atenção: Endereço do Sistema não Configurado</strong>
+                               O link atual de testes (ais-pre-...) dará um erro de <strong className="font-semibold">"Acesso Negado (403)"</strong> caso seja enviado para os clientes, pois é de uso exclusivo no ambiente de desenvolvimento.<br/>Para resolver, é necessário <strong>publicar o sistema</strong> e preencher o campo "URL do Site Público" em Meu Perfil.
+                            </div>
+                        </div>
+                    )}
                   </div>
                </div>
                <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
@@ -2820,23 +2934,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
                       <DollarSign className="w-5 h-5 text-emerald-600" />
-                      Faturamento e Filtros (Período)
+                      Faturamento da Empresa (Período Filtrado)
                    </h3>
-                   <div className="flex flex-wrap items-center gap-2">
-                      <select value={filterMonth} onChange={e => setFilterMonth(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
-                         {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
-                             <option key={i} value={i}>{m}</option>
-                         ))}
-                      </select>
-                      <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="p-2 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none">
-                         {[2023,2024,2025,2026,2027,2028].map(y => (
-                             <option key={y} value={y}>{y}</option>
-                         ))}
-                      </select>
-                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", globalBillingFilter === 'all' ? "bg-white border-amber-400 ring-1 ring-blue-400" : "bg-white border-slate-200 hover:border-slate-300")} onClick={() => setGlobalBillingFilter('all')}>
+                   <div className={cn("p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden", companyGlobalInvoiceFilter !== 'all' ? "bg-white border-blue-400 ring-1 ring-blue-400" : "bg-white border-slate-200 hover:border-slate-300")} onClick={() => setGlobalBillingFilter('all')}>
                       <div className="z-10 relative">
                          <p className="text-sm text-slate-500 font-medium mb-1">Total do Mês (Previsto)</p>
                          <p className="text-2xl font-bold text-slate-800">R$ {(totalCompanyPaidInPeriod + totalCompanyPendingInPeriod).toFixed(2).replace('.', ',')}</p>
@@ -2858,6 +2960,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       {globalBillingFilter === 'pending' && <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />}
                    </div>
                 </div>
+
+                 {Object.keys(totalCompanyByBillingAccount).length > 0 && (
+                   <div className="mt-6 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-700 mb-3">Recebido por Conta / Local (Empresas)</h4>
+                      <div className="flex flex-wrap gap-3">
+                         {Object.entries(totalCompanyByBillingAccount).sort((a,b) => b[1] - a[1]).map(([account, total]) => (
+                            <div key={account} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3">
+                               <span className="font-medium text-slate-600">{account}</span>
+                               <span className="font-bold text-emerald-700">R$ {total.toFixed(2).replace('.', ',')}</span>
+                            </div>
+                         ))}
+                      </div>
+                   </div>
+                 )}
+
                 {globalBillingFilter !== 'all' && (
                    <p className="text-xs text-slate-500 mt-4 text-center">
                       Exibindo apenas empresas com faturamento <strong>{globalBillingFilter === 'paid' ? 'concluído (pago)' : 'pendente'}</strong> no período selecionado.
@@ -2865,7 +2982,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 )}
              </div>
              
-             <CostManager costsStr={profileData?.companyCostsStr} type="companyCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, companyCostsStr: val})} />
+             <CostManager costsStr={profileData?.companyCostsStr} type="companyCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, companyCostsStr: val})} filterMonths={filterMonths} filterYear={filterYear} />
 
              {editingCompanyId === 'new' && (
                <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
@@ -3091,59 +3208,61 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </form>
                         ) : (
                           <>
-                       <div className="flex justify-between items-start mb-2 cursor-pointer" onClick={() => setExpandedCompanyId(expandedCompanyId === company.id ? null : company.id)}>
-                         <div>
-                           <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                             {company.name}
-                             {(company.isActive ?? true) ? (
-                                <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
-                             ) : (
-                                <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
-                             )}
-                           </h3>
-                           <p className="text-sm text-slate-500 mt-1">{company.email} • {company.phone}</p>
-                           <p className="text-xs text-slate-400 mt-0.5 mb-2">CNPJ: {company.cnpj} • Contato: {company.contactPerson || '-'} • Depto: {company.department || '-'}</p>
-                           <div className="flex flex-wrap gap-2 items-center">
-                              <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
-                                 Fonte: {company.source || 'Não informada'}
+                       <div className="flex flex-col cursor-pointer" onClick={() => setExpandedCompanyId(expandedCompanyId === company.id ? null : company.id)}>
+                          <div className="flex flex-wrap sm:flex-nowrap items-center justify-start sm:justify-end gap-2 mb-3 w-full" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(company); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-emerald-100 flex-1 sm:flex-none">
+                              <Send className="w-4 h-4"/> Notificar
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleCompanyEdit(company); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-amber-100 flex-1 sm:flex-none">
+                              <User className="w-4 h-4"/> Editar
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleCompanyDelete(company.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border border-transparent hover:border-red-100 flex-1 sm:flex-none">
+                              <Trash2 className="w-4 h-4"/> Excluir
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); setExpandedCompanyId(expandedCompanyId === company.id ? null : company.id); }} className="flex items-center justify-center gap-1.5 text-slate-500 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap flex-1 sm:flex-none">
+                              <span className="underline underline-offset-4 decoration-slate-200">
+                                {expandedCompanyId === company.id ? 'Esconder Histórico' : 'Ver Histórico'}
                               </span>
-                               <div className="flex gap-1.5 flex-wrap">
-                                 {company.lgpdAccepted ? (
-                                    <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                       <Check className="w-3 h-3" /> LGPD Aceito
-                                    </span>
-                                 ) : (
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                       LGPD Pendente
-                                    </span>
-                                 )}
-                                 {signatures.some(s => s.identifier === company.cnpj && s.type === 'company') ? (
-                                    <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
-                                       <Check className="w-3 h-3" /> Contrato Assinado
-                                    </span>
-                                 ) : (
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
-                                       Contrato Pendente
-                                    </span>
-                                 )}
-                              </div>
-                           </div>
-                         </div>
-                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
-                           <button onClick={(e) => { e.stopPropagation(); handleOpenNotification(company); }} className="flex items-center justify-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <Send className="w-4 h-4"/> Notificar
-                           </button>
-                           <button onClick={(e) => { e.stopPropagation(); handleCompanyEdit(company); }} className="flex items-center justify-center gap-1.5 text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <User className="w-4 h-4"/> Editar
-                           </button>
-                           <button onClick={(e) => { e.stopPropagation(); handleCompanyDelete(company.id); }} className="flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap">
-                             <Trash2 className="w-4 h-4"/> Excluir
-                           </button>
-                           <span className="text-slate-400 text-sm font-medium underline underline-offset-4 decoration-slate-200">
-                             {expandedCompanyId === company.id ? 'Esconder Serviços' : 'Ver Histórico'}
-                           </span>
-                         </div>
-                       </div>
+                            </button>
+                          </div>
+
+                          <h3 className="font-bold text-slate-900 text-lg sm:text-xl flex items-center gap-2 mb-1">
+                            {company.name}
+                            {(company.isActive ?? true) ? (
+                               <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-md font-medium">Ativo</span>
+                            ) : (
+                               <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md font-medium">Inativo</span>
+                            )}
+                          </h3>
+                          
+                          <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+                            <span className="hidden sm:inline">{company.email} • </span>{company.phone} • CNPJ: {company.cnpj} • Contato: {company.contactPerson || '-'} • Depto: {company.department || '-'}
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                             <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 border border-amber-100 rounded-full font-semibold uppercase tracking-wide">
+                                Fonte: {company.source || 'Não informada'}
+                             </span>
+                             {company.lgpdAccepted ? (
+                                <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 border border-emerald-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                   <Check className="w-3 h-3" /> LGPD Aceito
+                                </span>
+                             ) : (
+                                <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                   LGPD Pendente
+                                </span>
+                             )}
+                             {signatures.some(s => s.identifier === company.cnpj && s.type === 'company') ? (
+                                <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 border border-blue-100 rounded-full font-semibold uppercase tracking-wide flex items-center gap-1">
+                                   <Check className="w-3 h-3" /> Contrato Assinado
+                                </span>
+                             ) : (
+                                <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 border border-slate-200 rounded-full font-semibold uppercase tracking-wide">
+                                   Contrato Pendente
+                                </span>
+                             )}
+                          </div>
+                        </div>
                        
                        {expandedCompanyId === company.id && (
                        <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
@@ -3252,12 +3371,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Local / Conta Faturamento</label>
-                                     <input type="text" list="companyBillingAccounts" className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})} placeholder="Para onde foi pago..." />
-                                     <datalist id="companyBillingAccounts">
-                                        <option value="Pix PJ" />
-                                        <option value="Bradesco PJ" />
-                                        <option value="Boleto" />
-                                     </datalist>
+                                     <select className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})}>
+                                        <option value="">Para onde foi pago...</option>
+                                        <option value="ELO">ELO</option>
+                                        <option value="MEI Carla">MEI Carla</option>
+                                        <option value="CPF Marcio">CPF Marcio</option>
+                                        <option value="CPF Carla">CPF Carla</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                     </select>
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Ajuste de Valor (Índice/Alíquota)</label>
@@ -3316,12 +3437,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                          <option value="Presencial">Presencial</option>
                                                          <option value="Híbrido">Híbrido</option>
                                                       </select>
-                                                      <input type="text" list="companyBillingAccountsET" className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})} placeholder="Local / Conta..." />
-                                                      <datalist id="companyBillingAccountsET">
-                                                         <option value="Pix PJ" />
-                                                         <option value="Bradesco PJ" />
-                                                         <option value="Boleto" />
-                                                      </datalist>
+                                                      <select className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]" value={companyAppointmentEditForm.billingAccount || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, billingAccount: e.target.value})}>
+                                                         <option value="">Local / Conta...</option>
+                                                         <option value="ELO">ELO</option>
+                                                         <option value="MEI Carla">MEI Carla</option>
+                                                         <option value="CPF Marcio">CPF Marcio</option>
+                                                         <option value="CPF Carla">CPF Carla</option>
+                                                         <option value="Dinheiro">Dinheiro</option>
+                                                      </select>
                                                       <input type="text" className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.priceAdjust || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, priceAdjust: e.target.value})} placeholder="Índice / Alíquota" />
                                                    </div>
                                                    <div>
@@ -3538,33 +3661,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  </button>
               </div>
               <div className="p-6 flex-1 space-y-4">
-                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Mês (Sessões)</label>
-                    <select className="w-full p-2 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm bg-white" value={exportMonth} onChange={e => setExportMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-                       <option value="all">Todos os Meses</option>
-                       <option value="0">Janeiro</option>
-                       <option value="1">Fevereiro</option>
-                       <option value="2">Março</option>
-                       <option value="3">Abril</option>
-                       <option value="4">Maio</option>
-                       <option value="5">Junho</option>
-                       <option value="6">Julho</option>
-                       <option value="7">Agosto</option>
-                       <option value="8">Setembro</option>
-                       <option value="9">Outubro</option>
-                       <option value="10">Novembro</option>
-                       <option value="11">Dezembro</option>
-                    </select>
-                 </div>
-                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Ano (Sessões)</label>
-                    <select className="w-full p-2 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm bg-white" value={exportYear} onChange={e => setExportYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-                       <option value="all">Todos os Anos</option>
-                       {Array.from(new Set([...appointments.map(a => new Date(a.datetime).getFullYear()), new Date().getFullYear()])).sort().map(year => (
-                         <option key={year} value={year}>{year}</option>
-                       ))}
-                    </select>
-                 </div>
+                 <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                   O relatório será gerado de acordo com o <strong>Filtro Global de Período</strong> selecionado ({filterMonths.map(m => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m]).join(', ')} de {filterYear}).
+                 </p>
                  <p className="text-xs text-slate-500 mt-4 leading-relaxed">
                    Será gerada uma planilha com todos os pacientes. Pacientes com sessões no período selecionado terão essas sessões desmembradas em linhas, facilitando o acompanhamento detalhado.
                  </p>

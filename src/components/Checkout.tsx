@@ -39,6 +39,15 @@ export function Checkout({ therapistId, profileData, bookingData, onSuccess, onC
         createdAt: serverTimestamp()
       });
       
+      try {
+        await addDoc(collection(db, `profiles/${therapistId}/system_notifications`), {
+           title: 'Novo Agendamento Confirmado',
+           message: `${bookingData?.clientName || 'Anônimo'} agendou uma sessão.`,
+           isRead: false,
+           createdAt: new Date().toISOString()
+        });
+      } catch(e) {}
+      
       // Navigate based on payment settings
       if (isPaid && allowPayment && hasPix) {
         setPhase('payment-choice');

@@ -345,5 +345,28 @@ service cloud.firestore {
                     
       allow update, delete: if false; // Signatures are immutable
     }
+    // --- System Notifications ---
+    function isValidSystemNotification(data) {
+       return data.keys().hasAll(['title', 'message', 'isRead', 'createdAt'])
+         && data.title is string && data.title.size() > 0 && data.title.size() <= 100
+         && data.message is string && data.message.size() > 0 && data.message.size() <= 500
+         && data.isRead is bool
+         && data.createdAt is string;
+    }
+
+    match /profiles/{profileId}/system_notifications/{notifId} {
+      allow get, list: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(notifId)
+                    && isValidSystemNotification(incoming())
+                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+                    
+      allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(notifId)
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])
+                    && incoming().isRead is bool;
+                    
+      allow delete: if false; 
+    }
+
   }
 }
