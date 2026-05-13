@@ -119,10 +119,55 @@
         "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
         "totalAmount": { "type": "number" },
         "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "modality": { "type": "string" },
+        "billingAccount": { "type": "string" },
+        "priceAdjust": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "hoursQty": { "type": "number" },
         "notes": { "type": "string" },
         "createdAt": { "type": "string" }
       },
       "required": ["clientId", "clientName", "datetime", "status", "totalAmount", "createdAt"]
+    },
+    "Company": {
+      "title": "Registered Company",
+      "description": "Company data",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "cnpj", "contactPerson", "email", "phone", "createdAt"]
+    },
+    "CompanyAppointment": {
+      "title": "Company Appointment",
+      "description": "Scheduled appointment linked to a company",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "datetime": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "totalAmount": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "invoiceStatus": { "type": "string", "enum": ["pending", "issued"] },
+        "modality": { "type": "string" },
+        "billingAccount": { "type": "string" },
+        "priceAdjust": { "type": "string" },
+        "serviceDescription": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "hoursQty": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["companyId", "companyName", "datetime", "status", "totalAmount", "createdAt"]
     }
   },
   "firestore": {
@@ -145,6 +190,14 @@
     "/profiles/{profileId}/appointments/{appointmentId}": {
       "schema": { "$ref": "#/entities/Appointment" },
       "description": "Appointments for the therapist."
+    },
+    "/profiles/{profileId}/companies/{companyId}": {
+      "schema": { "$ref": "#/entities/Company" },
+      "description": "Companies registered with the therapist."
+    },
+    "/profiles/{profileId}/companyAppointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/CompanyAppointment" },
+      "description": "Appointments for companies."
     }
   }
 }

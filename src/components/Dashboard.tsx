@@ -3,7 +3,7 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
@@ -575,7 +575,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       companyId,
       companyName,
       date: new Date().toISOString().slice(0, 10),
-      time: '09:00', // We can remove this from UI but let's keep it in payload for datetime compat
+      hoursQty: 1,
       status: 'scheduled',
       totalAmount: 0,
       paymentStatus: 'pending',
@@ -600,7 +600,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       companyId,
       companyName,
       date: new Date().toISOString().slice(0, 10),
-      time: '09:00',
+      hoursQty: lastSession.hoursQty || 1,
+      serviceId: lastSession.serviceId || null,
+      serviceName: lastSession.serviceName || '',
       status: lastSession.status || 'scheduled',
       totalAmount: lastSession.totalAmount || 0,
       paymentStatus: lastSession.paymentStatus || 'pending',
@@ -628,7 +630,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       clientId,
       clientName,
       date: new Date().toISOString().slice(0, 10),
-      time: new Date().toISOString().slice(11, 16),
+      hoursQty: 1,
       status: 'completed',
       paymentStatus: 'pending',
       totalAmount: profileData?.services?.[0]?.price || 0,
@@ -652,7 +654,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       clientId,
       clientName,
       date: new Date().toISOString().slice(0, 10),
-      time: new Date().toISOString().slice(11, 16),
+      hoursQty: lastSession.hoursQty || 1,
+      serviceId: lastSession.serviceId || null,
+      serviceName: lastSession.serviceName || '',
       status: lastSession.status || 'completed',
       paymentStatus: lastSession.paymentStatus || 'pending',
       totalAmount: lastSession.totalAmount || 0,
@@ -678,11 +682,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     try {
       const payload = { ...companyAppointmentEditForm, companyId };
       
-      if (!payload.date || !payload.time) {
+      if (!payload.date) {
          return;
       }
       
-      const datetime = `${payload.date}T${payload.time}`;
+      const datetime = `${payload.date}T00:00:00`;
       payload.datetime = datetime;
       delete payload.date;
       delete payload.time;
@@ -700,10 +704,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           status: payload.status,
           paymentStatus: payload.paymentStatus,
           invoiceStatus: payload.invoiceStatus || 'pending',
-          serviceDescription: payload.serviceDescription || '',
+          serviceDescription: payload.serviceDescription || payload.serviceName || '',
+          serviceId: payload.serviceId || null,
+          hoursQty: payload.hoursQty || 1,
           totalAmount: payload.totalAmount,
           notes: payload.notes || '',
-          companyName: payload.companyName
+          companyName: payload.companyName,
+          modality: payload.modality || '',
+          billingAccount: payload.billingAccount || '',
+          priceAdjust: payload.priceAdjust || ''
         };
         await updateDoc(doc(db, `profiles/${userId}/companyAppointments/${editingCompanyAppointmentId}`), updatePayload);
         setCompanyAppointments(companyAppointments.map(a => a.id === editingCompanyAppointmentId ? { ...a, ...updatePayload } : a));
@@ -770,12 +779,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     try {
       const payload = { ...appointmentEditForm, clientId };
       
-      if (!payload.date || !payload.time) {
+      if (!payload.date) {
          return;
       }
       
       // Convert date and time to datetime
-      const datetime = `${payload.date}T${payload.time}`;
+      const datetime = `${payload.date}T00:00:00`;
       payload.datetime = datetime;
       delete payload.date;
       delete payload.time;
@@ -794,7 +803,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           paymentStatus: payload.paymentStatus,
           totalAmount: payload.totalAmount,
           notes: payload.notes || '',
-          clientName: payload.clientName
+          clientName: payload.clientName,
+          serviceId: payload.serviceId || null,
+          serviceName: payload.serviceName || '',
+          hoursQty: payload.hoursQty || 1,
+          modality: payload.modality || '',
+          billingAccount: payload.billingAccount || '',
+          priceAdjust: payload.priceAdjust || ''
         };
         await updateDoc(doc(db, `profiles/${userId}/appointments/${editingAppointmentId}`), updatePayload);
         setAppointments(appointments.map(a => a.id === editingAppointmentId ? { ...a, ...updatePayload } : a));
@@ -2192,13 +2207,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                    <option value="Pacientes">Pacientes</option>
                    <option value="Outros">Outros</option>
                  </select>
-                 <input 
-                   type="text" 
-                   placeholder="Buscar por nome ou e-mail..." 
-                   className="w-full sm:w-64 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm"
-                   value={clientSearchText}
-                   onChange={e => setClientSearchText(e.target.value)}
-                 />
                  
                  <label className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm" title="Importar Pacientes de Planilha (CSV)">
                    <FileUp className="w-5 h-5"/>
@@ -2304,10 +2312,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                    <div className="mt-6 pt-4 border-t border-slate-200">
                       <h4 className="text-sm font-bold text-slate-700 mb-3">Recebido por Conta / Local (Pacientes)</h4>
                       <div className="flex flex-wrap gap-3">
-                         {Object.entries(totalByBillingAccount).sort((a,b) => b[1] - a[1]).map(([account, total]) => (
+                         {Object.entries(totalByBillingAccount).sort((a,b) => (b[1] as number) - (a[1] as number)).map(([account, total]) => (
                             <div key={account} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3">
                                <span className="font-medium text-slate-600">{account}</span>
-                               <span className="font-bold text-emerald-700">R$ {total.toFixed(2).replace('.', ',')}</span>
+                               <span className="font-bold text-emerald-700">R$ {(total as number).toFixed(2).replace('.', ',')}</span>
                             </div>
                          ))}
                       </div>
@@ -2353,13 +2361,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                            <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                            <option value="Google/ Site">Google/ Site</option>
                            <option value="Pacientes">Pacientes</option>
-                           {clients.length > 0 && (
-                             <optgroup label="Pacientes Cadastrados">
-                               {clients.map(c => (
-                                 <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
-                               ))}
-                             </optgroup>
-                           )}
                            <option value="Outros">Outros</option>
                          </select>
                        </div>
@@ -2397,6 +2398,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </div>
                   </form>
                </div>
+             )}
+
+             {clients.length > 0 && (
+                <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-end">
+                   <div className="relative w-full sm:max-w-md">
+                       <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                       <input 
+                         type="text" 
+                         placeholder="Buscar por nome ou e-mail..." 
+                         className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                         value={clientSearchText}
+                         onChange={e => setClientSearchText(e.target.value)}
+                       />
+                   </div>
+                </div>
              )}
 
              {clients.length === 0 ? (
@@ -2451,13 +2467,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                    <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                                    <option value="Google/ Site">Google/ Site</option>
                                    <option value="Pacientes">Pacientes</option>
-                                   {clients.length > 0 && (
-                                     <optgroup label="Pacientes Cadastrados">
-                                       {clients.map(c => (
-                                         <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
-                                       ))}
-                                     </optgroup>
-                                   )}
                                    <option value="Outros">Outros</option>
                                  </select>
                                </div>
@@ -2637,19 +2646,40 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          {editingAppointmentId === 'new' && appointmentEditForm.clientId === client.id && (
                             <form onSubmit={(e) => handleAppointmentSave(e, client.id)} className="bg-slate-50 p-4 pb-0 rounded-xl border border-slate-200 mb-4 animate-in fade-in">
                                <h4 className="font-semibold text-slate-800 mb-3">Registrar Novo Serviço</h4>
-                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
+                               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3 text-sm">
                                   <div>
                                      <label className="block text-slate-600 mb-1">Data</label>
                                      <input type="date" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.date} onChange={e => setAppointmentEditForm({...appointmentEditForm, date: e.target.value})} />
                                   </div>
+                                  <div className="md:col-span-2">
+                                     <label className="block text-slate-600 mb-1">Serviço Prestado</label>
+                                     <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" 
+                                             value={appointmentEditForm.serviceId || ''} 
+                                             onChange={e => {
+                                                const s = (profileData?.services || []).find((x:any) => x.id === e.target.value);
+                                                setAppointmentEditForm({
+                                                  ...appointmentEditForm, 
+                                                  serviceId: e.target.value, 
+                                                  serviceName: s?.title || '',
+                                                  totalAmount: s?.price > 0 ? s.price : appointmentEditForm.totalAmount
+                                                });
+                                             }}>
+                                         <option value="">Selecione o Serviço...</option>
+                                         {(profileData?.services || []).filter((s:any) => s.category === 'voce').map((s:any) => (
+                                           <option value={s.id} key={s.id}>{s.title}</option>
+                                         ))}
+                                     </select>
+                                  </div>
                                   <div>
-                                     <label className="block text-slate-600 mb-1">Hora</label>
-                                     <input type="time" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.time} onChange={e => setAppointmentEditForm({...appointmentEditForm, time: e.target.value})} />
+                                     <label className="block text-slate-600 mb-1" title="Quantidade de Horas">Qtd Horas</label>
+                                     <input type="number" min="1" step="1" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.hoursQty || 1} onChange={e => setAppointmentEditForm({...appointmentEditForm, hoursQty: Number(e.target.value)})} />
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Valor (R$)</label>
                                      <input type="number" step="0.01" min="0" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.totalAmount} onChange={e => setAppointmentEditForm({...appointmentEditForm, totalAmount: Number(e.target.value)})} />
                                   </div>
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
                                   <div>
                                      <label className="block text-slate-600 mb-1">Status Financeiro</label>
                                      <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={appointmentEditForm.paymentStatus} onChange={e => setAppointmentEditForm({...appointmentEditForm, paymentStatus: e.target.value})}>
@@ -2715,7 +2745,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 <form onSubmit={(e) => handleAppointmentSave(e, client.id)} className="flex flex-col gap-3">
                                                    <div className="flex flex-wrap gap-3 items-center">
                                                       <input type="date" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.date || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, date: e.target.value})} />
-                                                      <input type="time" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.time || ''} onChange={e => setAppointmentEditForm({...appointmentEditForm, time: e.target.value})} />
+                                                      <select required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm max-w-[200px]" 
+                                                              value={appointmentEditForm.serviceId || ''} 
+                                                              onChange={e => {
+                                                                 const s = (profileData?.services || []).find((x:any) => x.id === e.target.value);
+                                                                 setAppointmentEditForm({
+                                                                   ...appointmentEditForm, 
+                                                                   serviceId: e.target.value, 
+                                                                   serviceName: s?.title || '',
+                                                                   totalAmount: s?.price > 0 ? s.price : appointmentEditForm.totalAmount
+                                                                 });
+                                                              }}>
+                                                          <option value="">Serviço...</option>
+                                                          {(profileData?.services || []).filter((s:any) => s.category === 'voce').map((s:any) => (
+                                                            <option value={s.id} key={s.id}>{s.title}</option>
+                                                          ))}
+                                                      </select>
+                                                      <div className="flex items-center gap-1">
+                                                         <span className="text-slate-500 text-xs">Qtd</span>
+                                                         <input type="number" step="1" min="1" required className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.hoursQty || 1} onChange={e => setAppointmentEditForm({...appointmentEditForm, hoursQty: Number(e.target.value)})} title="Quantidade de Horas"/>
+                                                      </div>
                                                       <div className="flex items-center gap-1">
                                                          <span className="text-slate-500">R$</span>
                                                          <input type="number" step="0.01" min="0" required className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm" value={appointmentEditForm.totalAmount} onChange={e => setAppointmentEditForm({...appointmentEditForm, totalAmount: Number(e.target.value)})} />
@@ -2755,7 +2804,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                        ) : (
                                           <tr className="border-b border-slate-100 hover:bg-slate-50 group transition-colors">
                                              <td className="p-3 border-r border-slate-100 font-medium">
-                                                <p>{ap.serviceDescription || 'Sessão Padrão'}</p>
+                                                <p>{ap.serviceName || 'Sessão Padrão'}</p>
                                                 {(ap.modality || ap.billingAccount || ap.priceAdjust) && (
                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                                       {ap.modality && <span className="bg-slate-100 text-slate-600 px-1.5 border border-slate-200 py-0.5 rounded text-[10px] uppercase font-bold">{ap.modality}</span>}
@@ -2763,7 +2812,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                    </div>
                                                 )}
                                              </td>
-                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy HH:mm") : ap.datetime)}</td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">
+                                                {(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy") : ap.datetime)}
+                                                <div className="text-xs text-slate-500 mt-1">{ap.hoursQty || 1} {ap.hoursQty > 1 ? 'Horas' : 'Hora'}</div>
+                                             </td>
                                              <td className="p-3 border-r border-slate-100">
                                                 <div className="flex flex-col gap-1">
                                                   <span className="text-sm font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>
@@ -2960,10 +3012,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                    <div className="mt-6 pt-4 border-t border-slate-200">
                       <h4 className="text-sm font-bold text-slate-700 mb-3">Recebido por Conta / Local (Empresas)</h4>
                       <div className="flex flex-wrap gap-3">
-                         {Object.entries(totalCompanyByBillingAccount).sort((a,b) => b[1] - a[1]).map(([account, total]) => (
+                         {Object.entries(totalCompanyByBillingAccount).sort((a,b) => (b[1] as number) - (a[1] as number)).map(([account, total]) => (
                             <div key={account} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3">
                                <span className="font-medium text-slate-600">{account}</span>
-                               <span className="font-bold text-emerald-700">R$ {total.toFixed(2).replace('.', ',')}</span>
+                               <span className="font-bold text-emerald-700">R$ {(total as number).toFixed(2).replace('.', ',')}</span>
                             </div>
                          ))}
                       </div>
@@ -3043,13 +3095,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                            <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
                            <option value="Google/ Site">Google/ Site</option>
                            <option value="Empresas">Empresas</option>
-                           {clients.length > 0 && (
-                             <optgroup label="Pacientes Cadastrados">
-                               {clients.map(c => (
-                                 <option key={c.id} value={`Paciente: ${c.name}`}>Paciente: {c.name}</option>
-                               ))}
-                             </optgroup>
-                           )}
                            <option value="Outros">Outros</option>
                          </select>
                        </div>
@@ -3070,6 +3115,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </div>
                   </form>
                </div>
+             )}
+
+             {companies.length > 0 && (
+                <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-end">
+                   <div className="relative w-full sm:max-w-md">
+                       <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                       <input 
+                         type="text" 
+                         placeholder="Buscar por nome ou e-mail..." 
+                         className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                         value={companySearchText}
+                         onChange={e => setCompanySearchText(e.target.value)}
+                       />
+                   </div>
+                </div>
              )}
 
              {companies.length === 0 ? (
@@ -3326,19 +3386,42 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          {editingCompanyAppointmentId === 'new' && companyAppointmentEditForm.companyId === company.id && (
                             <form onSubmit={(e) => handleCompanyAppointmentSave(e, company.id)} className="bg-slate-50 p-4 pb-0 rounded-xl border border-slate-200 mb-4 animate-in fade-in">
                                <h4 className="font-semibold text-slate-800 mb-3">Registrar Novo Serviço</h4>
-                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
-                                  <div className="md:col-span-2">
-                                     <label className="block text-slate-600 mb-1">Descrição do serviço prestado</label>
-                                     <input type="text" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.serviceDescription || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, serviceDescription: e.target.value})} />
-                                  </div>
+                               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3 text-sm">
                                   <div>
                                      <label className="block text-slate-600 mb-1">Data</label>
                                      <input type="date" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.date} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, date: e.target.value})} />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                     <label className="block text-slate-600 mb-1">Serviço Prestado</label>
+                                     <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" 
+                                             value={companyAppointmentEditForm.serviceId || ''} 
+                                             onChange={e => {
+                                                const s = (profileData?.services || []).find((x:any) => x.id === e.target.value);
+                                                setCompanyAppointmentEditForm({
+                                                  ...companyAppointmentEditForm, 
+                                                  serviceId: e.target.value, 
+                                                  serviceName: s ? s.title : e.target.value,
+                                                  serviceDescription: s ? s.title : e.target.value,
+                                                  totalAmount: s?.price > 0 ? s.price : companyAppointmentEditForm.totalAmount
+                                                });
+                                             }}>
+                                         <option value="">Selecione o Serviço...</option>
+                                         <option value="Serviço Corporativo Geral">Serviço Corporativo Geral</option>
+                                         {(profileData?.services || []).filter((s:any) => s.category === 'empresa').map((s:any) => (
+                                           <option value={s.id} key={s.id}>{s.title}</option>
+                                         ))}
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-slate-600 mb-1" title="Quantidade de Horas">Qtd Horas</label>
+                                     <input type="number" min="1" step="1" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.hoursQty || 1} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, hoursQty: Number(e.target.value)})} />
                                   </div>
                                   <div>
                                      <label className="block text-slate-600 mb-1">Valor (R$)</label>
                                      <input type="number" step="0.01" min="0" required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.totalAmount} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, totalAmount: Number(e.target.value)})} />
                                   </div>
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
                                   <div>
                                      <label className="block text-slate-600 mb-1">Status Financeiro</label>
                                      <select required className="w-full p-2 border rounded focus:ring-amber-400 bg-white" value={companyAppointmentEditForm.paymentStatus} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, paymentStatus: e.target.value})}>
@@ -3410,8 +3493,29 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                              <td colSpan={5} className="p-4">
                                                 <form onSubmit={(e) => handleCompanyAppointmentSave(e, company.id)} className="flex flex-col gap-3">
                                                    <div className="flex flex-wrap gap-3 items-center">
-                                                      <input type="text" placeholder="Serviço prestado..." required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-grow" value={companyAppointmentEditForm.serviceDescription || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, serviceDescription: e.target.value})} />
+                                                      <select required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-grow min-w-[200px]" 
+                                                              value={companyAppointmentEditForm.serviceId || ''} 
+                                                              onChange={e => {
+                                                                 const s = (profileData?.services || []).find((x:any) => x.id === e.target.value);
+                                                                 setCompanyAppointmentEditForm({
+                                                                   ...companyAppointmentEditForm, 
+                                                                   serviceId: e.target.value, 
+                                                                   serviceName: s ? s.title : e.target.value,
+                                                                   serviceDescription: s ? s.title : e.target.value,
+                                                                   totalAmount: s?.price > 0 ? s.price : companyAppointmentEditForm.totalAmount
+                                                                 });
+                                                              }}>
+                                                          <option value="">Serviço Corporativo...</option>
+                                                          <option value="Serviço Corporativo Geral">Geral</option>
+                                                          {(profileData?.services || []).filter((s:any) => s.category === 'empresa').map((s:any) => (
+                                                            <option value={s.id} key={s.id}>{s.title}</option>
+                                                          ))}
+                                                      </select>
                                                       <input type="date" required className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.date || ''} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, date: e.target.value})} />
+                                                      <div className="flex items-center gap-1">
+                                                         <span className="text-slate-500 text-xs">Qtd</span>
+                                                         <input type="number" step="1" min="1" required className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.hoursQty || 1} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, hoursQty: Number(e.target.value)})} title="Quantidade de Horas"/>
+                                                      </div>
                                                       <div className="flex items-center gap-1">
                                                          <span className="text-slate-500">R$</span>
                                                          <input type="number" step="0.01" min="0" required className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm" value={companyAppointmentEditForm.totalAmount} onChange={e => setCompanyAppointmentEditForm({...companyAppointmentEditForm, totalAmount: Number(e.target.value)})} />
@@ -3455,7 +3559,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                        ) : (
                                           <tr className="border-b border-slate-100 hover:bg-slate-50 group transition-colors">
                                              <td className="p-3 border-r border-slate-100 font-medium">
-                                                <p>{ap.serviceDescription || '-'}</p>
+                                                <p>{ap.serviceDescription || ap.serviceName || '-'}</p>
                                                 {(ap.modality || ap.billingAccount || ap.priceAdjust) && (
                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                                       {ap.modality && <span className="bg-slate-100 text-slate-600 px-1.5 border border-slate-200 py-0.5 rounded text-[10px] uppercase font-bold">{ap.modality}</span>}
@@ -3463,7 +3567,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                    </div>
                                                 )}
                                              </td>
-                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">{(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy") : ap.datetime)}</td>
+                                             <td className="p-3 whitespace-nowrap border-r border-slate-100">
+                                                {(!isNaN(new Date(ap.datetime).getTime()) ? format(new Date(ap.datetime), "dd/MM/yyyy") : ap.datetime)}
+                                                <div className="text-xs text-slate-500 mt-1">{ap.hoursQty || 1} {ap.hoursQty > 1 ? 'Horas' : 'Hora'}</div>
+                                             </td>
                                              <td className="p-3 border-r border-slate-100">
                                                 <div className="flex flex-col gap-2">
                                                   <span className="font-medium">R$ {Number(ap.totalAmount || 0).toFixed(2).replace('.',',')}</span>

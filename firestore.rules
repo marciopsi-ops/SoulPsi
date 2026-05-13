@@ -209,6 +209,9 @@ service cloud.firestore {
          && data.get('billingAccount', '') is string && data.get('billingAccount', '').size() <= 100
          && data.get('priceAdjust', '') is string && data.get('priceAdjust', '').size() <= 100
          && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && data.get('serviceId', null) == null || (data.get('serviceId', null) is string && data.get('serviceId', null).size() <= 128)
+         && data.get('serviceName', '') is string && data.get('serviceName', '').size() <= 150
+         && data.get('hoursQty', 1) is number
          && (data.get('documents', []) is list && data.get('documents', []).size() <= 20)
          && data.createdAt == request.time;
     }
@@ -224,13 +227,16 @@ service cloud.firestore {
       allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId)
                     && incoming().clientId == existing().clientId
                     && incoming().createdAt == existing().createdAt
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'clientName', 'documents'])
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'clientName', 'documents', 'serviceId', 'serviceName', 'hoursQty'])
                     && incoming().status is string && incoming().status in ['scheduled', 'completed', 'cancelled']
                     && incoming().get('paymentStatus', 'pending') is string && incoming().get('paymentStatus', 'pending') in ['pending', 'paid']
                     && incoming().get('modality', '') is string && incoming().get('modality', '').size() <= 50
                     && incoming().get('billingAccount', '') is string && incoming().get('billingAccount', '').size() <= 100
                     && incoming().get('priceAdjust', '') is string && incoming().get('priceAdjust', '').size() <= 100
                     && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && (incoming().get('serviceId', null) == null || (incoming().get('serviceId', null) is string && incoming().get('serviceId', null).size() <= 128))
+                    && incoming().get('serviceName', '') is string && incoming().get('serviceName', '').size() <= 150
+                    && incoming().get('hoursQty', 1) is number
                     && (incoming().get('documents', []) is list && incoming().get('documents', []).size() <= 20);
                     
       allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId);
@@ -294,10 +300,15 @@ service cloud.firestore {
          && data.status is string && data.status in ['scheduled', 'completed', 'cancelled']
          && data.totalAmount is number
          && data.get('paymentStatus', 'pending') is string && data.get('paymentStatus', 'pending') in ['pending', 'paid']
+         && data.get('invoiceStatus', 'pending') is string && data.get('invoiceStatus', 'pending') in ['pending', 'issued']
          && data.get('modality', '') is string && data.get('modality', '').size() <= 50
          && data.get('billingAccount', '') is string && data.get('billingAccount', '').size() <= 100
          && data.get('priceAdjust', '') is string && data.get('priceAdjust', '').size() <= 100
          && data.get('notes', '') is string && data.get('notes', '').size() <= 5000
+         && data.get('serviceDescription', '') is string && data.get('serviceDescription', '').size() <= 500
+         && data.get('serviceId', null) == null || (data.get('serviceId', null) is string && data.get('serviceId', null).size() <= 128)
+         && data.get('serviceName', '') is string && data.get('serviceName', '').size() <= 150
+         && data.get('hoursQty', 1) is number
          && (data.get('documents', []) is list && data.get('documents', []).size() <= 20)
          && data.createdAt == request.time;
     }
@@ -313,13 +324,18 @@ service cloud.firestore {
       allow update: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId)
                     && incoming().companyId == existing().companyId
                     && incoming().createdAt == existing().createdAt
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'companyName', 'documents'])
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'datetime', 'totalAmount', 'paymentStatus', 'invoiceStatus', 'modality', 'billingAccount', 'priceAdjust', 'notes', 'companyName', 'documents', 'serviceDescription', 'serviceId', 'serviceName', 'hoursQty'])
                     && incoming().status is string && incoming().status in ['scheduled', 'completed', 'cancelled']
                     && incoming().get('paymentStatus', 'pending') is string && incoming().get('paymentStatus', 'pending') in ['pending', 'paid']
+                    && incoming().get('invoiceStatus', 'pending') is string && incoming().get('invoiceStatus', 'pending') in ['pending', 'issued']
                     && incoming().get('modality', '') is string && incoming().get('modality', '').size() <= 50
                     && incoming().get('billingAccount', '') is string && incoming().get('billingAccount', '').size() <= 100
                     && incoming().get('priceAdjust', '') is string && incoming().get('priceAdjust', '').size() <= 100
                     && incoming().get('notes', '') is string && incoming().get('notes', '').size() <= 5000
+                    && incoming().get('serviceDescription', '') is string && incoming().get('serviceDescription', '').size() <= 500
+                    && (incoming().get('serviceId', null) == null || (incoming().get('serviceId', null) is string && incoming().get('serviceId', null).size() <= 128))
+                    && incoming().get('serviceName', '') is string && incoming().get('serviceName', '').size() <= 150
+                    && incoming().get('hoursQty', 1) is number
                     && (incoming().get('documents', []) is list && incoming().get('documents', []).size() <= 20);
                     
       allow delete: if isOwner(profileId) && isValidId(profileId) && isValidId(appointmentId);
