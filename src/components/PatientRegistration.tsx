@@ -60,38 +60,11 @@ export function PatientRegistration({ therapistId, onSuccess }: { therapistId: s
 
     setSubmitting(true);
     try {
-      if (form.cpf) {
-         const cleanCpf = form.cpf.replace(/\D/g, '');
-         const clientsRef = collection(db, `profiles/${therapistId}/clients`);
-         const q = query(clientsRef);
-         const querySnapshot = await getDocs(q);
-         
-         let existingClient = null;
-         querySnapshot.forEach((doc) => {
-             const data = doc.data();
-             if (data.cpf && data.cpf.replace(/\D/g, '') === cleanCpf) {
-                 existingClient = { id: doc.id, ...data };
-             }
-         });
-
-         if (existingClient) {
-             const updatePayload = { ...form };
-             delete (updatePayload as any).lgpdAccepted;
-             await updateDoc(doc(db, `profiles/${therapistId}/clients/${existingClient.id}`), updatePayload);
-         } else {
-             await addDoc(collection(db, `profiles/${therapistId}/clients`), {
-               ...form,
-               isActive: true,
-               createdAt: serverTimestamp()
-             });
-         }
-      } else {
-          await addDoc(collection(db, `profiles/${therapistId}/clients`), {
-            ...form,
-            isActive: true,
-            createdAt: serverTimestamp()
-          });
-      }
+      await addDoc(collection(db, `profiles/${therapistId}/clients`), {
+        ...form,
+        isActive: true,
+        createdAt: serverTimestamp()
+      });
       
       try {
         await addDoc(collection(db, `profiles/${therapistId}/system_notifications`), {

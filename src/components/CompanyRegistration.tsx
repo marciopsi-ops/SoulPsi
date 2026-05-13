@@ -66,38 +66,11 @@ export function CompanyRegistration({ therapistId, onSuccess }: { therapistId: s
 
     setSubmitting(true);
     try {
-      if (form.cnpj) {
-         const cleanCnpj = form.cnpj.replace(/\D/g, '');
-         const compRef = collection(db, `profiles/${therapistId}/companies`);
-         const q = query(compRef);
-         const querySnapshot = await getDocs(q);
-         
-         let existingCompany = null;
-         querySnapshot.forEach((doc) => {
-             const data = doc.data();
-             if (data.cnpj && data.cnpj.replace(/\D/g, '') === cleanCnpj) {
-                 existingCompany = { id: doc.id, ...data };
-             }
-         });
-
-         if (existingCompany) {
-             const updatePayload = { ...form };
-             delete (updatePayload as any).lgpdAccepted;
-             await updateDoc(doc(db, `profiles/${therapistId}/companies/${existingCompany.id}`), updatePayload);
-         } else {
-             await addDoc(collection(db, `profiles/${therapistId}/companies`), {
-               ...form,
-               isActive: true,
-               createdAt: serverTimestamp()
-             });
-         }
-      } else {
-          await addDoc(collection(db, `profiles/${therapistId}/companies`), {
-            ...form,
-            isActive: true,
-            createdAt: serverTimestamp()
-          });
-      }
+      await addDoc(collection(db, `profiles/${therapistId}/companies`), {
+        ...form,
+        isActive: true,
+        createdAt: serverTimestamp()
+      });
       
       try {
         await addDoc(collection(db, `profiles/${therapistId}/system_notifications`), {

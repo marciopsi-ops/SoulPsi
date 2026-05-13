@@ -9,6 +9,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { PatientRegistration } from './components/PatientRegistration';
 import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
+import { AuthModal } from './components/AuthModal';
 import { LogIn, Loader2, CheckCircle2 } from 'lucide-react';
 
 export type ViewState = 'landing' | 'dashboard' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company';
@@ -19,6 +20,7 @@ export default function App() {
   const [view, setView] = useState<ViewState>('landing');
   const [bookingData, setBookingData] = useState<any>(null); // For passing info to checkout
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Profile data of the currently viewed or logged-in therapist
   const [profileData, setProfileData] = useState<any>(null);
@@ -302,7 +304,7 @@ export default function App() {
               </div>
             ) : (
               <button 
-                onClick={handleLogin}
+                onClick={() => setAuthModalOpen(true)}
                 className="flex items-center gap-2 sm:gap-2 text-sm font-medium text-amber-500 bg-amber-50 px-3 py-2 sm:px-4 sm:py-2 rounded-full hover:bg-amber-100 transition-colors whitespace-nowrap"
               >
                 <LogIn className="w-4 h-4" />
@@ -398,6 +400,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {authModalOpen && (
+        <AuthModal onClose={() => setAuthModalOpen(false)} />
+      )}
     </div>
   );
 }

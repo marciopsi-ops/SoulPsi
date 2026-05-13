@@ -129,12 +129,7 @@ function CostManager({ costsStr, type, userId, onUpdates, filterMonths, filterYe
                       </div>
                    </div>
                 ))}
-                {!filterMonth && (
-                   <div className="flex justify-between items-center p-2 px-3 mt-2 text-sm font-bold border-t border-slate-200">
-                      <span className="text-slate-800">Total Geral (Soma de todos os itens da lista):</span>
-                      <span className="text-red-600">R$ {currentTotal.toFixed(2).replace('.', ',')}</span>
-                   </div>
-                )}
+
              </div>
           )}
           {filteredCosts.length === 0 && (
@@ -2159,7 +2154,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </button>
                        </p>
                     </div>
-                    {!profileData?.publicDomain && (
+                    {(!profileData?.publicDomain && (window.location.hostname.includes('ais-pre-') || window.location.hostname.includes('ais-dev-'))) && (
                         <div className="bg-amber-50 text-amber-700/80 p-3 rounded-lg text-xs leading-relaxed max-w-2xl mt-1 border border-amber-100 flex gap-2 items-start">
                             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
                             <div>
@@ -2881,7 +2876,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </button>
                        </p>
                     </div>
-                    {!profileData?.publicDomain && (
+                    {(!profileData?.publicDomain && (window.location.hostname.includes('ais-pre-') || window.location.hostname.includes('ais-dev-'))) && (
                         <div className="bg-amber-50 text-amber-700/80 p-3 rounded-lg text-xs leading-relaxed max-w-2xl mt-1 border border-amber-100 flex gap-2 items-start">
                             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
                             <div>
