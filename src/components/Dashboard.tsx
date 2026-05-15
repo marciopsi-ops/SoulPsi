@@ -3,7 +3,7 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell, Search } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell, Search, BookOpen, Link, UserCheck, TrendingUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
@@ -156,7 +156,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes' | 'notificacoes'>('perfil');
+  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes' | 'notificacoes' | 'materiais'>('perfil');
   const [clients, setClients] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<{isOpen: boolean, message: string, progress: number, total: number, finished: boolean, added: number, updated: number, sessions: number}>({isOpen: false, message: '', progress: 0, total: 0, finished: false, added: 0, updated: 0, sessions: 0});
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -537,8 +537,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [uploadingAppointmentId, setUploadingAppointmentId] = useState<string | null>(null);
 
   const [notificationModalClient, setNotificationModalClient] = useState<any | null>(null);
-  const [notificationTemplate, setNotificationTemplate] = useState<'financial' | 'referral' | 'reminder' | 'other'>('financial');
+  const [notificationTemplate, setNotificationTemplate] = useState<'financial' | 'referral' | 'reminder' | 'receipt' | 'other'>('financial');
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [receiptSessionIds, setReceiptSessionIds] = useState<string[]>([]);
+  const [selectedMaterialIndices, setSelectedMaterialIndices] = useState<number[]>([]);
   const [notificationSubject, setNotificationSubject] = useState('');
   
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -548,8 +550,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     handleTemplateChange('financial', client);
   };
 
-  const handleTemplateChange = (template: 'financial' | 'referral' | 'reminder' | 'other', client: any) => {
+  const handleTemplateChange = (template: 'financial' | 'referral' | 'reminder' | 'receipt' | 'other', client: any) => {
      setNotificationTemplate(template);
+     setSelectedMaterialIndices([]);
+     setReceiptSessionIds([]);
      const firstName = client.name ? client.name.split(' ')[0] : 'Paciente';
      if (template === 'financial') {
         const clientAppts = appointments.filter(a => a.clientId === client.id);
@@ -557,6 +561,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         const totalPending = pendingAppts.reduce((acc, curr) => acc + Number(curr.totalAmount || 0), 0);
         setNotificationSubject('Fechamento Financeiro - Sessões de Psicologia');
         setNotificationMessage(`Olá ${firstName},\n\nSegue o resumo do nosso fechamento financeiro.\nO valor total de sessões pendentes é de R$ ${totalPending.toFixed(2).replace('.', ',')}.\n\nPode ser transferido para o Pix: ${profileData?.pixKey || 'SUA_CHAVE_PIX_AQUI'}\n\nQualquer dúvida, estou à disposição.\n\nAbraço,\n${profileData?.name || 'Psicólogo(a)'}`);
+     } else if (template === 'receipt') {
+        setNotificationSubject('Recibo de Sessão');
+        setNotificationMessage(`Olá ${firstName},\n\nSegue o recibo referente às sessões realizadas:\n\nTotal: R$ 0,00\n\nAgradeço a confiança,\n${profileData?.name || 'Psicólogo(a)'}`);
+        setReceiptSessionIds([]);
      } else if (template === 'referral') {
         setNotificationSubject('Encaminhamento / Documentos');
         setNotificationMessage(`Olá ${firstName},\n\nSegue em anexo o documento / encaminhamento conversado em nossa sessão.\n\nAbraço,\n${profileData?.name || 'Psicólogo(a)'}`);
@@ -1408,6 +1416,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <span>Gestão de empresas e faturamento</span>
             </button>
             <button 
+              onClick={() => setActiveTab('materiais')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'materiais' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <BookOpen className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de Materiais</span>
+            </button>
+            <button 
               onClick={() => setActiveTab('agenda')}
               className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'agenda' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
             >
@@ -1823,51 +1838,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  </div>
               </div>
 
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Materiais Exclusivos (Links do Google Drive)</label>
-                <div className="space-y-3">
-                  {(editForm.materials || []).map((mat: any, idx: number) => {
-                    const url = typeof mat === 'string' ? mat : (mat.url || '');
-                    const desc = typeof mat === 'string' ? '' : (mat.description || '');
-                    return (
-                    <div key={idx} className="flex flex-col gap-2 p-3 border border-slate-100 rounded-xl bg-slate-50">
-                       <div className="flex gap-2">
-                         <input type="url" className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white font-mono text-sm" 
-                           value={url} 
-                           onChange={e => {
-                             const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
-                             newMaterials[idx].url = e.target.value;
-                             setEditForm({...editForm, materials: newMaterials});
-                           }}
-                           placeholder="https://drive.google.com/..."
-                         />
-                         <button type="button" onClick={() => {
-                             const newMaterials = (editForm.materials || []).filter((_: any, i: number) => i !== idx);
-                             setEditForm({...editForm, materials: newMaterials});
-                         }} className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
-                           <Trash2 className="w-5 h-5" />
-                         </button>
-                       </div>
-                       <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-sm" 
-                         value={desc} 
-                         onChange={e => {
-                           const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
-                           newMaterials[idx].description = e.target.value;
-                           setEditForm({...editForm, materials: newMaterials});
-                         }}
-                         placeholder="Descrição do material (ex: Livro Digital)..."
-                       />
-                    </div>
-                  )})}
-                  <button type="button" onClick={() => {
-                     const currentMaterials = (editForm.materials || []).map((m: any) => typeof m === 'string' ? {url: m, description: ''} : m);
-                     setEditForm({...editForm, materials: [...currentMaterials, { url: '', description: '' }]});
-                  }} className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition">
-                    <Plus className="w-4 h-4" /> Adicionar Link
-                  </button>
-                </div>
-              </div>
-
               <div className="mt-6 border-t border-slate-100 pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <label className="block text-sm font-bold text-slate-700">Meus Serviços</label>
@@ -2018,6 +1988,70 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {activeTab === 'materiais' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+             <div className="flex flex-col mb-6 gap-2">
+                 <h2 className="text-xl font-bold text-slate-800">Gestão de Materiais</h2>
+                 <p className="text-sm text-slate-500">Compartilhe links do Google Drive, Notion ou outras plataformas com seus clientes, como formulários de anamnese, ebooks ou exercícios.</p>
+             </div>
+             
+             <form onSubmit={handleProfileSave}>
+                <div className="mt-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Materiais Exclusivos (Links do Google Drive)</label>
+                <div className="space-y-3">
+                  {(editForm.materials || []).map((mat: any, idx: number) => {
+                    const url = typeof mat === 'string' ? mat : (mat.url || '');
+                    const desc = typeof mat === 'string' ? '' : (mat.description || '');
+                    return (
+                    <div key={idx} className="flex flex-col gap-2 p-3 border border-slate-100 rounded-xl bg-slate-50">
+                       <div className="flex gap-2">
+                         <input type="url" className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white font-mono text-sm" 
+                           value={url} 
+                           onChange={e => {
+                             const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
+                             newMaterials[idx].url = e.target.value;
+                             setEditForm({...editForm, materials: newMaterials});
+                           }}
+                           placeholder="https://drive.google.com/..."
+                         />
+                         <button type="button" onClick={() => {
+                             const newMaterials = (editForm.materials || []).filter((_: any, i: number) => i !== idx);
+                             setEditForm({...editForm, materials: newMaterials});
+                         }} className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
+                           <Trash2 className="w-5 h-5" />
+                         </button>
+                       </div>
+                       <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-sm" 
+                         value={desc} 
+                         onChange={e => {
+                           const newMaterials = [...(editForm.materials || [])].map(m => typeof m === 'string' ? {url: m, description: ''} : m);
+                           newMaterials[idx].description = e.target.value;
+                           setEditForm({...editForm, materials: newMaterials});
+                         }}
+                         placeholder="Descrição do material (ex: Livro Digital)..."
+                       />
+                    </div>
+                  )})}
+                  <button type="button" onClick={() => {
+                     const currentMaterials = (editForm.materials || []).map((m: any) => typeof m === 'string' ? {url: m, description: ''} : m);
+                     setEditForm({...editForm, materials: [...currentMaterials, { url: '', description: '' }]});
+                  }} className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition">
+                    <Plus className="w-4 h-4" /> Adicionar Link
+                  </button>
+                </div>
+              </div>
+
+              
+                <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
+                  <button type="submit" className="px-6 py-2.5 bg-amber-500 text-white font-medium rounded-xl hover:bg-amber-600 transition shadow-sm flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5"/>
+                    Salvar Alterações
+                  </button>
+                </div>
+             </form>
           </div>
         )}
 
@@ -2224,12 +2258,38 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                </div>
              </div>
 
+             
              {/* Dashboard Metrics */}
+             {clients.length > 0 && appointments.length > 0 && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                 <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                       <h3 className="font-medium text-slate-500 mb-1">Total de Pacientes Ativos</h3>
+                       <p className="text-2xl font-bold text-slate-800">{clients.filter(c => c.isActive !== false).length}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                       <UserCheck className="w-6 h-6 text-emerald-600" />
+                    </div>
+                 </div>
+                 <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                       <h3 className="font-medium text-slate-500 mb-1">Média de Valor de Serviços</h3>
+                       <p className="text-2xl font-bold text-slate-800">R$ {appointmentsInPeriod.length > 0 ? ((totalPaidInPeriod + totalPendingInPeriod) / appointmentsInPeriod.length).toFixed(2).replace('.', ',') : '0,00'}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                       <TrendingUp className="w-6 h-6 text-blue-600" />
+                    </div>
+                 </div>
+               </div>
+             )}
+             
+             {/* Dashboard Metrics Charts */}
+
              {clients.length > 0 && appointments.length > 0 && (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                  <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
                     <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">Origem dos Pacientes</h3>
-                    <div className="h-[200px]">
+                    <div className="h-[140px]">
                        <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
@@ -2238,7 +2298,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   acc[s] = (acc[s] || 0) + 1;
                                   return acc;
                                }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }))} 
-                               cx="50%" cy="50%" innerRadius={50} outerRadius={80} fill="#8884d8" dataKey="value"
+                               cx="50%" cy="50%" innerRadius={40} outerRadius={60} fill="#8884d8" dataKey="value"
                             >
                                {Object.entries(clients.reduce((acc, c) => {
                                   let s = c.source || 'Não informada';
@@ -2255,7 +2315,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  </div>
                  <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
                     <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">Sessões Realizadas por Mês</h3>
-                    <div className="h-[200px]">
+                    <div className="h-[140px]">
                        <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={
                              Object.entries(appointments.reduce((acc, a) => {
@@ -2266,10 +2326,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                              }, {} as Record<string, number>)).map(([name, sessions]) => ({ name, sessions }))
                           }>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                            <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                            <YAxis axisLine={false} tickLine={false} allowDecimals={false} style={{ fontSize: '10px' }} width={20} />
                             <RechartsTooltip cursor={{fill: '#f8fafc'}} />
-                            <Bar dataKey="sessions" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={32} />
+                            <Bar dataKey="sessions" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={16} />
                           </BarChart>
                        </ResponsiveContainer>
                     </div>
@@ -2421,7 +2481,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                <p className="text-slate-500">Nenhum paciente encontrado na busca.</p>
              ) : (
                <div className="space-y-4">
-                 {filteredClients.map(client => {
+                 {filteredClients.slice().sort((a,b) => (a.name || '').localeCompare(b.name || '')).map(client => {
                    const clientAppts = appointments.filter(a => a.clientId === client.id);
                    const filteredClientAppts = clientAppts.filter(a => {
                      let match = true;
@@ -3808,6 +3868,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        <button onClick={() => handleTemplateChange('financial', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'financial' ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
                           Fechamento Financeiro
                        </button>
+                       <button onClick={() => handleTemplateChange('receipt', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'receipt' ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                          Recibo de Sessão
+                       </button>
                        <button onClick={() => handleTemplateChange('referral', notificationModalClient)} className={cn("px-4 py-2 border rounded-full text-sm font-medium transition", notificationTemplate === 'referral' ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
                           Encaminhamentos / Documentos
                        </button>
@@ -3830,6 +3893,103 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          onChange={(e) => setNotificationSubject(e.target.value)}
                        />
                     </div>
+                    {profileData?.materials && profileData.materials.length > 0 && (
+                       <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Anexar Materiais Exclusivos (Links)</label>
+                          <div className="flex flex-col gap-2 mb-4">
+                            {profileData.materials.map((mat: any, idx: number) => {
+                               const url = typeof mat === 'string' ? mat : (mat.url || '');
+                               const desc = typeof mat === 'string' ? 'Material' : (mat.description || 'Material');
+                               if (!url) return null;
+                               return (
+                                  <label key={idx} className="flex items-center gap-3 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition">
+                                    <input type="checkbox" className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300" 
+                                       checked={selectedMaterialIndices.includes(idx)}
+                                       onChange={(e) => {
+                                         let newIndices = [...selectedMaterialIndices];
+                                         if (e.target.checked) newIndices.push(idx);
+                                         else newIndices = newIndices.filter(i => i !== idx);
+                                         setSelectedMaterialIndices(newIndices);
+                                         const textToAppend = `\n\n${desc}: ${url}`;
+                                         if (e.target.checked) {
+                                           setNotificationMessage(prev => prev + textToAppend);
+                                         } else {
+                                           setNotificationMessage(prev => prev.replace(textToAppend, ''));
+                                         }
+                                       }}
+                                    />
+                                    <span className="font-medium text-slate-800">{desc}</span>
+                                    <span className="text-slate-500 truncate max-w-sm block">{url}</span>
+                                  </label>
+                               );
+                            })}
+                          </div>
+                       </div>
+                    )}
+                    
+                    {notificationTemplate === 'receipt' && (
+                       <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Selecione as sessões para o recibo</label>
+                          <div className="flex flex-col gap-2 mb-4 max-h-[40vh] overflow-y-auto p-3 border border-slate-200 rounded-lg bg-slate-50">
+                             {appointments.filter(a => a.clientId === notificationModalClient?.id && (a.status === 'completed' || a.paymentStatus === 'paid' || true))
+                             .sort((a,b) => {
+                                const da = !isNaN(new Date(a.datetime).getTime()) ? new Date(a.datetime).getTime() : 0;
+                                const db = !isNaN(new Date(b.datetime).getTime()) ? new Date(b.datetime).getTime() : 0;
+                                return db - da; // Mais recentes primeiro
+                             })
+                             .map((appt: any) => {
+                                const dateStr = !isNaN(new Date(appt.datetime).getTime()) ? format(new Date(appt.datetime), "dd/MM/yyyy") : appt.datetime;
+                                const serviceName = appt.serviceName || 'Sessão Padrão';
+                                const amount = Number(appt.totalAmount || 0);
+                                const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace('.', ',')}`;
+                                const isChecked = receiptSessionIds.includes(appt.id);
+
+                                return (
+                                   <label key={appt.id} className="flex items-center gap-3 text-sm text-slate-700 bg-white p-2.5 rounded-md border border-slate-100 cursor-pointer hover:bg-slate-50 transition shadow-sm">
+                                     <input type="checkbox" className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          let newIds = [...receiptSessionIds];
+                                          if (e.target.checked) {
+                                            newIds.push(appt.id);
+                                          } else {
+                                            newIds = newIds.filter(id => id !== appt.id);
+                                          }
+                                          setReceiptSessionIds(newIds);
+                                          
+                                          // Recalculate total
+                                          const newTotal = newIds.reduce((sum, id) => {
+                                             const a = appointments.find(x => x.id === id);
+                                             return sum + (a ? Number(a.totalAmount || 0) : 0);
+                                          }, 0);
+
+                                          // Update message
+                                          let currentMsg = notificationMessage;
+                                          if (e.target.checked) {
+                                            currentMsg = currentMsg.replace("Total: R$ ", appendText + "\nTotal: R$ ");
+                                          } else {
+                                            currentMsg = currentMsg.replace(appendText + "\n", "");
+                                          }
+                                          
+                                          currentMsg = currentMsg.replace(/Total: R\$ \d*(?:\.\d+)?(?:,\d{2})?/, `Total: R$ ${newTotal.toFixed(2).replace('.', ',')}`);
+                                          
+                                          setNotificationMessage(currentMsg);
+                                        }}
+                                     />
+                                     <span className="font-medium text-slate-800">{dateStr}</span>
+                                     <span className="text-slate-500 truncate max-w-[200px]">{serviceName}</span>
+                                     <span className="font-bold text-slate-700 ml-auto">R$ {amount.toFixed(2).replace('.', ',')}</span>
+                                   </label>
+                                );
+                             })}
+                             {appointments.filter(a => a.clientId === notificationModalClient?.id).length === 0 && (
+                                <p className="text-sm text-slate-500 text-center py-4">Nenhuma sessão encontrada para este paciente.</p>
+                             )}
+                          </div>
+                          <p className="text-xs text-blue-600 mb-4 bg-blue-50 p-2 rounded border border-blue-100">Dica: Selecionar as sessões acima adicionará automaticamente as linhas e atualizará o total formatado no corpo do texto abaixo.</p>
+                       </div>
+                    )}
+
                     <div>
                        <label className="block text-sm font-semibold text-slate-700 mb-1">Mensagem</label>
                        <p className="text-xs text-slate-500 mb-2">Edite a mensagem abaixo conforme necessário antes de enviar.</p>
