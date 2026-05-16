@@ -6,6 +6,65 @@ import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, Ex
 
 import { cn } from '../lib/utils';
 
+const WidgetRenderer = ({ htmlCode }: { htmlCode: string }) => {
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+  React.useEffect(() => {
+    if (!iframeRef.current) return;
+    const doc = iframeRef.current.contentDocument;
+    if (!doc) return;
+    
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { margin: 0; padding: 0; display: flex; justify-content: center; }
+          </style>
+        </head>
+        <body>
+          ${htmlCode}
+          <script>
+            // Automatically resize iframe to its content
+            const resize = () => {
+              const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+              window.parent.postMessage({ type: 'widget-resize', height }, '*');
+            };
+            window.addEventListener('load', resize);
+            setInterval(resize, 1000);
+            new MutationObserver(resize).observe(document.body, { childList: true, subtree: true, attributes: true });
+          </script>
+        </body>
+      </html>
+    `);
+    doc.close();
+  }, [htmlCode]);
+
+  React.useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'widget-resize' && iframeRef.current) {
+         // Some widgets expand, add a little extra room to avoid scrollbars
+         iframeRef.current.style.height = `${e.data.height}px`;
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  return (
+    <div className="w-full">
+      <iframe 
+        ref={iframeRef} 
+        title="Widget de Avaliações"
+        className="w-full border-none min-h-[400px]"
+        scrolling="no"
+      />
+    </div>
+  );
+};
+
 export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { therapistId: string, profileData: any, onBook: (data: any) => void, isLoggedIn?: boolean }) {
   const [activeTab, setActiveTab] = useState<'voce' | 'empresa' | 'psicologos' | 'materiais'>('voce');
   const [reviews, setReviews] = useState<any[]>([]);
@@ -382,19 +441,19 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           onClick={() => setActiveTab('voce')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'voce' ? "border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))]" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-1.5 sm:gap-2"><Calendar className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> Você</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><Calendar className="w-4 h-4"/> Para Você</div>
         </button>
         <button 
           onClick={() => setActiveTab('empresa')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'empresa' ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-1.5 sm:gap-2"><Building className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> <span className="hidden sm:inline">sua </span>Empresa</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><Building className="w-4 h-4"/> Para sua Empresa</div>
         </button>
         <button 
           onClick={() => setActiveTab('psicologos')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'psicologos' ? "border-purple-500 text-purple-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
-          <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> <span className="hidden min-[380px]:inline">Para</span> Psicólogos</div>
+          <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> Para Psicólogos</div>
         </button>
         {isLoggedIn && (
           <button 
@@ -467,7 +526,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
                     target="_blank" 
                     rel="noreferrer"
-                    className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center hidden md:flex gap-2"
+                    className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center gap-2"
                   >
                     Tirar dúvidas pelo whatsapp
                   </a>
@@ -641,10 +700,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               <h3 className="text-base sm:text-lg font-bold flex items-center gap-2 text-slate-800 mb-4">
                 <Star className="w-5 h-5 text-amber-500 fill-amber-500" /> Avaliações
               </h3>
-              <div 
-                className="w-full overflow-hidden rounded-xl"
-                dangerouslySetInnerHTML={{ __html: finalProfile.googleReviewsWidgetCode }}
-              />
+              <WidgetRenderer htmlCode={finalProfile.googleReviewsWidgetCode} />
             </div>
           ) : (
             <>

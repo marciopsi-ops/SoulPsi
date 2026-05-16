@@ -171,6 +171,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [specialtiesText, setSpecialtiesText] = useState((profileData?.specialties || []).join(', '));
   const [approachesText, setApproachesText] = useState((profileData?.approaches || []).join(', '));
   const [saving, setSaving] = useState(false);
+  const [widgetSaved, setWidgetSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleCalendarSync = () => {
@@ -281,16 +282,29 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     setSaving(true);
     try {
       const dbRef = doc(db, 'profiles', userId);
-      const payload = {
+      const rawPayload: any = {
          ...editForm,
          specialties: specialtiesText.split(',').map((s: string) => s.trim()).filter((s: string) => s),
          approaches: approachesText.split(',').map((s: string) => s.trim()).filter((s: string) => s),
          materials: (editForm.materials || []).map((m: any) => typeof m === 'string' ? { url: m, description: '' } : m).filter((m: any) => m.url.trim() !== ''),
          updatedAt: serverTimestamp()
       };
-      // Removing nested IDs or unexpected vars if any, but editForm should match schema
+      
+      const allowedKeys = [
+          'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
+          'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
+          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'contractTerms', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus', 'hideReviewsOnSite', 'useGoogleReviewsWidget', 'googleReviewsWidgetCode'
+      ];
+      
+      const payload: any = {};
+      for (const key of allowedKeys) {
+         if (rawPayload[key] !== undefined) {
+             payload[key] = rawPayload[key];
+         }
+      }
+
       await updateDoc(dbRef, payload);
-      onUpdateProfile(payload);
+      onUpdateProfile({...profileData, ...payload});
       alert("Perfil atualizado com sucesso!");
     } catch (e: any) {
        handleFirestoreError(e, OperationType.UPDATE, `profiles/${userId}`);
@@ -3688,8 +3702,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         onClick={async () => {
                            const newVal = editForm.hideReviewsOnSite === true ? false : true;
                            setEditForm({...editForm, hideReviewsOnSite: newVal});
-                           await updateDoc(doc(db, 'profiles', userId), { hideReviewsOnSite: newVal });
-                           onUpdateProfile({...profileData, hideReviewsOnSite: newVal});
+                           try {
+                              await updateDoc(doc(db, 'profiles', userId), { hideReviewsOnSite: newVal, updatedAt: serverTimestamp() });
+                              onUpdateProfile({...profileData, hideReviewsOnSite: newVal});
+                           } catch (e: any) {
+                              console.error(e);
+                              alert("Erro ao atualizar: " + e.message);
+                           }
                         }}
                         className={cn(
                             "w-12 h-6 rounded-full transition-colors relative shrink-0",
@@ -3723,13 +3742,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                  ></textarea>
                                  <button 
                                     onClick={async () => {
-                                       await updateDoc(doc(db, 'profiles', userId), { googleReviewsWidgetCode: editForm.googleReviewsWidgetCode });
-                                       onUpdateProfile({...profileData, googleReviewsWidgetCode: editForm.googleReviewsWidgetCode});
-                                       alert('Código salvo com sucesso!');
+                                       try {
+                                          await updateDoc(doc(db, 'profiles', userId), { googleReviewsWidgetCode: editForm.googleReviewsWidgetCode || '', updatedAt: serverTimestamp() });
+                                          onUpdateProfile({...profileData, googleReviewsWidgetCode: editForm.googleReviewsWidgetCode || ''});
+                                          setWidgetSaved(true);
+                                          setTimeout(() => setWidgetSaved(false), 3000);
+                                       } catch (e: any) {
+                                          console.error(e);
+                                          alert('Erro ao salvar script: ' + e.message);
+                                       }
                                     }}
-                                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition"
+                                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition flex items-center gap-2"
                                  >
-                                    Salvar Código
+                                    {widgetSaved ? <><Check className="w-4 h-4" /> Salvo com sucesso!</> : 'Salvar Código'}
                                  </button>
                               </div>
                            )}
@@ -3739,8 +3764,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                            onClick={async () => {
                               const newVal = !editForm.useGoogleReviewsWidget;
                               setEditForm({...editForm, useGoogleReviewsWidget: newVal});
-                              await updateDoc(doc(db, 'profiles', userId), { useGoogleReviewsWidget: newVal });
-                              onUpdateProfile({...profileData, useGoogleReviewsWidget: newVal});
+                              try {
+                                 await updateDoc(doc(db, 'profiles', userId), { useGoogleReviewsWidget: newVal, updatedAt: serverTimestamp() });
+                                 onUpdateProfile({...profileData, useGoogleReviewsWidget: newVal});
+                              } catch(e: any) {
+                                 console.error(e);
+                                 alert("Erro ao atualizar: " + e.message);
+                              }
                            }}
                            className={cn(
                                "w-12 h-6 rounded-full transition-colors relative shrink-0",

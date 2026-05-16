@@ -92,8 +92,11 @@ service cloud.firestore {
         && data.get('howToGetThere', '') is string && data.get('howToGetThere', '').size() <= 1000
         && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled', 'pending']
         && (data.get('materials', []) is list && data.get('materials', []).size() <= 50 && (data.get('materials', []).size() == 0 || (data.get('materials', [])[0] is map || data.get('materials', [])[0] is string)))
-        && (data.get('services', []) is list && data.get('services', []).size() <= 20)
+        && data.get('services', []) is list && data.get('services', []).size() <= 20
         && data.get('isPublicSiteActive', true) is bool
+        && data.get('hideReviewsOnSite', false) is bool
+        && data.get('useGoogleReviewsWidget', false) is bool
+        && data.get('googleReviewsWidgetCode', '') is string && data.get('googleReviewsWidgetCode', '').size() <= 50000
         && (data.get('schedule', {}) is map);
     }
 
@@ -108,8 +111,7 @@ service cloud.firestore {
                     
       allow update: if (isOwner(profileId) || isAdmin())
                     && isValidId(profileId)
-                    && incoming().userId == existing().userId
-                    && isValidProfile(incoming())
+                    && (incoming().userId == existing().userId || existing().userId == null || !('userId' in existing()))
                     && (
                       (
                         isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['subscriptionStatus', 'updatedAt'])
@@ -118,7 +120,7 @@ service cloud.firestore {
                         isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
                           'name', 'title', 'bio', 'crp', 'city', 'about', 'specialties', 'approaches', 'companyName', 'cnpj', 'companyLogo',
                           'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'calendarUrl', 'calendarEmbed',
-                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'contractTerms', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus'
+                          'driveSync', 'materials', 'services', 'schedule', 'theme', 'themeColor', 'inPersonEnabled', 'address', 'howToGetThere', 'googleMapsUrl', 'googleMapsEmbed', 'googleReviewsUrl', 'pixKey', 'pixQrCode', 'paymentFlow', 'instagramUrl', 'facebookUrl', 'linkedinUrl', 'youtubeUrl', 'tiktokUrl', 'footerEmail', 'footerPhone', 'footerAddress', 'footerText', 'patientCostsStr', 'companyCostsStr', 'contractTerms', 'webhookUrl', 'updatedAt', 'isPublicSiteActive', 'subscriptionStatus', 'hideReviewsOnSite', 'useGoogleReviewsWidget', 'googleReviewsWidgetCode'
                         ])
                       )
                     );
