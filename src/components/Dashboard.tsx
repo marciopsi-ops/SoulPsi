@@ -386,6 +386,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
+  const handleReviewDelete = async (reviewId: string) => {
+    if (!window.confirm("Certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita.")) return;
+    try {
+      await deleteDoc(doc(db, `profiles/${userId}/reviews`, reviewId));
+      setReviews(reviews.filter(r => r.id !== reviewId));
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.DELETE, `profiles/${userId}/reviews/${reviewId}`);
+    }
+  };
+
   const getPublicLink = (path: string) => {
       let base = profileData?.publicDomain ? profileData.publicDomain : window.location.origin;
       if (base.endsWith('/')) base = base.slice(0, -1);
@@ -395,10 +405,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const [clientSearchText, setClientSearchText] = useState('');
   const [showBirthdays, setShowBirthdays] = useState(false);
-  const [clientSourceFilter, setClientSourceFilter] = useState<string>('all');
-  const [clientFrequencyFilter, setClientFrequencyFilter] = useState<string>('all');
   const [companySearchText, setCompanySearchText] = useState('');
-  const [companySourceFilter, setCompanySourceFilter] = useState<string>('all');
   const [companyGlobalInvoiceFilter, setCompanyGlobalInvoiceFilter] = useState<'all' | 'issued' | 'pending'>('all');
   
   const [globalBillingFilter, setGlobalBillingFilter] = useState<'all' | 'paid' | 'pending'>('all');
@@ -470,14 +477,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     
     if (!matchesSearch) return false;
 
-    if (clientSourceFilter !== 'all') {
-      if (client.source !== clientSourceFilter) return false;
-    }
-
-    if (clientFrequencyFilter !== 'all') {
-      if (client.frequency !== clientFrequencyFilter) return false;
-    }
-
     if (showBirthdays) {
        if (!client.dob) return false;
        const currentMonth = new Date().getMonth();
@@ -498,10 +497,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           company.email?.toLowerCase().includes(companySearchText.toLowerCase());
     
     if (!matchesSearch) return false;
-
-    if (companySourceFilter !== 'all') {
-      if (company.source !== companySourceFilter) return false;
-    }
 
     if (globalBillingFilter !== 'all') {
       if (!companyIdsWithBillingFilter.has(company.id)) return false;
@@ -1798,34 +1793,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 pt-6 mt-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Informações do Rodapé (Landing Page)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">E-mail de Contato</label>
-                    <input type="email" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
-                      value={editForm.footerEmail || ''} onChange={e => setEditForm({...editForm, footerEmail: e.target.value})} placeholder="contato@empresa.com" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefone Comercial</label>
-                    <input type="tel" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
-                      value={editForm.footerPhone || ''} onChange={e => setEditForm({...editForm, footerPhone: e.target.value})} placeholder="(00) 0000-0000" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Endereço de Rodapé</label>
-                    <textarea rows={2} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
-                      value={editForm.footerAddress || ''} onChange={e => setEditForm({...editForm, footerAddress: e.target.value})} placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo"></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pequeno Texto / Resumo</label>
-                    <textarea rows={2} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none" 
-                      value={editForm.footerText || ''} onChange={e => setEditForm({...editForm, footerText: e.target.value})} placeholder="Ex: Promovendo saúde mental com excelência e acolhimento."></textarea>
-                  </div>
-                </div>
-              </div>
-
               <div className="p-4 border border-amber-100 bg-amber-50 rounded-xl mt-6">
                  <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 mb-2"><RefreshCw className="w-4 h-4"/> Integração Google Workspace (Simulada)</h3>
                  <div className="flex gap-4">
@@ -2214,48 +2181,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     )}
                   </div>
                </div>
-               <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
-                 <select 
-                   value={clientFrequencyFilter} 
-                   onChange={e => setClientFrequencyFilter(e.target.value)}
-                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                 >
-                   <option value="all">Todas as Frequências</option>
-                   <option value="Semanal">Semanal</option>
-                   <option value="Quinzenal">Quinzenal</option>
-                   <option value="Mensal">Mensal</option>
-                   <option value="Avulso">Avulso</option>
-                 </select>
-                 <select 
-                   value={clientSourceFilter} 
-                   onChange={e => setClientSourceFilter(e.target.value)}
-                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                 >
-                   <option value="all">Todas as fontes</option>
-                   <option value="Indicação de profissional">Indicação de profissional</option>
-                                  <option value="Projetos">Projetos</option>
-                                  <option value="Plataformas">Plataformas</option>
-                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
-                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
-                   <option value="Google/ Site">Google/ Site</option>
-                   <option value="Pacientes">Pacientes</option>
-                   <option value="Outros">Outros</option>
-                 </select>
-                 
-                 <label className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm" title="Importar Pacientes de Planilha (CSV)">
-                   <FileUp className="w-5 h-5"/>
-                   <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
-                 </label>
-                 <button onClick={handleExportCSV} className="bg-white border border-slate-300 text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition flex-shrink-0 shadow-sm" title="Exportar Pacientes para Planilha (CSV)">
-                   <Download className="w-5 h-5"/>
-                 </button>
-                 <button onClick={() => setShowBirthdays(!showBirthdays)} className={cn("p-2 rounded-lg border transition flex-shrink-0 shadow-sm", showBirthdays ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50")} title="Filtrar Aniversariantes do Mês">
-                   <Gift className="w-5 h-5"/>
-                 </button>
-                 <button onClick={() => { setClientEditForm({ isActive: true }); setEditingClientId('new'); }} className="bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Paciente Manualmente">
-                   <Plus className="w-5 h-5"/>
-                 </button>
-               </div>
              </div>
 
              
@@ -2392,11 +2317,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
              <CostManager costsStr={profileData?.patientCostsStr} type="patientCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, patientCostsStr: val})} filterMonths={filterMonths} filterYear={filterYear} />
 
              {editingClientId === 'new' && (
-               <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
+               <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setEditingClientId(null); }}>
+                 <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" onClick={() => setEditingClientId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
                   <form onSubmit={handleClientSave} className="space-y-4">
                     <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
-                       <h3 className="font-bold text-slate-900 text-lg">Novo Paciente</h3>
-                       <button type="button" onClick={() => setEditingClientId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                       <h3 className="font-bold text-slate-900 text-xl">Novo Paciente</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div>
@@ -2457,23 +2383,37 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        </button>
                     </div>
                   </form>
+                 </div>
                </div>
              )}
 
-             {clients.length > 0 && (
-                <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-end">
-                   <div className="relative w-full sm:max-w-md">
-                       <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                       <input 
-                         type="text" 
-                         placeholder="Buscar por nome ou e-mail..." 
-                         className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
-                         value={clientSearchText}
-                         onChange={e => setClientSearchText(e.target.value)}
-                       />
-                   </div>
+             <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-between items-center mt-4">
+                <div className="relative w-full sm:max-w-md">
+                    <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por nome ou e-mail..." 
+                      className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                      value={clientSearchText}
+                      onChange={e => setClientSearchText(e.target.value)}
+                    />
                 </div>
-             )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="bg-white border border-slate-300 text-slate-700 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm" title="Importar Pacientes de Planilha (CSV)">
+                    <FileUp className="w-5 h-5"/>
+                    <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                  </label>
+                  <button onClick={handleExportCSV} className="bg-white border border-slate-300 text-slate-700 p-3 rounded-xl hover:bg-slate-50 transition flex-shrink-0 shadow-sm" title="Exportar Pacientes para Planilha (CSV)">
+                    <Download className="w-5 h-5"/>
+                  </button>
+                  <button onClick={() => setShowBirthdays(!showBirthdays)} className={cn("p-3 rounded-xl border transition flex-shrink-0 shadow-sm", showBirthdays ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50")} title="Filtrar Aniversariantes do Mês">
+                    <Gift className="w-5 h-5"/>
+                  </button>
+                  <button onClick={() => { setClientEditForm({ isActive: true }); setEditingClientId('new'); }} className="bg-amber-500 text-white p-3 rounded-xl hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Paciente Manualmente">
+                    <Plus className="w-5 h-5"/>
+                  </button>
+                </div>
+             </div>
 
              {clients.length === 0 ? (
                <p className="text-slate-500">Nenhum paciente cadastrado ainda.</p>
@@ -2499,11 +2439,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                    return (
                      <div key={client.id} className="border border-slate-200 rounded-xl p-4">
                         {editingClientId === client.id ? (
-                          <form onSubmit={handleClientSave} className="space-y-4">
-                            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                               <h3 className="font-bold text-slate-900 text-lg">Editar Prontuário</h3>
-                               <button type="button" onClick={() => setEditingClientId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
-                            </div>
+                          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setEditingClientId(null); }}>
+                             <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                                <button type="button" onClick={() => setEditingClientId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
+                                <form onSubmit={handleClientSave} className="space-y-4">
+                                  <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                                     <h3 className="font-bold text-slate-900 text-xl">Editar Prontuário</h3>
+                                  </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                <div>
                                  <label className="block text-xs font-medium text-slate-700 mb-1">Nome</label>
@@ -2572,12 +2514,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             )}
 
                             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                               <button type="button" onClick={() => setEditingClientId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Cancelar</button>
+                               <button type="button" onClick={() => setEditingClientId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 bg-white">Cancelar</button>
                                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
                                  <Check className="w-4 h-4"/> Salvar Prontuário
                                </button>
                             </div>
                           </form>
+                        </div>
+                      </div>
                         ) : (
                           <>
                        <div className="flex flex-col cursor-pointer" onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}>
@@ -2640,7 +2584,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </div>
                        
                        {expandedClientId === client.id && (
-                       <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                       <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setExpandedClientId(null); }}>
+                         <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                           <button type="button" onClick={() => setExpandedClientId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
+                           <div className="mb-4 pb-2 border-b border-slate-100 pr-12">
+                              <h3 className="text-xl font-bold text-slate-800">Histórico: {client.name}</h3>
+                           </div>
+                           <div className="mt-2 text-left">
                          {signatures.filter(s => s.identifier === client.cpf && s.type === 'client').length > 0 && (
                             <div className="mb-6 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
                                <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
@@ -2945,6 +2895,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             )}
                          </div>
                        </div>
+                    </div>
+                  </div>
                        )}
                           </>
                         )}
@@ -2999,42 +2951,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     )}
                   </div>
                </div>
-               <div className="flex flex-wrap items-center gap-3 w-full border-t border-slate-100 pt-4 mt-2">
-                 <select 
-                   value={companyGlobalInvoiceFilter} 
-                   onChange={e => setCompanyGlobalInvoiceFilter(e.target.value as any)}
-                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                 >
-                   <option value="all">NF Geral</option>
-                   <option value="issued">C/ NF Emitida</option>
-                   <option value="pending">C/ NF Pendente</option>
-                 </select>
-                 <select 
-                   value={companySourceFilter} 
-                   onChange={e => setCompanySourceFilter(e.target.value)}
-                   className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                 >
-                   <option value="all">Todas as fontes</option>
-                   <option value="Indicação de profissional">Indicação de profissional</option>
-                                  <option value="Projetos">Projetos</option>
-                                  <option value="Plataformas">Plataformas</option>
-                                   <option value="Instituição/ Igreja">Instituição/ Igreja</option>
-                   <option value="Amigos/ conhecidos">Amigos/ conhecidos</option>
-                   <option value="Google/ Site">Google/ Site</option>
-                   <option value="Empresas">Empresas</option>
-                   <option value="Outros">Outros</option>
-                 </select>
-                 <input 
-                   type="text" 
-                   placeholder="Buscar por nome ou e-mail..." 
-                   className="w-full sm:w-64 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm"
-                   value={companySearchText}
-                   onChange={e => setCompanySearchText(e.target.value)}
-                 />
-                 <button onClick={() => { setCompanyEditForm({ isActive: true }); setEditingCompanyId('new'); }} className="bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Empresa Manualmente">
-                   <Plus className="w-5 h-5"/>
-                 </button>
-               </div>
+             </div>
+
+             <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-between items-center mt-4">
+                <div className="relative w-full sm:max-w-md">
+                    <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por nome ou e-mail..." 
+                      className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                      value={companySearchText}
+                      onChange={e => setCompanySearchText(e.target.value)}
+                    />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select 
+                    value={companyGlobalInvoiceFilter} 
+                    onChange={e => setCompanyGlobalInvoiceFilter(e.target.value as any)}
+                    className="p-3 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none shadow-sm h-full"
+                  >
+                    <option value="all">NF Geral</option>
+                    <option value="issued">C/ NF Emitida</option>
+                    <option value="pending">C/ NF Pendente</option>
+                  </select>
+                  <button onClick={() => { setCompanyEditForm({ isActive: true }); setEditingCompanyId('new'); }} className="bg-amber-500 text-white p-3 rounded-xl hover:bg-amber-600 transition flex-shrink-0 shadow-sm" title="Adicionar Empresa Manualmente">
+                    <Plus className="w-5 h-5"/>
+                  </button>
+                </div>
              </div>
 
              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
@@ -3092,11 +3035,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
              <CostManager costsStr={profileData?.companyCostsStr} type="companyCostsStr" userId={userId} onUpdates={(val) => onUpdateProfile({...profileData, companyCostsStr: val})} filterMonths={filterMonths} filterYear={filterYear} />
 
              {editingCompanyId === 'new' && (
-               <div className="border border-slate-200 rounded-xl p-4 mb-6 shadow-sm bg-amber-50/50">
+               <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setEditingCompanyId(null); }}>
+                 <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" onClick={() => setEditingCompanyId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
                   <form onSubmit={handleCompanySave} className="space-y-4">
                     <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
-                       <h3 className="font-bold text-slate-900 text-lg">Nova Empresa</h3>
-                       <button type="button" onClick={() => setEditingCompanyId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                       <h3 className="font-bold text-slate-900 text-xl">Nova Empresa</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div className="md:col-span-2">
@@ -3174,6 +3118,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        </button>
                     </div>
                   </form>
+                 </div>
                </div>
              )}
 
@@ -3219,11 +3164,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                    return (
                      <div key={company.id} className="border border-slate-200 rounded-xl p-4">
                         {editingCompanyId === company.id ? (
-                          <form onSubmit={handleCompanySave} className="space-y-4">
-                            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                               <h3 className="font-bold text-slate-900 text-lg">Editar Prontuário</h3>
-                               <button type="button" onClick={() => setEditingCompanyId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
-                            </div>                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setEditingCompanyId(null); }}>
+                             <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                                <button type="button" onClick={() => setEditingCompanyId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
+                                <form onSubmit={handleCompanySave} className="space-y-4">
+                                  <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                                     <h3 className="font-bold text-slate-900 text-xl">Editar Prontuário</h3>
+                                  </div>                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="md:col-span-2">
                                 <label className="block text-xs font-medium text-slate-700 mb-1">Razão Social</label>
                                 <input required type="text" className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white" value={companyEditForm.name || ''} onChange={e => setCompanyEditForm({...companyEditForm, name: e.target.value})} />
@@ -3315,12 +3262,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             )}
 
                             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                               <button type="button" onClick={() => setEditingCompanyId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Cancelar</button>
+                               <button type="button" onClick={() => setEditingCompanyId(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 bg-white">Cancelar</button>
                                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg flex items-center gap-2">
                                  <Check className="w-4 h-4"/> Salvar Prontuário
                                </button>
                             </div>
                           </form>
+                        </div></div>
                         ) : (
                           <>
                        <div className="flex flex-col cursor-pointer" onClick={() => setExpandedCompanyId(expandedCompanyId === company.id ? null : company.id)}>
@@ -3380,7 +3328,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </div>
                        
                        {expandedCompanyId === company.id && (
-                       <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                       <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default" onClick={(e) => { e.stopPropagation(); setExpandedCompanyId(null); }}>
+                         <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col p-6 cursor-auto relative" onClick={(e) => e.stopPropagation()}>
+                           <button type="button" onClick={() => setExpandedCompanyId(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition z-10"><X className="w-5 h-5"/></button>
+                           <div className="mb-4 pb-2 border-b border-slate-100 pr-12">
+                              <h3 className="text-xl font-bold text-slate-800">Histórico: {company.name}</h3>
+                           </div>
+                           <div className="mt-2 text-left">
                          {signatures.filter(s => s.identifier === company.cnpj && s.type === 'company').length > 0 && (
                             <div className="mb-6 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
                                <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
@@ -3703,6 +3657,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             )}
                          </div>
                        </div>
+                    </div>
+                  </div>
                        )}
                           </>
                         )}
@@ -3717,7 +3673,93 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         
         {activeTab === 'avaliacoes' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">Moderação de Avaliações</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Configurações e Moderação de Avaliações</h2>
+
+            <div className="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Settings className="w-5 h-5 text-slate-500"/> Configurações na Landing Page</h3>
+               <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
+                     <div>
+                        <strong className="block text-slate-800 mb-1">Exibir seção de Depoimentos</strong>
+                        <p className="text-sm text-slate-500">Mostra ou oculta completamente a área de depoimentos e avaliações no seu site.</p>
+                     </div>
+                     <button
+                        type="button"
+                        onClick={async () => {
+                           const newVal = editForm.hideReviewsOnSite === true ? false : true;
+                           setEditForm({...editForm, hideReviewsOnSite: newVal});
+                           await updateDoc(doc(db, 'profiles', userId), { hideReviewsOnSite: newVal });
+                           onUpdateProfile({...profileData, hideReviewsOnSite: newVal});
+                        }}
+                        className={cn(
+                            "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                            !editForm.hideReviewsOnSite ? "bg-emerald-500" : "bg-slate-300"
+                        )}
+                     >
+                        <span 
+                           className={cn(
+                              "absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform",
+                              !editForm.hideReviewsOnSite ? "translate-x-6" : "translate-x-0"
+                           )}
+                        />
+                     </button>
+                  </div>
+
+                  {!editForm.hideReviewsOnSite && (
+                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
+                        <div className="flex-1">
+                           <strong className="block text-slate-800 mb-1">Usar Widget do Google Meu Negócio</strong>
+                           <p className="text-sm text-slate-500 mb-4">Substitui o sistema nativo de avaliações do site por um código/widget (iframe) do Google ou outra plataforma de depoimentos.</p>
+                           
+                           {editForm.useGoogleReviewsWidget && (
+                              <div className="space-y-2">
+                                 <label className="block text-xs font-semibold text-slate-700">Código de Incorporação (HTML/Iframe)</label>
+                                 <textarea 
+                                    className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none" 
+                                    rows={4}
+                                    placeholder='Ex: <iframe src="https://apps.elfsight.com/widget/..."></iframe>'
+                                    value={editForm.googleReviewsWidgetCode || ''}
+                                    onChange={(e) => setEditForm({...editForm, googleReviewsWidgetCode: e.target.value})}
+                                 ></textarea>
+                                 <button 
+                                    onClick={async () => {
+                                       await updateDoc(doc(db, 'profiles', userId), { googleReviewsWidgetCode: editForm.googleReviewsWidgetCode });
+                                       onUpdateProfile({...profileData, googleReviewsWidgetCode: editForm.googleReviewsWidgetCode});
+                                       alert('Código salvo com sucesso!');
+                                    }}
+                                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition"
+                                 >
+                                    Salvar Código
+                                 </button>
+                              </div>
+                           )}
+                        </div>
+                        <button
+                           type="button"
+                           onClick={async () => {
+                              const newVal = !editForm.useGoogleReviewsWidget;
+                              setEditForm({...editForm, useGoogleReviewsWidget: newVal});
+                              await updateDoc(doc(db, 'profiles', userId), { useGoogleReviewsWidget: newVal });
+                              onUpdateProfile({...profileData, useGoogleReviewsWidget: newVal});
+                           }}
+                           className={cn(
+                               "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                               editForm.useGoogleReviewsWidget ? "bg-amber-500" : "bg-slate-300"
+                           )}
+                        >
+                           <span 
+                              className={cn(
+                                 "absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform",
+                                 editForm.useGoogleReviewsWidget ? "translate-x-6" : "translate-x-0"
+                              )}
+                           />
+                        </button>
+                     </div>
+                  )}
+               </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Avaliações Recebidas pelo Site</h3>
             {reviews.length === 0 ? (
                <p className="text-slate-500">Nenhuma avaliação recebida.</p>
             ) : (
@@ -3739,16 +3781,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <button onClick={() => handleReviewAction(rev.id, 'approved')} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg transition" title="Aprovar">
                           <Check className="w-5 h-5" />
                         </button>
-                        <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="Ocultar">
+                        <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="bg-slate-50 text-slate-600 hover:bg-slate-100 p-2 rounded-lg transition" title="Ocultar">
                           <X className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => handleReviewDelete(rev.id)} className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="Excluir">
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     )}
                     {rev.status === 'approved' && (
-                       <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="text-sm text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition">Ocultar</button>
+                      <div className="flex gap-2 items-center">
+                        <button onClick={() => handleReviewAction(rev.id, 'hidden')} className="text-sm text-slate-600 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition">Ocultar</button>
+                        <button onClick={() => handleReviewDelete(rev.id)} className="text-sm text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition">Excluir</button>
+                      </div>
                     )}
                     {rev.status === 'hidden' && (
-                       <button onClick={() => handleReviewAction(rev.id, 'approved')} className="text-sm border border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition">Desocultar</button>
+                      <div className="flex gap-2 items-center">
+                        <button onClick={() => handleReviewAction(rev.id, 'approved')} className="text-sm border border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition">Desocultar</button>
+                        <button onClick={() => handleReviewDelete(rev.id)} className="text-sm text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition">Excluir</button>
+                      </div>
                     )}
                   </div>
                 ))}
