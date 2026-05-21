@@ -7,12 +7,13 @@ import { Dashboard } from './components/Dashboard';
 import { Checkout } from './components/Checkout';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PatientRegistration } from './components/PatientRegistration';
+import { ServiceDetail } from './components/ServiceDetail';
 import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
 import { AuthModal } from './components/AuthModal';
 import { LogIn, Loader2, CheckCircle2 } from 'lucide-react';
 
-export type ViewState = 'landing' | 'dashboard' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company';
+export type ViewState = 'landing' | 'dashboard' | 'service_detail' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -35,6 +36,7 @@ export default function App() {
     const paramRegisterCompanyId = params.get('register_company');
     const paramTermsId = params.get('terms');
     const paramTermsCompanyId = params.get('terms_company');
+    const paramServiceId = params.get('service');
 
     if (paramTermsId) {
        setTherapistId(paramTermsId);
@@ -49,6 +51,15 @@ export default function App() {
        setTherapistId(paramTermsCompanyId);
        fetchPublicProfile(paramTermsCompanyId).then(() => {
          setView('terms_company');
+         setLoading(false);
+       });
+       return;
+    }
+
+    if (paramServiceId && paramTherapistId) {
+       setTherapistId(paramTherapistId);
+       fetchPublicProfile(paramTherapistId).then(() => {
+         setView('service_detail');
          setLoading(false);
        });
        return;
@@ -394,6 +405,16 @@ export default function App() {
             therapistId={therapistId}
             isCompany={true}
             onSuccess={() => {
+              if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
+              setView('landing');
+            }}
+          />
+        )}
+        {view === 'service_detail' && (
+          <ServiceDetail 
+            service={profileData?.services?.find((s: any) => s.id === new URLSearchParams(window.location.search).get('service'))}
+            profileData={profileData}
+            onBack={() => {
               if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
               setView('landing');
             }}

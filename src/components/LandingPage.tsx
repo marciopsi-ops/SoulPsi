@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { THEMES, hexToRgb } from '../lib/themes';
-import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight } from 'lucide-react';
+import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, Church, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight, Mic, Users, Building2, MessageSquare, Heart, Eye, BookOpen, Brain, User, Smile, Compass, HeartPulse } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 
@@ -66,7 +66,7 @@ const WidgetRenderer = ({ htmlCode }: { htmlCode: string }) => {
 };
 
 export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { therapistId: string, profileData: any, onBook: (data: any) => void, isLoggedIn?: boolean }) {
-  const [activeTab, setActiveTab] = useState<'voce' | 'empresa' | 'psicologos' | 'materiais'>('voce');
+  const [activeTab, setActiveTab] = useState<'voce' | 'empresa' | 'igrejas' | 'psicologos' | 'materiais'>('voce');
   const [reviews, setReviews] = useState<any[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [registrationStep, setRegistrationStep] = useState<0 | 1 | 2>(1);
@@ -338,6 +338,37 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
      );
   }
 
+
+  const getServiceIcon = (category: string, title: string = '') => {
+    const t = title.toLowerCase();
+    
+    if (category === 'empresa') {
+      if (t.includes('palestra') || t.includes('workshop')) return <Mic className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />;
+      if (t.includes('time') || t.includes('equipe') || t.includes('grupo') || t.includes('lider')) return <Users className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />;
+      return <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />;
+    }
+    if (category === 'igrejas') {
+      if (t.includes('palestra') || t.includes('pregação')) return <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />;
+      if (t.includes('casal') || t.includes('casais') || t.includes('noivos')) return <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />;
+      return <Church className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />;
+    }
+    if (category === 'psicologos' || category === 'psicologo') {
+      if (t.includes('supervisão') || t.includes('supervisao')) return <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />;
+      if (t.includes('curso') || t.includes('aula') || t.includes('grupo') || t.includes('mentoria')) return <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />;
+      return <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />;
+    }
+    
+    // Default 'voce'
+    if (t.includes('casal') || t.includes('casais')) return <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('família') || t.includes('familia')) return <Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('ansiedade') || t.includes('depressão') || t.includes('avali') || t.includes('teste')) return <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('adolescen')) return <User className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('infantil') || t.includes('criança')) return <Smile className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('orientação') || t.includes('vocacional') || t.includes('carreira')) return <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    if (t.includes('psicologia') || t.includes('terapia')) return <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+    return <HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8" style={customStyle}>
       {finalProfile.isPublicSiteActive === false && isLoggedIn && (
@@ -455,6 +486,12 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
         >
           <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> Para Psicólogos</div>
         </button>
+        <button 
+          onClick={() => setActiveTab('igrejas')}
+          className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'igrejas' ? "border-blue-500 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800")}
+        >
+          <div className="flex items-center gap-1.5 sm:gap-2"><Church className="w-4 h-4"/> Para Igrejas</div>
+        </button>
         {isLoggedIn && (
           <button 
             onClick={() => setActiveTab('materiais')}
@@ -474,30 +511,43 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               <div className="space-y-4 mb-8">
                 {finalProfile.services.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
                   <div key={idx} className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-2">{svc.title}</h3>
+                    <div className="flex items-center gap-3 mb-2">\n                      <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl flex-shrink-0">\n                        {getServiceIcon(svc.category, svc.title)}\n                      </div>\n                      <h3 className="text-base sm:text-lg font-bold text-slate-800">{svc.title}</h3>\n                    </div>
                     <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6">{svc.description}</p>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
-                      <button 
-                        onClick={() => openScheduleModal(svc)}
-                        className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center"
-                      >{svc.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Online'}</button>
-                      {finalProfile.inPersonEnabled && (
-                        <button 
-                          onClick={() => openScheduleModal(svc, true)}
-                          className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
+                      {svc.allowScheduling === false ? (
+                        <a 
+                          href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="w-full bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center flex items-center justify-center gap-2"
                         >
-                          <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
-                          {svc.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Presencial'}
-                        </button>
+                          Agende ou saiba mais pelo Whatsapp
+                        </a>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => openScheduleModal(svc)}
+                            className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center"
+                          >Agendar Online</button>
+                          {finalProfile.inPersonEnabled && (
+                            <button 
+                              onClick={() => openScheduleModal(svc, true)}
+                              className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
+                            >
+                              <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+                              Agendar Presencial
+                            </button>
+                          )}
+                          <a 
+                            href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
+                          >
+                            Tirar dúvidas pelo whatsapp
+                          </a>
+                        </>
                       )}
-                      <a 
-                        href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
-                      >
-                        Tirar dúvidas pelo whatsapp
-                      </a>
                     </div>
                   </div>
                 ))}
@@ -509,27 +559,40 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                   Agende uma sessão e dê o primeiro passo para o seu bem-estar emocional. As sessões duram 50 minutos e ocorrem de forma online.
                 </p>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                  <button 
-                    onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling })}
-                    className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:opacity-90 transition-opacity"
-                  >{finalProfile.services?.[0]?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Online'}</button>
-                  {finalProfile.inPersonEnabled && (
-                    <button 
-                      onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling }, true)}
-                      className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
+                  {finalProfile.services?.[0]?.allowScheduling === false ? (
+                    <a 
+                      href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="w-full bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-center"
                     >
-                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {finalProfile.services?.[0]?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Presencial'}
-                    </button>
+                      Agende ou saiba mais pelo Whatsapp
+                    </a>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling })}
+                        className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:opacity-90 transition-opacity"
+                      >Agendar Online</button>
+                      {finalProfile.inPersonEnabled && (
+                        <button 
+                          onClick={() => openScheduleModal({ title: 'Terapia Individual', price: finalProfile.services?.[0]?.price || 0, allowScheduling: finalProfile.services?.[0]?.allowScheduling }, true)}
+                          className="w-full sm:flex-1 bg-white border border-[rgb(var(--theme-primary)_/_0.2)] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-[rgb(var(--theme-primary)_/_0.05)] transition-colors text-center flex items-center justify-center gap-2"
+                        >
+                          <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+                          Agendar Presencial
+                        </button>
+                      )}
+                      <a 
+                        href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center gap-2"
+                      >
+                        Tirar dúvidas pelo whatsapp
+                      </a>
+                    </>
                   )}
-                  <a 
-                    href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center gap-2"
-                  >
-                    Tirar dúvidas pelo whatsapp
-                  </a>
                 </div>
               </div>
             )}
@@ -543,7 +606,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Serviços Corporativos</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50">
-                      <h3 className="text-base sm:text-lg font-bold text-emerald-900 mb-2">{svc.title}</h3>
+                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-emerald-900">{svc.title}</h3>\n                      </div>
                       <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex justify-start">
                         <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
@@ -566,6 +629,47 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           </div>
         )}
 
+        {activeTab === 'igrejas' && (
+          <div className="animate-in fade-in">
+            {finalProfile.services?.filter((s: any) => s.category === 'igrejas').length > 0 ? (
+               <div className="space-y-4">
+                 <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Serviços para Igrejas</h2>
+                 {finalProfile.services.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
+                    <div key={idx} className="border border-blue-100 rounded-xl p-5 sm:p-6 bg-blue-50">
+                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-blue-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-blue-900">{svc.title}</h3>\n                      </div>
+                      <p className="text-sm sm:text-base text-blue-800 mb-5 sm:mb-6">{svc.description}</p>
+                      <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                        <button 
+                          onClick={() => openScheduleModal(svc)}
+                          className="w-full sm:flex-1 bg-blue-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-blue-700 transition-colors text-center"
+                        >{svc?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Agora'}</button>
+                        <a 
+                          href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="w-full sm:flex-1 bg-white border border-blue-200 text-blue-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-blue-50 transition-colors text-center flex items-center justify-center"
+                        >
+                          Tirar dúvidas pelo whatsapp
+                        </a>
+                      </div>
+                    </div>
+                 ))}
+               </div>
+            ) : (
+               <>
+                 <h2 className="text-xl font-bold mb-4 text-slate-800">Para Igrejas</h2>
+                 <p className="text-slate-600 mb-6 max-w-2xl">
+                   Apoio psicológico e palestras voltadas para a comunidade religiosa, respeitando os princípios da fé e promovendo saúde e bem-estar emocional.
+                 </p>
+                 <div className="p-6 border border-blue-100 bg-blue-50 rounded-xl text-center">
+                   <p className="text-blue-800 font-medium mb-4">Entre em contato para saber mais sobre palestras e atendimento focado neste segmento.</p>
+                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de saber mais sobre os serviços voltados para igrejas.')}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-colors">Solicitar mais informações</a>
+                 </div>
+               </>
+            )}
+          </div>
+        )}
+
         {activeTab === 'psicologos' && (
           <div className="animate-in fade-in">
             {finalProfile.services?.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').length > 0 ? (
@@ -573,7 +677,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Cursos e Supervisão</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50">
-                      <h3 className="text-base sm:text-lg font-bold text-purple-900 mb-2">{svc.title}</h3>
+                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-purple-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-purple-900">{svc.title}</h3>\n                      </div>
                       <p className="text-sm sm:text-base text-purple-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <button 
@@ -798,6 +902,20 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                   ))}
                 </ul>
               </div>
+              {/* Coluna 4: Para Igrejas */}
+              <div>
+                <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Igrejas</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  {finalProfile.services?.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
+                    <li key={idx}>
+                      <button onClick={() => { setActiveTab('igrejas'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
+                        {svc.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
 
             </div>
 

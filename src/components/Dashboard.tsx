@@ -3,7 +3,7 @@ import { db, storage, auth, handleFirestoreError, OperationType } from '../fireb
 import { collection, query, getDocs, updateDoc, doc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell, Search, BookOpen, Link, UserCheck, TrendingUp } from 'lucide-react';
+import { Loader2, CheckCircle2, User, Calendar as CalendarIcon, MessageSquare, Settings, Check, X, RefreshCw, Plus, Copy, Trash2, Upload, DollarSign, Filter, Edit2, Gift, Send, MessageCircle, Mail, Building, Download, FileUp, Zap, AlertCircle, Bell, Search, BookOpen, Link, UserCheck, TrendingUp , ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { FastAverageColor } from 'fast-average-color';
@@ -156,7 +156,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'automacoes' | 'notificacoes' | 'materiais'>('perfil');
+  const [activeServiceTab, setActiveServiceTab] = useState<'voce' | 'empresa' | 'psicologos' | 'igrejas'>('voce');
+  const [activeTab, setActiveTab] = useState<'pacientes' | 'empresas' | 'avaliacoes' | 'agenda' | 'perfil' | 'servicos' | 'automacoes' | 'notificacoes' | 'materiais'>('perfil');
   const [clients, setClients] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<{isOpen: boolean, message: string, progress: number, total: number, finished: boolean, added: number, updated: number, sessions: number}>({isOpen: false, message: '', progress: 0, total: 0, finished: false, added: 0, updated: 0, sessions: 0});
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -1397,6 +1398,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <span>Meu Perfil</span>
             </button>
             <button 
+              onClick={() => setActiveTab('servicos')}
+              className={cn("w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition", activeTab === 'servicos' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
+            >
+              <Link className="w-5 h-5 flex-shrink-0" />
+              <span>Serviços</span>
+            </button>
+            <button 
               onClick={() => setActiveTab('notificacoes')}
               className={cn("w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition", activeTab === 'notificacoes' ? "bg-amber-50 text-amber-500" : "text-slate-600 hover:bg-slate-50")}
             >
@@ -1819,13 +1827,46 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                  </div>
               </div>
 
-              <div className="mt-6 border-t border-slate-100 pt-6">
+
+              <div className="flex justify-end pt-4">
+                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition">
+                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'servicos' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+             <div className="flex flex-col mb-6 gap-2">
+                 <h2 className="text-xl font-bold text-slate-800">Meus Serviços</h2>
+                 <p className="text-sm text-slate-500">Faça a gestão dos serviços oferecidos no seu perfil público.</p>
+             </div>
+             
+             <div className="flex flex-wrap border-b border-slate-200 mb-6 font-medium text-sm gap-6 overflow-x-auto">
+               <button type="button" onClick={() => setActiveServiceTab('voce')} className={"pb-3 transition-colors uppercase tracking-wider text-xs whitespace-nowrap " + (activeServiceTab === 'voce' ? "border-b-2 border-amber-500 text-amber-600 font-bold" : "text-slate-500 border-b-2 border-transparent hover:text-slate-800")}>
+                 Para Você
+               </button>
+               <button type="button" onClick={() => setActiveServiceTab('empresa')} className={"pb-3 transition-colors uppercase tracking-wider text-xs whitespace-nowrap " + (activeServiceTab === 'empresa' ? "border-b-2 border-amber-500 text-amber-600 font-bold" : "text-slate-500 border-b-2 border-transparent hover:text-slate-800")}>
+                 Para Empresas
+               </button>
+               <button type="button" onClick={() => setActiveServiceTab('psicologos')} className={"pb-3 transition-colors uppercase tracking-wider text-xs whitespace-nowrap " + (activeServiceTab === 'psicologos' ? "border-b-2 border-amber-500 text-amber-600 font-bold" : "text-slate-500 border-b-2 border-transparent hover:text-slate-800")}>
+                 Para Psicólogos
+               </button>
+               <button type="button" onClick={() => setActiveServiceTab('igrejas')} className={"pb-3 transition-colors uppercase tracking-wider text-xs whitespace-nowrap " + (activeServiceTab === 'igrejas' ? "border-b-2 border-amber-500 text-amber-600 font-bold" : "text-slate-500 border-b-2 border-transparent hover:text-slate-800")}>
+                 Para Igrejas
+               </button>
+             </div>
+             
+             <form onSubmit={handleProfileSave} className="space-y-6">
+              <div className="pt-2">
                 <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-bold text-slate-700">Meus Serviços</label>
+                  <label className="block text-sm font-bold text-slate-700">Meus Serviços - {(activeServiceTab==='voce'?'Para Você':activeServiceTab==='empresa'?'Para Empresas':activeServiceTab==='psicologos'?'Para Psicólogos':'Para Igrejas')}</label>
                   <button type="button" onClick={() => {
                      setEditForm({
                        ...editForm, 
-                       services: [{ id: Date.now().toString(), category: 'voce', title: '', description: '', price: 0 }, ...(editForm.services || [])]
+                       services: [{ id: Date.now().toString(), category: activeServiceTab, title: '', description: '', price: 0 }, ...(editForm.services || [])]
                      });
                   }} className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition px-3 py-1.5 bg-amber-50 rounded-lg hover:bg-amber-100">
                     <Plus className="w-4 h-4" /> Novo Serviço
@@ -1833,7 +1874,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </div>
                 
                 <div className="space-y-4">
-                  {(editForm.services || []).map((svc: any, idx: number) => (
+                  {(editForm.services || []).map((svc: any, idx: number) => {
+                    const actualCategory = svc.category || 'voce';
+                    // We treat 'psicologo' and 'psicologos' identically, default to psicologos
+                    const normalizedCategory = actualCategory === 'psicologo' ? 'psicologos' : actualCategory;
+                    if (normalizedCategory !== activeServiceTab) return null;
+                    return (
                     <div key={svc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative">
                        <button type="button" onClick={() => {
                            const newSvc = (editForm.services || []).filter((_: any, i: number) => i !== idx);
@@ -1841,6 +1887,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                        }} className="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition">
                          <Trash2 className="w-4 h-4" />
                        </button>
+                       <div className="absolute top-4 right-12 flex items-center gap-2">
+                         <button type="button" onClick={() => {
+                             if (idx === 0) return;
+                             const arr = [...editForm.services];
+                             // @ts-ignore
+                             [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+                             setEditForm({...editForm, services: arr});
+                         }} disabled={idx === 0} className="text-slate-400 hover:text-amber-500 disabled:opacity-30 transition" title="Mover para cima">
+                           <ArrowUp className="w-4 h-4" />
+                         </button>
+                         <button type="button" onClick={() => {
+                             if (idx === editForm.services.length - 1) return;
+                             const arr = [...editForm.services];
+                             // @ts-ignore
+                             [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+                             setEditForm({...editForm, services: arr});
+                         }} disabled={idx === editForm.services.length - 1} className="text-slate-400 hover:text-amber-500 disabled:opacity-30 transition" title="Mover para baixo">
+                           <ArrowDown className="w-4 h-4" />
+                         </button>
+                         <button type="button" onClick={() => {
+                             const url = window.location.origin + `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
+                             navigator.clipboard.writeText(url);
+                             alert('Link copiado!');
+                         }} className="text-slate-400 hover:text-blue-500 transition ml-2" title="Copiar link individual">
+                           <Link className="w-4 h-4" />
+                         </button>
+                       </div>
 
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
                          <div>
@@ -1855,24 +1928,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                              placeholder="Ex: Terapia Individual"
                            />
                          </div>
-                         <div className="grid grid-cols-2 gap-2">
-                           <div>
-                             <label className="block text-xs font-medium text-slate-500 mb-1">Público</label>
-                             <select className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
-                               value={svc.category || 'voce'}
-                               onChange={e => {
-                                 const arr = [...editForm.services];
-                                 arr[idx].category = e.target.value;
-                                 setEditForm({...editForm, services: arr});
-                               }}
-                             >
-                               <option value="voce">Para Você (Pacientes)</option>
-                               <option value="empresa">Para sua Empresa</option>
-                               <option value="psicologos">Para Psicólogos</option>
-                               <option value="psicologo">Para Psicólogos (Alternativo)</option>
-                             </select>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                           <div className="hidden">
+                             <input type="hidden" value={svc.category || activeServiceTab} />
                            </div>
-                           <div>
+                           <div className="col-span-1 md:col-span-2">
                             <label className="block text-xs font-medium text-slate-500 mb-1">Preço</label>
                             <div className="flex flex-col gap-2">
                               <select 
@@ -1907,16 +1967,43 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                          </div>
                        </div>
                        
-                       <div>
-                         <label className="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
-                         <textarea rows={2} className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
-                           value={svc.description} 
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
+                           <textarea rows={2} className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
+                             value={svc.description} 
+                             onChange={e => {
+                               const arr = [...editForm.services];
+                               arr[idx].description = e.target.value;
+                               setEditForm({...editForm, services: arr});
+                             }}
+                             placeholder="Descreva o serviço..."
+                           />
+                         </div>
+                         <div>
+                           <label className="block text-xs font-medium text-slate-500 mb-1">Descrição Detalhada (Página de Detalhes)</label>
+                           <textarea rows={2} className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white" 
+                             value={svc.detailedDescription || ''} 
+                             onChange={e => {
+                               const arr = [...editForm.services];
+                               arr[idx].detailedDescription = e.target.value;
+                               setEditForm({...editForm, services: arr});
+                             }}
+                             placeholder="Texto mais elaborado sobre o serviço..."
+                           />
+                         </div>
+                       </div>
+                       
+                       <div className="mt-4">
+                         <label className="block text-xs font-medium text-slate-500 mb-1">Tempo de Duração (Ex: 50 minutos)</label>
+                         <input type="text" className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white max-w-[200px]" 
+                           value={svc.duration || ''} 
                            onChange={e => {
                              const arr = [...editForm.services];
-                             arr[idx].description = e.target.value;
+                             arr[idx].duration = e.target.value;
                              setEditForm({...editForm, services: arr});
                            }}
-                           placeholder="Descreva o serviço..."
+                           placeholder="Ex: 50 minutos"
                          />
                        </div>
 
@@ -1954,21 +2041,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </div>
                         </div>
                     </div>
-                  ))}
-                  {(editForm.services || []).length === 0 && (
+                  );
+                  })}
+                  {((editForm.services || []).filter((s:any) => {
+                    const actualCategory = s.category || 'voce';
+                    const normalizedCategory = actualCategory === 'psicologo' ? 'psicologos' : actualCategory;
+                    return normalizedCategory === activeServiceTab;
+                  }).length === 0) && (
                     <div className="text-center p-6 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm bg-white">
                       Nenhum serviço cadastrado. Adicione seus serviços para exibi-los no perfil.
                     </div>
                   )}
                 </div>
               </div>
-
-              <div className="flex justify-end pt-4">
-                <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition">
-                  {saving ? 'Salvando...' : 'Salvar Alterações'}
-                </button>
-              </div>
-            </form>
+               <div className="flex justify-end pt-4 border-t border-slate-200 mt-6">
+                 <button type="submit" disabled={saving} className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition">
+                   {saving ? 'Salvando...' : 'Salvar Alterações'}
+                 </button>
+               </div>
+             </form>
           </div>
         )}
 
