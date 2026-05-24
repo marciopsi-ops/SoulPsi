@@ -11,6 +11,7 @@ import { ServiceDetail } from './components/ServiceDetail';
 import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
 import { AuthModal } from './components/AuthModal';
+import { FloatingActions } from './components/FloatingActions';
 import { LogIn, Loader2, CheckCircle2 } from 'lucide-react';
 
 export type ViewState = 'landing' | 'dashboard' | 'service_detail' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company';
@@ -412,6 +413,7 @@ export default function App() {
         )}
         {view === 'service_detail' && (
           <ServiceDetail 
+            therapistId={new URLSearchParams(window.location.search).get('t') || 'demo-therapist-id'}
             service={profileData?.services?.find((s: any) => s.id === new URLSearchParams(window.location.search).get('service'))}
             profileData={profileData}
             onBack={() => {
@@ -421,6 +423,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {['landing', 'service_detail', 'checkout', 'registration', 'company_registration', 'terms', 'terms_company'].includes(view) && (
+        <FloatingActions whatsapp={profileData?.whatsapp || '5511999999999'} />
+      )}
 
       {authModalOpen && (
         <AuthModal onClose={() => setAuthModalOpen(false)} />

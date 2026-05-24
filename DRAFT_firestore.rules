@@ -65,11 +65,7 @@ service cloud.firestore {
                         isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['subscriptionStatus', 'updatedAt'])
                       ) ||
                       (
-                        isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly([
-                          'name', 'title', 'about', 'specialties', 
-                          'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 
-                          'driveSync', 'materials', 'services', 'updatedAt'
-                        ])
+                        isOwner(profileId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'title', 'about', 'specialties', 'whatsapp', 'coverPhoto', 'profilePhoto', 'calendarSync', 'driveSync', 'materials', 'services', 'updatedAt', 'publicDomain', 'generalCostsStr', 'generalIncomesStr'])
                       )
                     );
     }

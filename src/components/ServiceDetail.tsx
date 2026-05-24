@@ -1,7 +1,8 @@
 import React from 'react';
 import { ArrowLeft, Clock, MapPin, Building, GraduationCap, Calendar, Church } from 'lucide-react';
+import { ReviewSection } from './ReviewSection';
 
-export function ServiceDetail({ service, profileData, onBack }: { service: any, profileData: any, onBack: () => void }) {
+export function ServiceDetail({ therapistId, service, profileData, onBack }: { therapistId?: string, service: any, profileData: any, onBack: () => void }) {
   if (!service) return null;
 
   const handleWhatsApp = () => {
@@ -124,27 +125,31 @@ export function ServiceDetail({ service, profileData, onBack }: { service: any, 
           </div>
         </div>
         
-        {profileData && (
-          <div className="mt-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-             {profileData.profilePhoto ? (
-                <img src={profileData.profilePhoto} alt={profileData.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm" />
-             ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
-                   {profileData.name?.charAt(0) || 'P'}
-                </div>
-             )}
-             <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-800">{profileData.name}</h3>
-                <p className="text-sm font-medium mb-3" style={{ color: 'rgb(var(--theme-primary))' }}>
-                  {profileData.title || profileData.profession || 'Psicólogo(a)'}
-                </p>
-                {profileData.bio && (
-                   <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
-                      {profileData.bio}
-                   </p>
-                )}
-             </div>
-          </div>
+         {profileData && (
+          <>
+            <div className="mt-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+               {profileData.profilePhoto ? (
+                  <img src={profileData.profilePhoto} alt={profileData.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm" />
+               ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
+                     {profileData.name?.charAt(0) || 'P'}
+                  </div>
+               )}
+               <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-800">{profileData.name}</h3>
+                  <p className="text-sm font-medium mb-3" style={{ color: 'rgb(var(--theme-primary))' }}>
+                    {profileData.title || profileData.profession || 'Psicólogo(a)'}
+                  </p>
+                  {profileData.bio && (
+                     <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
+                        {profileData.bio}
+                     </p>
+                  )}
+               </div>
+            </div>
+            
+            <ReviewSection therapistId={therapistId || 'demo-therapist-id'} profileData={profileData} />
+          </>
         )}
       </div>
     </div>

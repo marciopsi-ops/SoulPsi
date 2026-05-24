@@ -511,7 +511,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               <div className="space-y-4 mb-8">
                 {finalProfile.services.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
                   <div key={idx} className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden">
-                    <div className="flex items-center gap-3 mb-2">\n                      <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl flex-shrink-0">\n                        {getServiceIcon(svc.category, svc.title)}\n                      </div>\n                      <h3 className="text-base sm:text-lg font-bold text-slate-800">{svc.title}</h3>\n                    </div>
+                    <div className="flex items-center gap-3 mb-2">                      <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl flex-shrink-0">                        {getServiceIcon(svc.category, svc.title)}                      </div>                      <h3 className="text-base sm:text-lg font-bold text-slate-800">{svc.title}</h3>                    </div>
                     <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6">{svc.description}</p>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                       {svc.allowScheduling === false ? (
@@ -606,7 +606,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Serviços Corporativos</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50">
-                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-emerald-900">{svc.title}</h3>\n                      </div>
+                      <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-emerald-900">{svc.title}</h3>                      </div>
                       <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex justify-start">
                         <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
@@ -636,7 +636,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Serviços para Igrejas</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-blue-100 rounded-xl p-5 sm:p-6 bg-blue-50">
-                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-blue-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-blue-900">{svc.title}</h3>\n                      </div>
+                      <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-blue-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-blue-900">{svc.title}</h3>                      </div>
                       <p className="text-sm sm:text-base text-blue-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <button 
@@ -677,7 +677,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">Cursos e Supervisão</h2>
                  {finalProfile.services.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50">
-                      <div className="flex items-center gap-3 mb-2">\n                        <div className="p-2 sm:p-2.5 bg-purple-100/50 rounded-xl flex-shrink-0">\n                          {getServiceIcon(svc.category, svc.title)}\n                        </div>\n                        <h3 className="text-base sm:text-lg font-bold text-purple-900">{svc.title}</h3>\n                      </div>
+                      <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-purple-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-purple-900">{svc.title}</h3>                      </div>
                       <p className="text-sm sm:text-base text-purple-800 mb-5 sm:mb-6">{svc.description}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <button 
@@ -1211,28 +1211,6 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
           </div>
         </div>
       )}
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col gap-3 items-end pointer-events-auto">
-        <button
-          onClick={handleShare}
-          className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-slate-600 hover:bg-slate-800 hover:scale-105 transition-all backdrop-blur-md"
-          title="Compartilhar Perfil"
-        >
-          {copiedLink ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
-        </button>
-        
-        {finalProfile.whatsapp && (
-          <a
-            href={`https://wa.me/${finalProfile.whatsapp.replace(/\D/g, '')}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)] hover:bg-emerald-600 hover:scale-105 transition-all backdrop-blur-md"
-            title="Fale no WhatsApp"
-          >
-            <MessageCircle className="w-7 h-7" />
-          </a>
-        )}
-      </div>
     </div>
   );
 }

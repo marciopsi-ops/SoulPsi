@@ -16,6 +16,8 @@ export function PatientRegistration({ therapistId, onSuccess }: { therapistId: s
     dob: '',
     cpf: '',
     source: '',
+    guardianName: '',
+    guardianPhone: '',
     lgpdAccepted: false
   });
   
@@ -150,6 +152,19 @@ export function PatientRegistration({ therapistId, onSuccess }: { therapistId: s
                 <div>
                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">CPF *</label>
                    <input required type="text" className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none" value={form.cpf} onChange={e => setForm({...form, cpf: e.target.value})} />
+                </div>
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2 mb-6">
+                   <div className="md:col-span-2">
+                     <p className="text-sm font-semibold text-slate-700">Se o paciente for menor de idade (Menor de 18 anos):</p>
+                   </div>
+                   <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nome do Responsável Legal</label>
+                      <input type="text" className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm bg-white" value={form.guardianName} onChange={e => setForm({...form, guardianName: e.target.value})} placeholder="Obrigatório para menores" />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">Telefone do Responsável</label>
+                      <input type="tel" className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm bg-white" value={form.guardianPhone} onChange={e => setForm({...form, guardianPhone: e.target.value})} placeholder="(00) 00000-0000" />
+                   </div>
                 </div>
                 <div className="md:col-span-2">
                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">De onde você nos conheceu? (Fonte de Indicação) *</label>
