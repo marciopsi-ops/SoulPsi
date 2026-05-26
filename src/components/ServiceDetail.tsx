@@ -69,6 +69,29 @@ export function ServiceDetail({ therapistId, service, profileData, onBack }: { t
           <ArrowLeft className="w-4 h-4" /> Voltar
         </button>
 
+        {profileData && (
+          <div className="mb-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+            {profileData.profilePhoto ? (
+              <img src={profileData.profilePhoto} alt={profileData.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm" />
+            ) : (
+              <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
+                {profileData.name?.charAt(0) || 'P'}
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-800">{profileData.name}</h3>
+              <p className="text-sm font-medium mb-3" style={{ color: 'rgb(var(--theme-primary))' }}>
+                {profileData.title || profileData.profession || 'Psicólogo(a)'}
+              </p>
+              {profileData.bio && (
+                <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
+                  {profileData.bio}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className={`bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100`}>
           <div className={`${theme.bg} border-b ${theme.border} p-8 sm:p-12 text-center`}>
             <div className={`w-20 h-20 mx-auto ${theme.bgIcon} rounded-2xl flex items-center justify-center mb-6`}>
@@ -109,7 +132,7 @@ export function ServiceDetail({ therapistId, service, profileData, onBack }: { t
             </div>
 
             {(service.detailedDescription || '') && (
-                <div className="mb-10 text-slate-600 leading-relaxed whitespace-pre-wrap">
+                <div className="mb-10 text-slate-600 leading-relaxed whitespace-pre-wrap text-justify">
                   {service.detailedDescription}
                 </div>
             )}
@@ -127,27 +150,6 @@ export function ServiceDetail({ therapistId, service, profileData, onBack }: { t
         
          {profileData && (
           <>
-            <div className="mt-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-               {profileData.profilePhoto ? (
-                  <img src={profileData.profilePhoto} alt={profileData.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm" />
-               ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
-                     {profileData.name?.charAt(0) || 'P'}
-                  </div>
-               )}
-               <div className="flex-1">
-                  <h3 className="text-lg font-bold text-slate-800">{profileData.name}</h3>
-                  <p className="text-sm font-medium mb-3" style={{ color: 'rgb(var(--theme-primary))' }}>
-                    {profileData.title || profileData.profession || 'Psicólogo(a)'}
-                  </p>
-                  {profileData.bio && (
-                     <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
-                        {profileData.bio}
-                     </p>
-                  )}
-               </div>
-            </div>
-            
             <ReviewSection therapistId={therapistId || 'demo-therapist-id'} profileData={profileData} />
           </>
         )}

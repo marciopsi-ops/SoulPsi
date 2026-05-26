@@ -74,6 +74,17 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showIgrejasTab, setShowIgrejasTab] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('igrejas') || params.get('tab') === 'igrejas') {
+      setShowIgrejasTab(true);
+      if (params.get('tab') === 'igrejas') {
+        setActiveTab('igrejas');
+      }
+    }
+  }, []);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -486,12 +497,14 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
         >
           <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> Para Psicólogos</div>
         </button>
-        <button 
-          onClick={() => setActiveTab('igrejas')}
-          className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'igrejas' ? "border-blue-500 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800")}
-        >
-          <div className="flex items-center gap-1.5 sm:gap-2"><Church className="w-4 h-4"/> Para Igrejas</div>
-        </button>
+        {(isLoggedIn || showIgrejasTab) && (
+          <button 
+            onClick={() => setActiveTab('igrejas')}
+            className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'igrejas' ? "border-blue-500 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800")}
+          >
+            <div className="flex items-center gap-1.5 sm:gap-2"><Church className="w-4 h-4"/> Para Igrejas</div>
+          </button>
+        )}
         {isLoggedIn && (
           <button 
             onClick={() => setActiveTab('materiais')}
@@ -512,7 +525,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 {finalProfile.services.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
                   <div key={idx} className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden">
                     <div className="flex items-center gap-3 mb-2">                      <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl flex-shrink-0">                        {getServiceIcon(svc.category, svc.title)}                      </div>                      <h3 className="text-base sm:text-lg font-bold text-slate-800">{svc.title}</h3>                    </div>
-                    <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6">{svc.description}</p>
+                    <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6 text-justify">{svc.description}</p>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                       {svc.allowScheduling === false ? (
                         <a 
@@ -607,7 +620,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  {finalProfile.services.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50">
                       <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-emerald-900">{svc.title}</h3>                      </div>
-                      <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6">{svc.description}</p>
+                      <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6 text-justify">{svc.description}</p>
                       <div className="flex justify-start">
                         <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
                       </div>
@@ -637,7 +650,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  {finalProfile.services.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-blue-100 rounded-xl p-5 sm:p-6 bg-blue-50">
                       <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-blue-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-blue-900">{svc.title}</h3>                      </div>
-                      <p className="text-sm sm:text-base text-blue-800 mb-5 sm:mb-6">{svc.description}</p>
+                      <p className="text-sm sm:text-base text-blue-800 mb-5 sm:mb-6 text-justify">{svc.description}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <button 
                           onClick={() => openScheduleModal(svc)}
@@ -678,20 +691,42 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  {finalProfile.services.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
                     <div key={idx} className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50">
                       <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-purple-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-purple-900">{svc.title}</h3>                      </div>
-                      <p className="text-sm sm:text-base text-purple-800 mb-5 sm:mb-6">{svc.description}</p>
-                      <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                        <button 
-                          onClick={() => openScheduleModal(svc)}
-                          className="w-full sm:flex-1 bg-purple-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-purple-700 transition-colors text-center"
-                        >{svc?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Agora'}</button>
-                        <a 
-                          href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="w-full sm:flex-1 bg-white border border-purple-200 text-purple-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-purple-50 transition-colors text-center flex items-center justify-center"
-                        >
-                          Tirar dúvidas pelo whatsapp
-                        </a>
+                      <p className="text-sm sm:text-base text-purple-800 mb-5 sm:mb-6 text-justify">{svc.description}</p>
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
+                        {svc.allowScheduling === false ? (
+                          <a 
+                            href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-full bg-purple-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center flex items-center justify-center gap-2"
+                          >
+                            Agende ou saiba mais pelo Whatsapp
+                          </a>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => openScheduleModal(svc)}
+                              className="w-full sm:flex-1 bg-purple-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center"
+                            >Agendar Online</button>
+                            {finalProfile.inPersonEnabled && (
+                              <button 
+                                onClick={() => openScheduleModal(svc, true)}
+                                className="w-full sm:flex-1 bg-white border border-purple-200 text-purple-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-purple-50 transition-colors text-center flex items-center justify-center gap-2"
+                              >
+                                <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+                                Agendar Presencial
+                              </button>
+                            )}
+                            <a 
+                              href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
+                            >
+                              Tirar dúvidas pelo whatsapp
+                            </a>
+                          </>
+                        )}
                       </div>
                     </div>
                  ))}
@@ -903,18 +938,20 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 </ul>
               </div>
               {/* Coluna 4: Para Igrejas */}
-              <div>
-                <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Igrejas</h4>
-                <ul className="space-y-3 text-sm text-slate-500">
-                  {finalProfile.services?.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
-                    <li key={idx}>
-                      <button onClick={() => { setActiveTab('igrejas'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
-                        {svc.title}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {(isLoggedIn || showIgrejasTab) && (
+                <div>
+                  <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Igrejas</h4>
+                  <ul className="space-y-3 text-sm text-slate-500">
+                    {finalProfile.services?.filter((s: any) => s.category === 'igrejas').map((svc: any, idx: number) => (
+                      <li key={idx}>
+                        <button onClick={() => { setActiveTab('igrejas'); window.scrollTo({top: 500, behavior: 'smooth'}); }} className="hover:text-amber-500 transition text-left">
+                          {svc.title}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
 
             </div>

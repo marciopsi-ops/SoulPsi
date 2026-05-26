@@ -55,6 +55,7 @@ import {
   ArrowUp,
   ArrowDown,
   Wallet,
+  UserMinus,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
@@ -1159,7 +1160,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const [clientSearchText, setClientSearchText] = useState("");
   const [showBirthdays, setShowBirthdays] = useState(false);
+  const [showInactiveClients, setShowInactiveClients] = useState(false);
   const [companySearchText, setCompanySearchText] = useState("");
+  const [showInactiveCompanies, setShowInactiveCompanies] = useState(false);
   const [companyGlobalInvoiceFilter, setCompanyGlobalInvoiceFilter] = useState<
     "all" | "issued" | "pending"
   >("all");
@@ -1261,6 +1264,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   );
 
   const filteredClients = clients.filter((client) => {
+    if (!showInactiveClients && client.isActive === false) return false;
+
     const matchesSearch =
       client.name?.toLowerCase().includes(clientSearchText.toLowerCase()) ||
       client.email?.toLowerCase().includes(clientSearchText.toLowerCase());
@@ -1283,6 +1288,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   });
 
   const filteredCompanies = companies.filter((company) => {
+    if (!showInactiveCompanies && company.isActive === false) return false;
+
     const matchesSearch =
       company.name?.toLowerCase().includes(companySearchText.toLowerCase()) ||
       company.email?.toLowerCase().includes(companySearchText.toLowerCase());
@@ -3147,18 +3154,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               onManageAccounts={() => setIsManageAccountsOpen(true)}
             />
 
-            <CostManager
-              costsStr={profileData?.generalCostsStr}
-              type="generalCostsStr"
-              userId={userId}
-              onUpdates={(val) =>
-                onUpdateProfile({ ...profileData, generalCostsStr: val })
-              }
-              filterMonths={filterMonths}
-              filterYear={filterYear}
-              billingAccounts={billingAccounts}
-              onManageAccounts={() => setIsManageAccountsOpen(true)}
-            />
+            {(()=>{
+              // Auto-merge legacy costs if they exist
+              let mergedCosts: any[] = [];
+              try { if (profileData?.generalCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.generalCostsStr)]; } catch(e){}
+              try { if (profileData?.patientCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.patientCostsStr)]; } catch(e){}
+              try { if (profileData?.companyCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.companyCostsStr)]; } catch(e){}
+              
+              const mergedCostsStr = JSON.stringify(mergedCosts);
+              
+              return (
+                <CostManager
+                  costsStr={mergedCostsStr}
+                  type="generalCostsStr"
+                  userId={userId}
+                  onUpdates={(val) => {
+                    const toUpdate: any = { generalCostsStr: val };
+                    if (profileData?.patientCostsStr && profileData.patientCostsStr !== '[]') toUpdate.patientCostsStr = '[]';
+                    if (profileData?.companyCostsStr && profileData.companyCostsStr !== '[]') toUpdate.companyCostsStr = '[]';
+                    onUpdateProfile({ ...profileData, ...toUpdate });
+                  }}
+                  filterMonths={filterMonths}
+                  filterYear={filterYear}
+                  billingAccounts={billingAccounts}
+                  onManageAccounts={() => setIsManageAccountsOpen(true)}
+                />
+              );
+            })()}
           </div>
         )}
         {activeTab === "perfil" && (
@@ -4162,7 +4184,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             </label>
                             <textarea
                               rows={2}
-                              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
+                              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white text-justify"
                               value={svc.detailedDescription || ""}
                               onChange={(e) => {
                                 const arr = [...editForm.services];
@@ -5069,19 +5091,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               )}
             </div>
 
-            <CostManager
-              costsStr={profileData?.patientCostsStr}
-              type="patientCostsStr"
-              userId={userId}
-              onUpdates={(val) =>
-                onUpdateProfile({ ...profileData, patientCostsStr: val })
-              }
-              filterMonths={filterMonths}
-              filterYear={filterYear}
-              billingAccounts={billingAccounts}
-              onManageAccounts={() => setIsManageAccountsOpen(true)}
-            />
-
             {editingClientId === "new" && (
               <div
                 className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
@@ -5364,6 +5373,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   <Gift className="w-5 h-5" />
                 </button>
                 <button
+                  onClick={() => setShowInactiveClients(!showInactiveClients)}
+                  className={cn(
+                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
+                    showInactiveClients
+                      ? "bg-slate-200 text-slate-800 border-slate-300"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                  )}
+                  title="Mostrar Pacientes Inativos"
+                >
+                  <UserMinus className="w-5 h-5" />
+                </button>
+                <button
                   onClick={() => {
                     setClientEditForm({ isActive: true });
                     setEditingClientId("new");
@@ -5381,9 +5402,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 Nenhum paciente cadastrado ainda.
               </p>
             ) : filteredClients.length === 0 ? (
-              <p className="text-slate-500">
-                Nenhum paciente encontrado na busca.
-              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-slate-500 shadow-sm mt-4">
+                Nenhum paciente encontrado. Verifique a busca ou os filtros de
+                ativos/inativos.
+              </div>
             ) : (
               <div className="space-y-4">
                 {filteredClients
@@ -7086,6 +7108,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   <option value="pending">C/ NF Pendente</option>
                 </select>
                 <button
+                  onClick={() => setShowInactiveCompanies(!showInactiveCompanies)}
+                  className={cn(
+                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
+                    showInactiveCompanies
+                      ? "bg-slate-200 text-slate-800 border-slate-300"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                  )}
+                  title="Mostrar Empresas Inativas"
+                >
+                  <UserMinus className="w-5 h-5" />
+                </button>
+                <button
                   onClick={() => {
                     setCompanyEditForm({ isActive: true });
                     setEditingCompanyId("new");
@@ -7212,19 +7246,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </p>
               )}
             </div>
-
-            <CostManager
-              costsStr={profileData?.companyCostsStr}
-              type="companyCostsStr"
-              userId={userId}
-              onUpdates={(val) =>
-                onUpdateProfile({ ...profileData, companyCostsStr: val })
-              }
-              filterMonths={filterMonths}
-              filterYear={filterYear}
-              billingAccounts={billingAccounts}
-              onManageAccounts={() => setIsManageAccountsOpen(true)}
-            />
 
             {editingCompanyId === "new" && (
               <div
@@ -7524,11 +7545,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             )}
 
             {companies.length === 0 ? (
-              <p className="text-slate-500">Nenhum empresa cadastrado ainda.</p>
+              <p className="text-slate-500">Nenhuma empresa cadastrada ainda.</p>
             ) : filteredCompanies.length === 0 ? (
-              <p className="text-slate-500">
-                Nenhum empresa encontrado na busca.
-              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-slate-500 shadow-sm mt-4">
+                Nenhuma empresa encontrada. Verifique a busca ou os filtros de
+                ativos/inativos.
+              </div>
             ) : (
               <div className="space-y-4">
                 {filteredCompanies.map((company) => {
