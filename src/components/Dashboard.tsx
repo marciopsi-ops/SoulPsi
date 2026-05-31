@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   db,
   storage,
@@ -56,6 +56,8 @@ import {
   ArrowDown,
   Wallet,
   UserMinus,
+  MessagesSquare,
+  ReceiptText,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
@@ -1163,6 +1165,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [showInactiveClients, setShowInactiveClients] = useState(false);
   const [companySearchText, setCompanySearchText] = useState("");
   const [showInactiveCompanies, setShowInactiveCompanies] = useState(false);
+  const [clientGlobalInvoiceFilter, setClientGlobalInvoiceFilter] = useState<
+    "all" | "issued" | "pending"
+  >("all");
   const [companyGlobalInvoiceFilter, setCompanyGlobalInvoiceFilter] = useState<
     "all" | "issued" | "pending"
   >("all");
@@ -1243,6 +1248,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       .map((a) => a.clientId),
   );
 
+  const clientIdsWithInvoiceFilter = new Set(
+    appointmentsInPeriod
+      .filter((a) =>
+        clientGlobalInvoiceFilter === "all"
+          ? true
+          : (a.invoiceStatus || "pending") === clientGlobalInvoiceFilter,
+      )
+      .map((a) => a.clientId),
+  );
+
   const companyIdsWithBillingFilter = new Set(
     companyAppointmentsInPeriod
       .filter((a) =>
@@ -1282,6 +1297,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
     if (globalBillingFilter !== "all") {
       if (!clientIdsWithBillingFilter.has(client.id)) return false;
+    }
+
+    if (clientGlobalInvoiceFilter !== "all") {
+      if (!clientIdsWithInvoiceFilter.has(client.id)) return false;
     }
 
     return true;
@@ -1362,6 +1381,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "reminder"
     | "receipt"
     | "birthday"
+    | "readjustment"
     | "other"
   >("financial");
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -1385,6 +1405,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       | "reminder"
       | "receipt"
       | "birthday"
+      | "readjustment"
       | "other",
     client: any,
   ) => {
@@ -1484,6 +1505,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           `Olá ${firstName}!\n\nPassando para lhe desejar um feliz aniversário! Muita paz, saúde, felicidade e realizações em sua jornada. Que o seu dia seja repleto de sorrisos!\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`,
         );
       }
+    } else if (template === "readjustment") {
+      setNotificationSubject("Reajuste Anual de Honorários");
+      setNotificationMessage(
+        `Olá ${firstName},\n\nPassando para informar que, conforme nosso contrato e/ou tempo de acompanhamento (anual), no próximo mês haverá o reajuste anual dos honorários das sessões. O objetivo desse reajuste é manter a qualidade do suporte, acompanhar a atualização da inflação e os novos investimentos em formação contínua.\n\nFico à disposição caso tenha alguma dúvida sobre os novos valores.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`
+      );
     } else {
       setNotificationSubject("Contato");
       if (profileData?.whatsappOtherTemplate) {
@@ -1567,6 +1593,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       hoursQty: 1,
       status: "completed",
       paymentStatus: "pending",
+      invoiceStatus: "pending",
       totalAmount: profileData?.services?.[0]?.price || 0,
       notes: "",
     });
@@ -1599,6 +1626,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       serviceName: lastSession.serviceName || "",
       status: lastSession.status || "completed",
       paymentStatus: lastSession.paymentStatus || "pending",
+      invoiceStatus: lastSession.invoiceStatus || "pending",
       totalAmount: lastSession.totalAmount || 0,
       notes: lastSession.notes || "",
       modality: lastSession.modality || "",
@@ -1696,6 +1724,29 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
+  const handleClientInvoiceStatusChange = async (
+    apptId: string,
+    newStatus: string,
+  ) => {
+    try {
+      await updateDoc(
+        doc(db, `profiles/${userId}/appointments/${apptId}`),
+        { invoiceStatus: newStatus },
+      );
+      setAppointments(
+        appointments.map((a) =>
+          a.id === apptId ? { ...a, invoiceStatus: newStatus } : a,
+        ),
+      );
+    } catch (error: any) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `profiles/${userId}/appointments/${apptId}`,
+      );
+    }
+  };
+
   const handleCompanyInvoiceStatusChange = async (
     apptId: string,
     newStatus: string,
@@ -1708,6 +1759,52 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       setCompanyAppointments(
         companyAppointments.map((a) =>
           a.id === apptId ? { ...a, invoiceStatus: newStatus } : a,
+        ),
+      );
+    } catch (error: any) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `profiles/${userId}/companyAppointments/${apptId}`,
+      );
+    }
+  };
+
+  const handleClientPaymentStatusChange = async (
+    apptId: string,
+    newStatus: string,
+  ) => {
+    try {
+      await updateDoc(
+        doc(db, `profiles/${userId}/appointments/${apptId}`),
+        { paymentStatus: newStatus },
+      );
+      setAppointments(
+        appointments.map((a) =>
+          a.id === apptId ? { ...a, paymentStatus: newStatus } : a,
+        ),
+      );
+    } catch (error: any) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `profiles/${userId}/appointments/${apptId}`,
+      );
+    }
+  };
+
+  const handleCompanyPaymentStatusChange = async (
+    apptId: string,
+    newStatus: string,
+  ) => {
+    try {
+      await updateDoc(
+        doc(db, `profiles/${userId}/companyAppointments/${apptId}`),
+        { paymentStatus: newStatus },
+      );
+      setCompanyAppointments(
+        companyAppointments.map((a) =>
+          a.id === apptId ? { ...a, paymentStatus: newStatus } : a,
         ),
       );
     } catch (error: any) {
@@ -2000,6 +2097,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         isActive: companyEditForm.isActive,
         notes: companyEditForm.notes || "",
         source: companyEditForm.source || "Outros",
+        entryDate: companyEditForm.entryDate || new Date().toISOString().split('T')[0],
       };
 
       if (editingCompanyId === "new") {
@@ -2498,6 +2596,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         isActive: clientEditForm.isActive !== false,
         notes: clientEditForm.notes || "",
         source: clientEditForm.source || "Outros",
+        entryDate: clientEditForm.entryDate || new Date().toISOString().split('T')[0],
       };
 
       if (editingClientId === "new") {
@@ -2558,6 +2657,58 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       );
     }
   };
+
+  const readjustmentAlerts = useMemo(() => {
+    const alerts: any[] = [];
+    const today = new Date();
+    
+    const checkAlert = (entity: any, type: string) => {
+      if (!entity.entryDate) return;
+      const entryParts = entity.entryDate.split('-');
+      if (entryParts.length !== 3) return;
+      
+      const entryDate = new Date(parseInt(entryParts[0]), parseInt(entryParts[1]) - 1, parseInt(entryParts[2]));
+      if (isNaN(entryDate.getTime())) return;
+      
+      const currentYear = today.getFullYear();
+      let nextAnniv = new Date(currentYear, entryDate.getMonth(), entryDate.getDate());
+      
+      if (nextAnniv.getTime() < today.getTime() - 24 * 60 * 60 * 1000) {
+        nextAnniv.setFullYear(currentYear + 1);
+      }
+      
+      const diffMs = nextAnniv.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      
+      const totalTimeMs = today.getTime() - entryDate.getTime();
+      const totalTimeDays = Math.ceil(totalTimeMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 30 && diffDays >= 0 && totalTimeDays >= 300) {
+        alerts.push({
+          id: `readjustment-${entity.id}`,
+          title: `Alerta de Reajuste: ${entity.name || entity.tradeName}`,
+          message: `O reajuste anual de honorários para ${type === 'client' ? 'o paciente' : 'a empresa'} ${entity.name || entity.tradeName} é no dia ${format(nextAnniv, "dd/MM/yyyy")} (${diffDays} dias).`,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+          isAlert: true,
+          client: entity
+        });
+      }
+    };
+
+    clients.forEach(c => checkAlert(c, 'client'));
+    companies.forEach(c => checkAlert(c, 'company'));
+
+    return alerts;
+  }, [clients, companies]);
+
+  const allNotifications = useMemo(() => {
+    return [...readjustmentAlerts, ...systemNotifications].sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime(),
+    );
+  }, [readjustmentAlerts, systemNotifications]);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
@@ -4676,17 +4827,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
 
             <div className="flex flex-col gap-3">
-              {systemNotifications.length === 0 ? (
+              {allNotifications.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   Nenhuma notificação recebida ainda.
                 </div>
               ) : (
-                systemNotifications
-                  .sort(
-                    (a, b) =>
-                      new Date(b.createdAt || 0).getTime() -
-                      new Date(a.createdAt || 0).getTime(),
-                  )
+                allNotifications
                   .map((notif) => (
                     <div
                       key={notif.id}
@@ -4723,7 +4869,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       >
                         {notif.message}
                       </p>
-                      {!notif.isRead && (
+                      {!notif.isRead && !notif.isAlert && (
                         <button
                           onClick={async () => {
                             try {
@@ -4746,6 +4892,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           className="mt-3 text-xs font-semibold text-amber-600 hover:text-amber-700 transition"
                         >
                           Marcar como lida
+                        </button>
+                      )}
+                      {notif.isAlert && (
+                        <button
+                          onClick={() => {
+                            handleOpenNotification(notif.client);
+                            setNotificationTemplate("readjustment");
+                          }}
+                          className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1"
+                        >
+                          <Send className="w-3 h-3" />
+                          Enviar Notificação de Reajuste
                         </button>
                       )}
                     </div>
@@ -5288,6 +5446,22 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           }
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Data de Entrada
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          value={clientEditForm.entryDate || ""}
+                          onChange={(e) =>
+                            setClientEditForm({
+                              ...clientEditForm,
+                              entryDate: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
@@ -5371,6 +5545,24 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   title="Filtrar Aniversariantes do Mês"
                 >
                   <Gift className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (clientGlobalInvoiceFilter === "all") setClientGlobalInvoiceFilter("issued")
+                    else if (clientGlobalInvoiceFilter === "issued") setClientGlobalInvoiceFilter("pending")
+                    else setClientGlobalInvoiceFilter("all")
+                  }}
+                  className={cn(
+                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
+                    clientGlobalInvoiceFilter === "issued"
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                      : clientGlobalInvoiceFilter === "pending"
+                      ? "bg-orange-100 text-orange-700 border-orange-200"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                  )}
+                  title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
+                >
+                  <ReceiptText className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setShowInactiveClients(!showInactiveClients)}
@@ -5761,9 +5953,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     e.stopPropagation();
                                     handleOpenNotification(client);
                                   }}
-                                  className="flex items-center justify-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap shadow-xs flex-1 sm:flex-none"
+                                  className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition flex-shrink-0"
+                                  title="Enviar Notificação"
                                 >
-                                  <MessageCircle className="w-4 h-4 text-white" /> Enviar lembrete/ mensagem
+                                  <MessagesSquare className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -6278,7 +6471,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               />
                                             </div>
                                           </div>
-                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 text-sm">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3 text-sm">
                                             <div>
                                               <label className="block text-slate-600 mb-1">
                                                 Status Financeiro
@@ -6302,6 +6495,32 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 </option>
                                                 <option value="paid">
                                                   Pago
+                                                </option>
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="block text-slate-600 mb-1">
+                                                Status NF
+                                              </label>
+                                              <select
+                                                required
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                value={
+                                                  appointmentEditForm.invoiceStatus || "pending"
+                                                }
+                                                onChange={(e) =>
+                                                  setAppointmentEditForm({
+                                                    ...appointmentEditForm,
+                                                    invoiceStatus:
+                                                      e.target.value,
+                                                  })
+                                                }
+                                              >
+                                                <option value="pending">
+                                                  Pendente / Não Emitida
+                                                </option>
+                                                <option value="issued">
+                                                  Emitida
                                                 </option>
                                               </select>
                                             </div>
@@ -6635,6 +6854,30 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               Pago
                                                             </option>
                                                           </select>
+                                                          <select
+                                                            required
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            value={
+                                                              appointmentEditForm.invoiceStatus || "pending"
+                                                            }
+                                                            onChange={(e) =>
+                                                              setAppointmentEditForm(
+                                                                {
+                                                                  ...appointmentEditForm,
+                                                                  invoiceStatus:
+                                                                    e.target
+                                                                      .value,
+                                                                },
+                                                              )
+                                                            }
+                                                          >
+                                                            <option value="pending">
+                                                              NF Pend.
+                                                            </option>
+                                                            <option value="issued">
+                                                              NF Emitida
+                                                            </option>
+                                                          </select>
                                                         </div>
                                                         <div className="flex flex-wrap gap-3 items-center">
                                                           <select
@@ -6828,26 +7071,55 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               {ap.priceAdjust}
                                                             </span>
                                                           )}
-                                                          {ap.paymentStatus ===
-                                                          "paid" ? (
-                                                            <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">
-                                                              Pago
-                                                            </span>
-                                                          ) : (
-                                                            <span className="inline-flex px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold items-center gap-1">
+                                                          <select
+                                                            className={cn(
+                                                              "text-[10px] p-0.5 border-slate-200 rounded outline-none w-20 font-bold",
+                                                              (ap.paymentStatus || "pending") === "paid" 
+                                                                ? "bg-emerald-100 text-emerald-700" 
+                                                                : "bg-orange-100 text-orange-700"
+                                                            )}
+                                                            value={
+                                                              ap.paymentStatus || "pending"
+                                                            }
+                                                            onChange={(e) =>
+                                                              handleClientPaymentStatusChange(
+                                                                ap.id,
+                                                                e.target.value,
+                                                              )
+                                                            }
+                                                          >
+                                                            <option value="pending">
                                                               Pgto Pend.
-                                                            </span>
-                                                          )}
-                                                          {ap.invoiceStatus ===
-                                                          "issued" ? (
-                                                            <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">
+                                                            </option>
+                                                            <option value="paid">
+                                                              Pago
+                                                            </option>
+                                                          </select>
+                                                          <select
+                                                            className={cn(
+                                                              "text-[10px] p-0.5 border-slate-200 rounded outline-none font-bold",
+                                                              (ap.invoiceStatus || "pending") === "issued" 
+                                                                ? "bg-emerald-100 text-emerald-700" 
+                                                                : "bg-orange-100 text-orange-700"
+                                                            )}
+                                                            value={
+                                                              ap.invoiceStatus ||
+                                                              "pending"
+                                                            }
+                                                            onChange={(e) =>
+                                                              handleClientInvoiceStatusChange(
+                                                                ap.id,
+                                                                e.target.value,
+                                                              )
+                                                            }
+                                                          >
+                                                            <option value="pending">
+                                                              NF Pendente
+                                                            </option>
+                                                            <option value="issued">
                                                               NF Emitida
-                                                            </span>
-                                                          ) : (
-                                                            <span className="inline-flex px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold items-center gap-1">
-                                                              NF Pend.
-                                                            </span>
-                                                          )}
+                                                            </option>
+                                                          </select>
                                                         </div>
                                                       </div>
                                                     </td>
@@ -7096,17 +7368,24 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={companyGlobalInvoiceFilter}
-                  onChange={(e) =>
-                    setCompanyGlobalInvoiceFilter(e.target.value as any)
-                  }
-                  className="p-3 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none shadow-sm h-full"
+                <button
+                  onClick={() => {
+                    if (companyGlobalInvoiceFilter === "all") setCompanyGlobalInvoiceFilter("issued")
+                    else if (companyGlobalInvoiceFilter === "issued") setCompanyGlobalInvoiceFilter("pending")
+                    else setCompanyGlobalInvoiceFilter("all")
+                  }}
+                  className={cn(
+                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
+                    companyGlobalInvoiceFilter === "issued"
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                      : companyGlobalInvoiceFilter === "pending"
+                      ? "bg-orange-100 text-orange-700 border-orange-200"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                  )}
+                  title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
                 >
-                  <option value="all">NF Geral</option>
-                  <option value="issued">C/ NF Emitida</option>
-                  <option value="pending">C/ NF Pendente</option>
-                </select>
+                  <ReceiptText className="w-5 h-5" />
+                </button>
                 <button
                   onClick={() => setShowInactiveCompanies(!showInactiveCompanies)}
                   className={cn(
@@ -7319,6 +7598,22 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             setCompanyEditForm({
                               ...companyEditForm,
                               cnpj: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Data de Entrada
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          value={companyEditForm.entryDate || ""}
+                          onChange={(e) =>
+                            setCompanyEditForm({
+                              ...companyEditForm,
+                              entryDate: e.target.value,
                             })
                           }
                         />
@@ -7958,9 +8253,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   e.stopPropagation();
                                   handleOpenNotification(company);
                                 }}
-                                className="flex items-center justify-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap shadow-xs flex-1 sm:flex-none"
+                                className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition flex-shrink-0"
+                                title="Enviar Notificação"
                               >
-                                <MessageCircle className="w-4 h-4 text-white" /> Enviar lembrete/ mensagem
+                                <MessagesSquare className="w-5 h-5" />
                               </button>
                               <button
                                 onClick={(e) => {
@@ -9069,18 +9365,37 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             {ap.priceAdjust}
                                                           </span>
                                                         )}
-                                                        {ap.paymentStatus ===
-                                                        "paid" ? (
-                                                          <span className="inline-flex px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold items-center gap-1">
-                                                            Pago
-                                                          </span>
-                                                        ) : (
-                                                          <span className="inline-flex px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold items-center gap-1">
-                                                            Pendente
-                                                          </span>
-                                                        )}
                                                         <select
-                                                          className="text-[10px] p-0.5 border-slate-200 rounded outline-none"
+                                                          className={cn(
+                                                            "text-[10px] p-0.5 border-slate-200 rounded outline-none w-20 font-bold",
+                                                            (ap.paymentStatus || "pending") === "paid" 
+                                                              ? "bg-emerald-100 text-emerald-700" 
+                                                              : "bg-orange-100 text-orange-700"
+                                                          )}
+                                                          value={
+                                                            ap.paymentStatus || "pending"
+                                                          }
+                                                          onChange={(e) =>
+                                                            handleCompanyPaymentStatusChange(
+                                                              ap.id,
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                        >
+                                                          <option value="pending">
+                                                            Pgto Pend.
+                                                          </option>
+                                                          <option value="paid">
+                                                            Pago
+                                                          </option>
+                                                        </select>
+                                                        <select
+                                                          className={cn(
+                                                            "text-[10px] p-0.5 border-slate-200 rounded outline-none font-bold",
+                                                            (ap.invoiceStatus || "pending") === "issued" 
+                                                              ? "bg-emerald-100 text-emerald-700" 
+                                                              : "bg-orange-100 text-orange-700"
+                                                          )}
                                                           value={
                                                             ap.invoiceStatus ||
                                                             "pending"
@@ -9895,6 +10210,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     )}
                   >
                     Mensagem de Aniversário
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleTemplateChange("readjustment", notificationModalClient)
+                    }
+                    className={cn(
+                      "px-4 py-2 border rounded-full text-sm font-medium transition",
+                      notificationTemplate === "readjustment"
+                        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+                    )}
+                  >
+                    Reajuste Anual
                   </button>
                   <button
                     onClick={() =>
