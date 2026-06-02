@@ -2726,7 +2726,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 flex-shrink-0">
+      <aside className="w-full md:w-64 flex-shrink-0 print:hidden">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
           <a
             href={`/?t=${userId}`}

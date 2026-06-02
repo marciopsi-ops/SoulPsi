@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Download, FileText, Plus, Trash2, Settings, User, Edit3, X, Upload } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
 
 interface DocumentManagerProps {
   userId: string;
@@ -27,7 +26,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
   
   const [isEditingIdentificacao, setIsEditingIdentificacao] = useState(false);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [fitToA4, setFitToA4] = useState(false);
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,34 +117,8 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
     }
   };
 
-  const handlePrint = async () => {
-    const element = document.getElementById('pdf-content');
-    if (!element) return;
-
-    setIsGeneratingPDF(true);
-    
-    const opt = {
-      margin:       [15, 15, 15, 15] as [number, number, number, number],
-      filename:     `${docType || 'Documento'}.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, letterRendering: true, windowWidth: 800 },
-      jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
-      pagebreak:    { mode: ['css', 'legacy'], avoid: '.pdf-avoid-break' }
-    };
-
-    // Remove inline padding temporarily for correct PDF margins on all pages
-    const originalPadding = element.style.padding;
-    element.style.padding = '0px';
-
-    try {
-      await html2pdf().set(opt).from(element).save();
-    } catch (err) {
-      console.error("Erro ao gerar PDF", err);
-      alert("Ocorreu um erro ao gerar o PDF. Tente novamente.");
-    } finally {
-      element.style.padding = originalPadding;
-      setIsGeneratingPDF(false);
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
   const addNewSection = () => {
@@ -198,14 +171,24 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
             </h2>
             <p className="text-slate-500 text-xs">Configure os dados para preencher o papel timbrado.</p>
           </div>
-          <button 
-            onClick={handlePrint}
-            disabled={isGeneratingPDF}
-            className="flex bg-amber-500 hover:bg-amber-600 disabled:opacity-70 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-bold transition items-center gap-2 shadow-sm"
-          >
-            <Download className={`w-4 h-4 ${isGeneratingPDF ? 'animate-bounce' : ''}`} />
-            {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button 
+              onClick={handlePrint}
+              className="flex bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition items-center gap-2 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              Imprimir / PDF
+            </button>
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={fitToA4}
+                onChange={e => setFitToA4(e.target.checked)}
+                className="rounded text-amber-500 focus:ring-amber-500"
+              />
+              Encaixar em 1 pág.
+            </label>
+          </div>
         </div>
 
         <div className="p-5 flex flex-col gap-6">
@@ -343,7 +326,11 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
       <div id="printable-content" className="w-full md:w-7/12 bg-slate-200 md:rounded-2xl shadow-inner md:p-8 overflow-y-auto print:p-0 print:m-0 print:w-full flex justify-center items-start">
         
         {/* Folha A4 */}
-        <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] h-max shadow-xl relative flex flex-col shrink-0 print:shadow-none print:w-full print:min-h-full print:max-w-none" style={{ padding: '25mm 20mm' }}>
+        <div 
+          id="pdf-content" 
+          className={['bg-white w-full max-w-[210mm] shadow-xl relative flex flex-col shrink-0 print:shadow-none print:w-full print:max-w-none', fitToA4 ? 'h-[296mm] max-h-[296mm] overflow-hidden print:h-auto print:max-h-[296mm]' : 'min-h-[297mm] h-max print:min-h-full'].join(" ")}
+          style={{ padding: '25mm 20mm' }}
+        >
           
            {/* Cabeçalho */}
            <div className="w-full h-1 bg-[#cda869] mb-8 absolute top-0 left-0"></div>
