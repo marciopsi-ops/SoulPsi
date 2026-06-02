@@ -14,6 +14,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
   const [pacientName, setPacientName] = useState('');
   const [pacientBirth, setPacientBirth] = useState('');
   const [pacientResp, setPacientResp] = useState('');
+  const [docForwarded, setDocForwarded] = useState('');
   const [docPurpose, setDocPurpose] = useState('');
   const [docDate, setDocDate] = useState(() => {
     const today = new Date();
@@ -50,6 +51,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
           setPacientName('');
           setPacientBirth('');
           setPacientResp('');
+          setDocForwarded('');
           setDocPurpose('');
       }
       return;
@@ -109,7 +111,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
       } else {
         setPacientBirth('');
       }
-      setPacientResp(client.responsibleName || '');
+      setPacientResp(client.guardianName || '');
     } else {
       setPacientName('');
       setPacientBirth('');
@@ -249,6 +251,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
                 <p><span className="font-semibold text-slate-500 text-xs">Paciente:</span> {pacientName || 'Não informado'}</p>
                 {pacientBirth && <p><span className="font-semibold text-slate-500 text-xs">Idade/Nascimento:</span> {pacientBirth}</p>}
                 {pacientResp && <p><span className="font-semibold text-slate-500 text-xs">Responsável Legal:</span> {pacientResp}</p>}
+                {docForwarded && <p><span className="font-semibold text-slate-500 text-xs">Encaminhado para:</span> {docForwarded}</p>}
                 {docPurpose && <p><span className="font-semibold text-slate-500 text-xs">Finalidade:</span> {docPurpose}</p>}
               </div>
             </div>
@@ -336,7 +339,7 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
            <div className="w-full h-1 bg-[#cda869] mb-8 absolute top-0 left-0"></div>
            
            {/* Identidade Visual */}
-           <div className="flex items-center justify-between mb-12 mt-4">
+           <div className="flex items-center justify-between mb-6 mt-1">
               <div>
                 <div className="text-4xl font-extrabold text-[#1a365d] tracking-wider leading-none">ELO</div>
                 <div className="text-[10px] text-[#cda869] tracking-[3px] font-bold mt-1.5">SOLUÇÕES HUMANAS</div>
@@ -349,15 +352,15 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
            </div>
 
            {/* Corpo */}
-           <div className="flex-1 text-slate-800 text-[10pt] leading-relaxed font-sans">
-              <h1 className="text-center text-[14pt] font-bold text-[#1a365d] mb-10 uppercase tracking-wide">
+           <div className="flex-1 text-slate-800 text-[9pt] leading-relaxed font-sans">
+              <h1 className="text-center text-[13pt] font-bold text-[#1a365d] mb-6 uppercase tracking-wide">
                 {docType || 'Documento Omissão'}
               </h1>
 
               {/* Identificação Tabela */}
-              <div className="mb-8 pdf-avoid-break">
-                 <h2 className="text-[10pt] font-bold text-[#1a365d] border-l-4 border-[#cda869] pl-3 mb-4">1. Identificação</h2>
-                 <table className="w-full text-[10pt]">
+              <div className="mb-6 pdf-avoid-break">
+                 <h2 className="text-[9pt] font-bold text-[#1a365d] border-l-4 border-[#cda869] pl-3 mb-3">1. Identificação</h2>
+                 <table className="w-full text-[9pt]">
                     <tbody>
                       <tr>
                         <td className="py-1.5 font-bold text-slate-600 w-1/3 align-top border-b border-slate-100">Paciente:</td>
@@ -373,6 +376,12 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
                       <tr>
                         <td className="py-1.5 font-bold text-slate-600 align-top border-b border-slate-100">Responsável Legal:</td>
                         <td className="py-1.5 border-b border-slate-100">{pacientResp}</td>
+                      </tr>
+                      )}
+                      {docForwarded && (
+                      <tr>
+                        <td className="py-1.5 font-bold text-slate-600 align-top border-b border-slate-100">Encaminhado para:</td>
+                        <td className="py-1.5 border-b border-slate-100">{docForwarded}</td>
                       </tr>
                       )}
                       {docPurpose && (
@@ -394,11 +403,11 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
 
               {/* Dinâmicas Seções */}
               {activeSections.map((sec, idx) => (
-                <div key={idx} className="mb-6">
-                  {sec.title && <h2 className="text-[10pt] font-bold text-[#1a365d] border-l-4 border-[#cda869] pl-3 mb-4 mt-8">{sec.title}</h2>}
+                <div key={idx} className="mb-4">
+                  {sec.title && <h2 className="text-[9pt] font-bold text-[#1a365d] border-l-4 border-[#cda869] pl-3 mb-3 mt-6">{sec.title}</h2>}
                   {sec.paragraphs.map((p, pIdx) => (
                     <div key={pIdx} className="pdf-avoid-break">
-                      <p className="mb-4 text-justify" style={{ textIndent: '2rem' }}>
+                      <p className="mb-3 text-justify" style={{ textIndent: '2rem' }}>
                         {p}
                       </p>
                     </div>
@@ -410,25 +419,25 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
 
            <div className="pdf-avoid-break">
              {/* Assinatura */}
-             <div className="mt-16 text-right text-slate-600 text-sm mb-12">
+             <div className="mt-8 text-right text-slate-600 text-sm mb-8">
                 {docDate}
              </div>
 
-             <div className="flex flex-col items-center justify-center mt-8 pt-4 relative">
+             <div className="flex flex-col items-center justify-center mt-6 pt-2 relative">
                 {signatureImage && (
                   <div className="absolute bottom-[calc(100%-10px)] left-1/2 -translate-x-1/2 flex justify-center">
-                     <img src={signatureImage} alt="Assinatura" className="max-h-24 object-contain" />
+                     <img src={signatureImage} alt="Assinatura" className="max-h-20 object-contain" />
                   </div>
                 )}
-                <div className="w-[280px] border-t border-slate-400 mb-2"></div>
-                <div className="font-bold text-slate-800 text-[11pt]">{profileData?.name || 'Márcio Rocha'}</div>
-                <div className="text-slate-500 text-[9pt] mt-1">{profileData?.title || 'Psicólogo Clínico'}</div>
-                {profileData?.crp && <div className="text-slate-500 text-[9pt]">CRP {profileData.crp}</div>}
+                <div className="w-[260px] border-t border-slate-400 mb-2"></div>
+                <div className="font-bold text-slate-800 text-[10pt]">{profileData?.name || 'Márcio Rocha'}</div>
+                <div className="text-slate-500 text-[8pt] mt-0.5">{profileData?.title || 'Psicólogo Clínico'}</div>
+                {profileData?.crp && <div className="text-slate-500 text-[8pt]">CRP {profileData.crp}</div>}
              </div>
            </div>
 
            {/* Rodapé Fixo */}
-           <div className="mt-auto border-t border-slate-200 pt-4 text-center text-[8pt] text-slate-500 leading-relaxed max-w-lg mx-auto">
+           <div className="mt-auto border-t border-slate-200 pt-3 text-center text-[7pt] text-slate-500 leading-snug max-w-lg mx-auto">
               ELO SOLUÇÕES HUMANAS • CNPJ 51.363.220/0001-10<br/>
               PSICOLOGIA | CONSULTORIA | TREINAMENTO<br/>
               www.elosolucoeshumanas.com • 11 96108-8438
@@ -511,9 +520,36 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
                   <input type="text" value={pacientResp} onChange={e => setPacientResp(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Se adulto, deixe em branco" />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Finalidade do Documento</label>
-                <input type="text" value={docPurpose} onChange={e => setDocPurpose(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Finalidade do Documento</label>
+                  <input type="text" value={docPurpose} onChange={e => setDocPurpose(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Encaminhado para</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={['', 'Neurologia', 'Psiquiatria', 'Neuropsicologia'].includes(docForwarded) ? docForwarded : 'Outro'}
+                      onChange={e => {
+                        if (e.target.value !== 'Outro') setDocForwarded(e.target.value);
+                      }}
+                      className="border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 max-w-[130px] w-full"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Neurologia">Neurologia</option>
+                      <option value="Psiquiatria">Psiquiatria</option>
+                      <option value="Neuropsicologia">Neuropsicologia</option>
+                      <option value="Outro">Outro...</option>
+                    </select>
+                    <input 
+                      type="text" 
+                      value={docForwarded} 
+                      onChange={e => setDocForwarded(e.target.value)} 
+                      placeholder="Especifique..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" 
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             
