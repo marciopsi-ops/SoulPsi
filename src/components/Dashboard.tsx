@@ -58,7 +58,9 @@ import {
   UserMinus,
   MessagesSquare,
   ReceiptText,
+  FileText,
 } from "lucide-react";
+import { DocumentManager } from "./DocumentManager";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
 import { FastAverageColor } from "fast-average-color";
@@ -500,6 +502,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "automacoes"
     | "notificacoes"
     | "materiais"
+    | "documentos"
   >("visao_geral");
   const [clients, setClients] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<{
@@ -1198,6 +1201,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       filterMonths.includes(date.getMonth()) &&
       date.getFullYear() === filterYear
     );
+  });
+
+  const clientsInPeriod = clients.filter((c) => {
+    const dStr = c.entryDate || c.createdAt;
+    if (!dStr) return true;
+    const date = new Date(dStr || "");
+    if (isNaN(date.getTime())) return true;
+    const month = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCMonth() : date.getMonth();
+    const year = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCFullYear() : date.getFullYear();
+    return filterMonths.includes(month) && year === filterYear;
   });
 
   const totalPendingInPeriod = appointmentsInPeriod
@@ -2815,6 +2828,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <span>Gestão de Materiais</span>
           </button>
           <button
+            onClick={() => setActiveTab("documentos")}
+            className={cn(
+              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "documentos"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <FileText className="w-5 h-5 flex-shrink-0" />
+            <span>Gestão de Documentos</span>
+          </button>
+          <button
             onClick={() => setActiveTab("agenda")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3083,6 +3108,277 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </div>
             </div>
 
+            {/* Dashboard Metrics */}
+            {clients.length > 0 && appointments.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-slate-500 mb-1">
+                      Total de Pacientes Ativos
+                    </h3>
+                    <p className="text-2xl font-bold text-slate-800">
+                      {clientsInPeriod.filter((c) => c.isActive !== false).length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <UserCheck className="w-6 h-6 text-emerald-600" />
+                  </div>
+                </div>
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-slate-500 mb-1">
+                      Média de Valor de Serviços
+                    </h3>
+                    <p className="text-2xl font-bold text-slate-800">
+                      R${" "}
+                      {appointmentsInPeriod.length > 0
+                        ? (
+                            (totalPaidInPeriod + totalPendingInPeriod) /
+                            appointmentsInPeriod.length
+                          )
+                            .toFixed(2)
+                            .replace(".", ",")
+                        : "0,00"}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dashboard Metrics Charts */}
+
+            {clients.length > 0 && appointments.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                    Origem dos Pacientes
+                  </h3>
+                  <div className="h-[140px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(
+                            clientsInPeriod.reduce(
+                              (acc, c) => {
+                                let s = c.source || "Não informada";
+                                acc[s] = (acc[s] || 0) + 1;
+                                return acc;
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          ).map(([name, value]) => ({ name, value }))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={60}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {Object.entries(
+                            clientsInPeriod.reduce(
+                              (acc, c) => {
+                                let s = c.source || "Não informada";
+                                acc[s] = (acc[s] || 0) + 1;
+                                return acc;
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          ).map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                [
+                                  "#6366f1",
+                                  "#f59e0b",
+                                  "#10b981",
+                                  "#3b82f6",
+                                  "#8b5cf6",
+                                ][index % 5]
+                              }
+                            />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                    Sessões Realizadas por Mês
+                  </h3>
+                  <div className="h-[140px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={Object.entries(
+                          appointmentsInPeriod.reduce(
+                            (acc, a) => {
+                              if (!a.datetime) return acc;
+                              const m = [
+                                "Jan",
+                                "Fev",
+                                "Mar",
+                                "Abr",
+                                "Mai",
+                                "Jun",
+                                "Jul",
+                                "Ago",
+                                "Set",
+                                "Out",
+                                "Nov",
+                                "Dez",
+                              ][new Date(a.datetime).getMonth()];
+                              acc[m] = (acc[m] || 0) + 1;
+                              return acc;
+                            },
+                            {} as Record<string, number>,
+                          ),
+                        ).map(([name, sessions]) => ({ name, sessions }))}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                          style={{ fontSize: "10px" }}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                          style={{ fontSize: "10px" }}
+                          width={20}
+                        />
+                        <RechartsTooltip cursor={{ fill: "#f8fafc" }} />
+                        <Bar
+                          dataKey="sessions"
+                          fill="#f59e0b"
+                          radius={[4, 4, 0, 0]}
+                          barSize={16}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
+              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                  Faturamento da Unidade / Conta (Período Filtrado)
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
+                    globalBillingFilter === "all"
+                      ? "bg-white border-amber-400 ring-1 ring-blue-400"
+                      : "bg-white border-slate-200 hover:border-slate-300",
+                  )}
+                  onClick={() => setGlobalBillingFilter("all")}
+                >
+                  <div className="z-10 relative">
+                    <p className="text-sm text-slate-500 font-medium mb-1">
+                      Total do Mês (Previsto)
+                    </p>
+                    <p className="text-2xl font-bold text-slate-800">
+                      R${" "}
+                      {(totalPaidInPeriod + totalPendingInPeriod)
+                        .toFixed(2)
+                        .replace(".", ",")}
+                    </p>
+                  </div>
+                  {globalBillingFilter === "all" && (
+                    <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
+                    globalBillingFilter === "paid"
+                      ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
+                      : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50",
+                  )}
+                  onClick={() => setGlobalBillingFilter("paid")}
+                >
+                  <div className="z-10 relative">
+                    <p className="text-sm text-emerald-700 font-medium mb-1">
+                      Recebido
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-900">
+                      R$ {totalPaidInPeriod.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                  {globalBillingFilter === "paid" && (
+                    <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
+                    globalBillingFilter === "pending"
+                      ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
+                      : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50",
+                  )}
+                  onClick={() => setGlobalBillingFilter("pending")}
+                >
+                  <div className="z-10 relative">
+                    <p className="text-sm text-amber-700 font-medium mb-1">
+                      Pendente (À receber)
+                    </p>
+                    <p className="text-2xl font-bold text-amber-900">
+                      R$ {totalPendingInPeriod.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                  {globalBillingFilter === "pending" && (
+                    <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
+                  )}
+                </div>
+              </div>
+
+              {Object.keys(totalByBillingAccount).length > 0 && (
+                <div className="mt-6 pt-4 border-t border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-700 mb-3">
+                    Recebido por Conta / Local (Pacientes)
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(totalByBillingAccount)
+                      .sort((a, b) => (b[1] as number) - (a[1] as number))
+                      .map(([account, total]) => (
+                        <div
+                          key={account}
+                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3"
+                        >
+                          <span className="font-medium text-slate-600">
+                            {account}
+                          </span>
+                          <span className="font-bold text-emerald-700">
+                            R$ {(total as number).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {globalBillingFilter !== "all" && (
+                <p className="text-xs text-slate-500 mt-4 text-center">
+                  Exibindo apenas pacientes com faturamento{" "}
+                  <strong>
+                    {globalBillingFilter === "paid"
+                      ? "concluído (pago)"
+                      : "pendente"}
+                  </strong>{" "}
+                  no período selecionado.
+                </p>
+              )}
+            </div>
             {/* Quadro com os totais gerais por Conta / local de faturamento */}
             {(() => {
               try {
@@ -4557,6 +4853,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           </div>
         )}
 
+        {activeTab === "documentos" && (
+          <div className="animate-in fade-in h-full">
+            <DocumentManager userId={userId} profileData={profileData} clients={clients} />
+          </div>
+        )}
+
         {activeTab === "agenda" && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
             <h2 className="text-xl font-bold text-slate-800 mb-6">
@@ -4975,278 +5277,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     )}
                 </div>
               </div>
-            </div>
-
-            {/* Dashboard Metrics */}
-            {clients.length > 0 && appointments.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-slate-500 mb-1">
-                      Total de Pacientes Ativos
-                    </h3>
-                    <p className="text-2xl font-bold text-slate-800">
-                      {clients.filter((c) => c.isActive !== false).length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <UserCheck className="w-6 h-6 text-emerald-600" />
-                  </div>
-                </div>
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-slate-500 mb-1">
-                      Média de Valor de Serviços
-                    </h3>
-                    <p className="text-2xl font-bold text-slate-800">
-                      R${" "}
-                      {appointmentsInPeriod.length > 0
-                        ? (
-                            (totalPaidInPeriod + totalPendingInPeriod) /
-                            appointmentsInPeriod.length
-                          )
-                            .toFixed(2)
-                            .replace(".", ",")
-                        : "0,00"}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Dashboard Metrics Charts */}
-
-            {clients.length > 0 && appointments.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
-                  <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
-                    Origem dos Pacientes
-                  </h3>
-                  <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={Object.entries(
-                            clients.reduce(
-                              (acc, c) => {
-                                let s = c.source || "Não informada";
-                                acc[s] = (acc[s] || 0) + 1;
-                                return acc;
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          ).map(([name, value]) => ({ name, value }))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {Object.entries(
-                            clients.reduce(
-                              (acc, c) => {
-                                let s = c.source || "Não informada";
-                                acc[s] = (acc[s] || 0) + 1;
-                                return acc;
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          ).map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={
-                                [
-                                  "#6366f1",
-                                  "#f59e0b",
-                                  "#10b981",
-                                  "#3b82f6",
-                                  "#8b5cf6",
-                                ][index % 5]
-                              }
-                            />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
-                  <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
-                    Sessões Realizadas por Mês
-                  </h3>
-                  <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={Object.entries(
-                          appointments.reduce(
-                            (acc, a) => {
-                              if (!a.datetime) return acc;
-                              const m = [
-                                "Jan",
-                                "Fev",
-                                "Mar",
-                                "Abr",
-                                "Mai",
-                                "Jun",
-                                "Jul",
-                                "Ago",
-                                "Set",
-                                "Out",
-                                "Nov",
-                                "Dez",
-                              ][new Date(a.datetime).getMonth()];
-                              acc[m] = (acc[m] || 0) + 1;
-                              return acc;
-                            },
-                            {} as Record<string, number>,
-                          ),
-                        ).map(([name, sessions]) => ({ name, sessions }))}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          axisLine={false}
-                          tickLine={false}
-                          style={{ fontSize: "10px" }}
-                        />
-                        <YAxis
-                          axisLine={false}
-                          tickLine={false}
-                          allowDecimals={false}
-                          style={{ fontSize: "10px" }}
-                          width={20}
-                        />
-                        <RechartsTooltip cursor={{ fill: "#f8fafc" }} />
-                        <Bar
-                          dataKey="sessions"
-                          fill="#f59e0b"
-                          radius={[4, 4, 0, 0]}
-                          barSize={16}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-emerald-600" />
-                  Faturamento da Unidade / Conta (Período Filtrado)
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "all"
-                      ? "bg-white border-amber-400 ring-1 ring-blue-400"
-                      : "bg-white border-slate-200 hover:border-slate-300",
-                  )}
-                  onClick={() => setGlobalBillingFilter("all")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-slate-500 font-medium mb-1">
-                      Total do Mês (Previsto)
-                    </p>
-                    <p className="text-2xl font-bold text-slate-800">
-                      R${" "}
-                      {(totalPaidInPeriod + totalPendingInPeriod)
-                        .toFixed(2)
-                        .replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "all" && (
-                    <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "paid"
-                      ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
-                      : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("paid")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-emerald-700 font-medium mb-1">
-                      Recebido
-                    </p>
-                    <p className="text-2xl font-bold text-emerald-900">
-                      R$ {totalPaidInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "paid" && (
-                    <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "pending"
-                      ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
-                      : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("pending")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-amber-700 font-medium mb-1">
-                      Pendente (À receber)
-                    </p>
-                    <p className="text-2xl font-bold text-amber-900">
-                      R$ {totalPendingInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "pending" && (
-                    <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
-                  )}
-                </div>
-              </div>
-
-              {Object.keys(totalByBillingAccount).length > 0 && (
-                <div className="mt-6 pt-4 border-t border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-700 mb-3">
-                    Recebido por Conta / Local (Pacientes)
-                  </h4>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(totalByBillingAccount)
-                      .sort((a, b) => (b[1] as number) - (a[1] as number))
-                      .map(([account, total]) => (
-                        <div
-                          key={account}
-                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3"
-                        >
-                          <span className="font-medium text-slate-600">
-                            {account}
-                          </span>
-                          <span className="font-bold text-emerald-700">
-                            R$ {(total as number).toFixed(2).replace(".", ",")}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {globalBillingFilter !== "all" && (
-                <p className="text-xs text-slate-500 mt-4 text-center">
-                  Exibindo apenas pacientes com faturamento{" "}
-                  <strong>
-                    {globalBillingFilter === "paid"
-                      ? "concluído (pago)"
-                      : "pendente"}
-                  </strong>{" "}
-                  no período selecionado.
-                </p>
-              )}
             </div>
 
             {editingClientId === "new" && (
