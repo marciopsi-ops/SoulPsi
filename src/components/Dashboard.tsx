@@ -5279,6 +5279,47 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-slate-600 mb-1">
+                  Faturamento Total (Pacientes)
+                </h3>
+                <p className="text-2xl font-bold text-slate-800">
+                  R${" "}
+                  {appointmentsInPeriod
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-emerald-800 mb-1">
+                  Recebido (Pacientes)
+                </h3>
+                <p className="text-2xl font-bold text-emerald-900">
+                  R${" "}
+                  {appointmentsInPeriod
+                    .filter((a) => (a.paymentStatus || "pending") === "paid")
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-amber-800 mb-1">
+                  A Receber (Pacientes)
+                </h3>
+                <p className="text-2xl font-bold text-amber-900">
+                  R${" "}
+                  {appointmentsInPeriod
+                    .filter((a) => (a.paymentStatus || "pending") === "pending")
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
+              </div>
+            </div>
+
             {editingClientId === "new" && (
               <div
                 className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
@@ -7383,6 +7424,47 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </div>
                     )}
                 </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-slate-600 mb-1">
+                  Faturamento Total (Empresas)
+                </h3>
+                <p className="text-2xl font-bold text-slate-800">
+                  R${" "}
+                  {companyAppointmentsInPeriod
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-emerald-800 mb-1">
+                  Recebido (Empresas)
+                </h3>
+                <p className="text-2xl font-bold text-emerald-900">
+                  R${" "}
+                  {companyAppointmentsInPeriod
+                    .filter((a) => (a.paymentStatus || "pending") === "paid")
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex flex-col justify-center">
+                <h3 className="text-sm font-medium text-amber-800 mb-1">
+                  A Receber (Empresas)
+                </h3>
+                <p className="text-2xl font-bold text-amber-900">
+                  R${" "}
+                  {companyAppointmentsInPeriod
+                    .filter((a) => (a.paymentStatus || "pending") === "pending")
+                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </p>
               </div>
             </div>
 
