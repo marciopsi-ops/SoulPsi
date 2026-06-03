@@ -165,28 +165,27 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
       
       {/* Editor Lateral - Oculto na Impressão */}
       <div className="w-full md:w-5/12 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col print:hidden h-full overflow-y-auto">
-        <div className="p-5 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-md z-10 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-amber-500" /> 
-              Propriedades do Documento
-            </h2>
-            <p className="text-slate-500 text-xs">Configure os dados para preencher o papel timbrado.</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
+        <div className="p-5 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-md z-10 flex flex-col gap-2">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-amber-500" /> 
+            Propriedades do Documento
+          </h2>
+          <p className="text-slate-500 text-sm">Configure os dados para preencher o papel timbrado.</p>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
             <button 
               onClick={handlePrint}
-              className="flex bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition items-center gap-2 shadow-sm"
+              className="w-full sm:flex-1 flex justify-center bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition items-center gap-2 shadow-sm"
             >
               <Download className="w-4 h-4" />
               Imprimir / PDF
             </button>
-            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer justify-center w-full sm:w-auto p-2 border sm:border-transparent sm:p-0 border-slate-200 rounded-lg">
               <input 
                 type="checkbox" 
                 checked={fitToA4}
                 onChange={e => setFitToA4(e.target.checked)}
-                className="rounded text-amber-500 focus:ring-amber-500"
+                className="rounded text-amber-500 focus:ring-amber-500 w-4 h-4"
               />
               Encaixar em 1 pág.
             </label>

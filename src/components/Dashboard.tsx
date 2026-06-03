@@ -1178,6 +1178,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [globalBillingFilter, setGlobalBillingFilter] = useState<
     "all" | "paid" | "pending"
   >("all");
+  
+  const [pacientesBillingFilter, setPacientesBillingFilter] = useState<
+    "all" | "paid" | "pending"
+  >("all");
+  const [empresasBillingFilter, setEmpresasBillingFilter] = useState<
+    "all" | "paid" | "pending"
+  >("all");
   const [filterMonths, setFilterMonths] = useState<number[]>([
     new Date().getMonth(),
   ]);
@@ -1291,6 +1298,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       .map((a) => a.companyId),
   );
 
+  const clientIdsWithPacientesBillingFilter = new Set(
+    appointmentsInPeriod
+      .filter((a) =>
+        pacientesBillingFilter === "all"
+          ? true
+          : (a.paymentStatus || "pending") === pacientesBillingFilter,
+      )
+      .map((a) => a.clientId),
+  );
+
+  const companyIdsWithEmpresasBillingFilter = new Set(
+    companyAppointmentsInPeriod
+      .filter((a) =>
+        empresasBillingFilter === "all"
+          ? true
+          : (a.paymentStatus || "pending") === empresasBillingFilter,
+      )
+      .map((a) => a.companyId),
+  );
+
   const filteredClients = clients.filter((client) => {
     if (!showInactiveClients && client.isActive === false) return false;
 
@@ -1312,6 +1339,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       if (!clientIdsWithBillingFilter.has(client.id)) return false;
     }
 
+    if (pacientesBillingFilter !== "all") {
+      if (!clientIdsWithPacientesBillingFilter.has(client.id)) return false;
+    }
+
     if (clientGlobalInvoiceFilter !== "all") {
       if (!clientIdsWithInvoiceFilter.has(client.id)) return false;
     }
@@ -1330,6 +1361,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
     if (globalBillingFilter !== "all") {
       if (!companyIdsWithBillingFilter.has(company.id)) return false;
+    }
+
+    if (empresasBillingFilter !== "all") {
+      if (!companyIdsWithEmpresasBillingFilter.has(company.id)) return false;
     }
 
     if (companyGlobalInvoiceFilter !== "all") {
@@ -2728,14 +2763,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       {/* Sidebar */}
       <aside className="w-full md:w-64 flex-shrink-0 print:hidden">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
-          <a
-            href={`/?t=${userId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition text-amber-500 bg-amber-50 border border-amber-100 justify-center mb-4 text-sm"
-          >
-            Ver Meu Site Público
-          </a>
           <button
             onClick={() => setActiveTab("visao_geral")}
             className={cn(
@@ -2894,13 +2921,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           "avaliacoes",
           "agenda",
         ].includes(activeTab) && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 z-20">
-            <div className="flex items-center gap-2 text-slate-800 font-bold">
-              <CalendarIcon className="w-5 h-5 text-amber-500" />
-              Filtro Global de Período
+          <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-slate-100 flex flex-col gap-4 mb-6 z-20">
+            <div className="flex flex-row items-center justify-between w-full">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
+                <CalendarIcon className="w-5 h-5 text-amber-500" />
+                Filtro Global de Período
+              </div>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                className="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
+              >
+                {[2023, 2024, 2025, 2026, 2027, 2028].map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap gap-1 items-center bg-slate-50 border border-slate-200 p-1 rounded-xl">
+            <div className="w-full">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-12 gap-1.5 bg-slate-50 border border-slate-200 p-1.5 rounded-xl w-full">
                 {[
                   "Jan",
                   "Fev",
@@ -2927,7 +2967,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       }
                     }}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border border-transparent border-slate-200",
+                      "px-2 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border border-transparent border-slate-200 w-full flex items-center justify-center",
                       filterMonths.includes(i)
                         ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                         : "bg-white text-slate-600 hover:bg-slate-100",
@@ -2937,17 +2977,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </button>
                 ))}
               </div>
-              <select
-                value={filterYear}
-                onChange={(e) => setFilterYear(Number(e.target.value))}
-                className="p-2 border border-slate-300 rounded-xl text-sm bg-white font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-              >
-                {[2023, 2024, 2025, 2026, 2027, 2028].map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
         )}
@@ -5280,45 +5309,96 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-slate-600 mb-1">
-                  Faturamento Total (Pacientes)
-                </h3>
-                <p className="text-2xl font-bold text-slate-800">
-                  R${" "}
-                  {appointmentsInPeriod
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  pacientesBillingFilter === "all"
+                    ? "bg-white border-blue-400 ring-1 ring-blue-400"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                )}
+                onClick={() => setPacientesBillingFilter("all")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-slate-600 mb-1">
+                    Faturamento Total (Pacientes)
+                  </h3>
+                  <p className="text-2xl font-bold text-slate-800">
+                    R${" "}
+                    {appointmentsInPeriod
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {pacientesBillingFilter === "all" && (
+                  <Check className="w-5 h-5 text-blue-500 absolute top-4 right-4" />
+                )}
               </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-emerald-800 mb-1">
-                  Recebido (Pacientes)
-                </h3>
-                <p className="text-2xl font-bold text-emerald-900">
-                  R${" "}
-                  {appointmentsInPeriod
-                    .filter((a) => (a.paymentStatus || "pending") === "paid")
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  pacientesBillingFilter === "paid"
+                    ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
+                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300"
+                )}
+                onClick={() => setPacientesBillingFilter("paid")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-emerald-800 mb-1">
+                    Recebido (Pacientes)
+                  </h3>
+                  <p className="text-2xl font-bold text-emerald-900">
+                    R${" "}
+                    {appointmentsInPeriod
+                      .filter((a) => (a.paymentStatus || "pending") === "paid")
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {pacientesBillingFilter === "paid" && (
+                  <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
+                )}
               </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-amber-800 mb-1">
-                  A Receber (Pacientes)
-                </h3>
-                <p className="text-2xl font-bold text-amber-900">
-                  R${" "}
-                  {appointmentsInPeriod
-                    .filter((a) => (a.paymentStatus || "pending") === "pending")
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  pacientesBillingFilter === "pending"
+                    ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
+                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300"
+                )}
+                onClick={() => setPacientesBillingFilter("pending")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-amber-800 mb-1">
+                    A Receber (Pacientes)
+                  </h3>
+                  <p className="text-2xl font-bold text-amber-900">
+                    R${" "}
+                    {appointmentsInPeriod
+                      .filter((a) => (a.paymentStatus || "pending") === "pending")
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {pacientesBillingFilter === "pending" && (
+                  <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
+                )}
               </div>
             </div>
+
+            {pacientesBillingFilter !== "all" && (
+              <p className="text-xs text-slate-500 mb-6 text-center">
+                Exibindo apenas pacientes com faturamento{" "}
+                <strong>
+                  {pacientesBillingFilter === "paid"
+                    ? "concluído (pago)"
+                    : "pendente"}
+                </strong>{" "}
+                selecionado nestes cards.
+              </p>
+            )}
 
             {editingClientId === "new" && (
               <div
@@ -7428,45 +7508,96 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-slate-600 mb-1">
-                  Faturamento Total (Empresas)
-                </h3>
-                <p className="text-2xl font-bold text-slate-800">
-                  R${" "}
-                  {companyAppointmentsInPeriod
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  empresasBillingFilter === "all"
+                    ? "bg-white border-blue-400 ring-1 ring-blue-400"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                )}
+                onClick={() => setEmpresasBillingFilter("all")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-slate-600 mb-1">
+                    Faturamento Total (Empresas)
+                  </h3>
+                  <p className="text-2xl font-bold text-slate-800">
+                    R${" "}
+                    {companyAppointmentsInPeriod
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {empresasBillingFilter === "all" && (
+                  <Check className="w-5 h-5 text-blue-500 absolute top-4 right-4" />
+                )}
               </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-emerald-800 mb-1">
-                  Recebido (Empresas)
-                </h3>
-                <p className="text-2xl font-bold text-emerald-900">
-                  R${" "}
-                  {companyAppointmentsInPeriod
-                    .filter((a) => (a.paymentStatus || "pending") === "paid")
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  empresasBillingFilter === "paid"
+                    ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
+                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300"
+                )}
+                onClick={() => setEmpresasBillingFilter("paid")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-emerald-800 mb-1">
+                    Recebido (Empresas)
+                  </h3>
+                  <p className="text-2xl font-bold text-emerald-900">
+                    R${" "}
+                    {companyAppointmentsInPeriod
+                      .filter((a) => (a.paymentStatus || "pending") === "paid")
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {empresasBillingFilter === "paid" && (
+                  <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
+                )}
               </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex flex-col justify-center">
-                <h3 className="text-sm font-medium text-amber-800 mb-1">
-                  A Receber (Empresas)
-                </h3>
-                <p className="text-2xl font-bold text-amber-900">
-                  R${" "}
-                  {companyAppointmentsInPeriod
-                    .filter((a) => (a.paymentStatus || "pending") === "pending")
-                    .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                    .toFixed(2)
-                    .replace(".", ",")}
-                </p>
+              <div 
+                className={cn(
+                  "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
+                  empresasBillingFilter === "pending"
+                    ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
+                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300"
+                )}
+                onClick={() => setEmpresasBillingFilter("pending")}
+              >
+                <div className="z-10 relative">
+                  <h3 className="text-sm font-medium text-amber-800 mb-1">
+                    A Receber (Empresas)
+                  </h3>
+                  <p className="text-2xl font-bold text-amber-900">
+                    R${" "}
+                    {companyAppointmentsInPeriod
+                      .filter((a) => (a.paymentStatus || "pending") === "pending")
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </p>
+                </div>
+                {empresasBillingFilter === "pending" && (
+                  <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
+                )}
               </div>
             </div>
+
+            {empresasBillingFilter !== "all" && (
+              <p className="text-xs text-slate-500 mb-6 text-center">
+                Exibindo apenas empresas com faturamento{" "}
+                <strong>
+                  {empresasBillingFilter === "paid"
+                    ? "concluído (pago)"
+                    : "pendente"}
+                </strong>{" "}
+                selecionado nestes cards.
+              </p>
+            )}
 
             <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-between items-center mt-4">
               <div className="relative w-full sm:max-w-md">
