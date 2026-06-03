@@ -31,8 +31,8 @@ export const WidgetRenderer = ({ htmlCode }: { htmlCode: string }) => {
       <iframe 
         ref={iframeRef} 
         title="Widget de Avaliações"
-        className="w-full border-none min-h-[400px]"
-        scrolling="no"
+        className="w-full border-none min-h-[800px] h-full"
+        scrolling="yes"
       />
     </div>
   );

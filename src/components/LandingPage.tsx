@@ -974,12 +974,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               <p className="text-slate-500">
                 Em caso de crise suicida, ligue para o <strong>CVV - Centro de Valorização da Vida (188)</strong>, com atendimento gratuito e sigiloso 24 horas por dia. Se houver emergência, dirija-se ao hospital mais próximo.
               </p>
-              <div className="mt-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                <p className="font-bold text-slate-700 mb-1 tracking-wide uppercase">Nota Ética</p>
-                <p className="text-slate-600">
-                  Todos os serviços prestados pela ELO Soluções Humanas são pautados no sigilo profissional e nas diretrizes estabelecidas pelo Conselho Federal de Psicologia (CFP).
-                </p>
-              </div>
+
             </div>
             
             <div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
