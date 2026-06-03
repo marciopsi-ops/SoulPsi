@@ -437,7 +437,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               )}
             </div>
 
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed max-w-3xl mb-6">
+            <p className="text-sm sm:text-base text-justify text-slate-700 leading-relaxed max-w-3xl mb-6">
               {finalProfile.about}
             </p>
 
