@@ -10,6 +10,7 @@ import {
   collection,
   query,
   getDocs,
+  getDoc,
   updateDoc,
   doc,
   serverTimestamp,
@@ -59,8 +60,11 @@ import {
   MessagesSquare,
   ReceiptText,
   FileText,
+  LifeBuoy,
+  CreditCard,
 } from "lucide-react";
 import { DocumentManager } from "./DocumentManager";
+import { SubscriptionManager } from "./SubscriptionManager";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
 import { FastAverageColor } from "fast-average-color";
@@ -395,9 +399,9 @@ function CostManager({
       </form>
       {filteredCosts.length > 0 && (
         <div className="flex flex-col gap-2">
-          {filteredCosts.map((c) => (
+          {filteredCosts.map((c, idx) => (
             <div
-              key={c.id}
+              key={`${c.id}-${idx}`}
               className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 px-4 rounded-xl border border-slate-200 gap-2 text-sm shadow-sm hover:border-slate-300 transition"
             >
               <div className="flex flex-wrap items-center gap-2.5">
@@ -503,8 +507,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "notificacoes"
     | "materiais"
     | "documentos"
+    | "suporte"
+    | "assinatura"
   >("visao_geral");
   const [clients, setClients] = useState<any[]>([]);
+  const [supportSettings, setSupportSettings] = useState<any>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  useEffect(() => {
+    const fetchSupport = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'admin_settings', 'support'));
+        if (snap.exists()) setSupportSettings(snap.data());
+      } catch (e) {
+        console.error('Error fetching support settings:', e);
+      }
+    };
+    fetchSupport();
+  }, []);
+
   const [importStatus, setImportStatus] = useState<{
     isOpen: boolean;
     message: string;
@@ -593,14 +617,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleDeleteBillingAccount = (name: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a conta "${name}" de todas as listas de faturamento?`)) {
-      return;
-    }
-    const updated = billingAccounts.filter((acc: string) => acc !== name);
-    onUpdateProfile({
-      ...profileData,
-      billingAccountsStr: JSON.stringify(updated),
-    });
+    askConfirm(
+      "Excluir Conta de Faturamento",
+      `Tem certeza que deseja excluir a conta "${name}" de todas as listas de faturamento?`,
+      () => {
+        const updated = billingAccounts.filter((acc: string) => acc !== name);
+        onUpdateProfile({
+          ...profileData,
+          billingAccountsStr: JSON.stringify(updated),
+        });
+      }
+    );
   };
 
   const checkTodayBirthdays = (clientList: any[]) => {
@@ -673,6 +700,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   // Profile Editable Form
   const [editForm, setEditForm] = useState(profileData || {});
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [specialtiesText, setSpecialtiesText] = useState(
     (profileData?.specialties || []).join(", "),
   );
@@ -955,6 +983,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         "title",
         "bio",
         "crp",
+        "cpf",
+        "email",
         "city",
         "about",
         "specialties",
@@ -1136,22 +1166,22 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleReviewDelete = async (reviewId: string) => {
-    if (
-      !window.confirm(
-        "Certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita.",
-      )
-    )
-      return;
-    try {
-      await deleteDoc(doc(db, `profiles/${userId}/reviews`, reviewId));
-      setReviews(reviews.filter((r) => r.id !== reviewId));
-    } catch (e: any) {
-      handleFirestoreError(
-        e,
-        OperationType.DELETE,
-        `profiles/${userId}/reviews/${reviewId}`,
-      );
-    }
+    askConfirm(
+      "Excluir Avaliação",
+      "Certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita.",
+      async () => {
+        try {
+          await deleteDoc(doc(db, `profiles/${userId}/reviews`, reviewId));
+          setReviews(reviews.filter((r) => r.id !== reviewId));
+        } catch (e: any) {
+          handleFirestoreError(
+            e,
+            OperationType.DELETE,
+            `profiles/${userId}/reviews/${reviewId}`,
+          );
+        }
+      }
+    );
   };
 
   const getPublicLink = (path: string) => {
@@ -2909,6 +2939,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <Zap className="w-5 h-5 flex-shrink-0" />
             <span>Automações</span>
           </button>
+          
+          <button
+            onClick={() => setActiveTab("assinatura")}
+            className={cn(
+              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "assinatura"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <CreditCard className="w-5 h-5 flex-shrink-0" />
+            <span>Minha Assinatura</span>
+          </button>
+          
+          <div className="h-px bg-slate-100 my-2"></div>
+          
+          <button
+            onClick={() => setActiveTab("suporte")}
+            className={cn(
+              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "suporte"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <LifeBuoy className="w-5 h-5 flex-shrink-0" />
+            <span>Suporte</span>
+          </button>
         </div>
       </aside>
 
@@ -2918,8 +2976,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           "visao_geral",
           "pacientes",
           "empresas",
-          "avaliacoes",
-          "agenda",
         ].includes(activeTab) && (
           <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-slate-100 flex flex-col gap-4 mb-6 z-20">
             <div className="flex flex-row items-center justify-between w-full">
@@ -3879,10 +3935,24 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Número CRP
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    value={editForm.cpf || ""}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, cpf: e.target.value })
+                    }
+                    placeholder="Ex: 000.000.000-00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    CRP
                   </label>
                   <input
                     type="text"
@@ -3891,7 +3961,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     onChange={(e) =>
                       setEditForm({ ...editForm, crp: e.target.value })
                     }
-                    placeholder="Ex: CRP 00/00000"
+                    placeholder="Ex: 06/123456"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    E-mail do Profissional
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    value={editForm.email || ""}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, email: e.target.value })
+                    }
+                    placeholder="Ex: seuemail@exemplo.com"
                   />
                 </div>
                 <div>
@@ -4463,11 +4547,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   <button
                     type="button"
                     onClick={() => {
+                      const newSvcId = Date.now().toString();
                       setEditForm({
                         ...editForm,
                         services: [
                           {
-                            id: Date.now().toString(),
+                            id: newSvcId,
                             category: activeServiceTab,
                             title: "",
                             description: "",
@@ -4476,6 +4561,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           ...(editForm.services || []),
                         ],
                       });
+                      setEditingServiceId(newSvcId);
                     }}
                     className="flex items-center gap-2 text-sm text-amber-500 font-medium hover:text-amber-600 transition px-3 py-1.5 bg-amber-50 rounded-lg hover:bg-amber-100"
                   >
@@ -4484,276 +4570,420 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </div>
 
                 <div className="space-y-4">
-                  {(editForm.services || []).map((svc: any, idx: number) => {
-                    const actualCategory = svc.category || "voce";
-                    // We treat 'psicologo' and 'psicologos' identically, default to psicologos
-                    const normalizedCategory =
-                      actualCategory === "psicologo"
-                        ? "psicologos"
-                        : actualCategory;
-                    if (normalizedCategory !== activeServiceTab) return null;
-                    return (
-                      <div
-                        key={svc.id}
-                        className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newSvc = (editForm.services || []).filter(
-                              (_: any, i: number) => i !== idx,
-                            );
-                            setEditForm({ ...editForm, services: newSvc });
-                          }}
-                          className="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition"
+                  {(() => {
+                    const filteredServices = (editForm.services || []).filter((svc: any) => {
+                      const actualCategory = svc.category || "voce";
+                      const normalizedCategory =
+                        actualCategory === "psicologo"
+                          ? "psicologos"
+                          : actualCategory;
+                      return normalizedCategory === activeServiceTab;
+                    });
+
+                    if (filteredServices.length === 0) {
+                      return (
+                        <div className="text-center p-8 border border-dashed border-slate-200 rounded-2xl text-slate-500 text-sm bg-slate-50">
+                          Nenhum serviço cadastrado nesta área. Clique em <strong>Novo Serviço</strong> para começar!
+                        </div>
+                      );
+                    }
+
+                    return filteredServices.map((svc: any, idx: number) => {
+                      const actualCategory = svc.category || "voce";
+                      const normalizedCategory =
+                        actualCategory === "psicologo" ? "psicologos" : actualCategory;
+
+                      return (
+                        <div
+                          key={svc.id || idx}
+                          onClick={() => setEditingServiceId(svc.id)}
+                          className="p-5 border border-slate-200 dark:border-slate-700/60 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-sm transition duration-200 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-6 group"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <div className="absolute top-4 right-12 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (idx === 0) return;
-                              const arr = [...editForm.services];
-                              // @ts-ignore
-                              [arr[idx - 1], arr[idx]] = [
-                                arr[idx],
-                                arr[idx - 1],
-                              ];
+                          {/* Left Column: Info, badges, duration */}
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base sm:text-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                {svc.title || "Serviço Sem Título"}
+                              </h3>
+                              {svc.duration && (
+                                <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                  <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-400" /> {svc.duration}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                              {svc.description || "Nenhuma descrição fornecida."}
+                            </p>
+
+                            <div className="flex items-center gap-2 pt-2 flex-wrap">
+                              {svc.allowScheduling !== false ? (
+                                <span className="bg-emerald-50/70 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-100 dark:border-emerald-800/50">
+                                  📆 Agendamento Ativo
+                                </span>
+                              ) : (
+                                <span className="bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                  📆 Sem Agendamento
+                                </span>
+                              )}
+                              {svc.allowPayment !== false && (
+                                <span className="bg-amber-50/70 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-100 dark:border-amber-800/50">
+                                  💳 Faturamento Integrado
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right Column: Price and quick actions */}
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between lg:justify-end gap-6 shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-700/60">
+                            <div className="text-left lg:text-right">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider leading-none">Preço cobrado</span>
+                              <p className="text-base sm:text-lg font-black text-slate-700 dark:text-slate-200 mt-1">
+                                {svc.price === 0 ? "A combinar" : `R$ ${svc.price.toFixed(2).replace('.', ',')}`}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === 0) return;
+                                  const arr = [...editForm.services];
+                                  const realIdx = arr.findIndex((s: any) => s.id === svc.id);
+                                  const prevRealIdx = arr.findIndex((s: any, i: number) => i < realIdx && (s.category || "voce") === normalizedCategory);
+                                  if (realIdx !== -1 && prevRealIdx !== -1) {
+                                    [arr[realIdx], arr[prevRealIdx]] = [arr[prevRealIdx], arr[realIdx]];
+                                    setEditForm({ ...editForm, services: arr });
+                                  }
+                                }}
+                                disabled={idx === 0}
+                                className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition cursor-pointer"
+                                title="Mover para cima"
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const arr = [...editForm.services];
+                                  const realIdx = arr.findIndex((s: any) => s.id === svc.id);
+                                  const nextRealIdx = arr.findIndex((s: any, i: number) => i > realIdx && (s.category || "voce") === normalizedCategory);
+                                  if (realIdx !== -1 && nextRealIdx !== -1) {
+                                    [arr[realIdx], arr[nextRealIdx]] = [arr[nextRealIdx], arr[realIdx]];
+                                    setEditForm({ ...editForm, services: arr });
+                                  }
+                                }}
+                                disabled={idx === filteredServices.length - 1}
+                                className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition cursor-pointer"
+                                title="Mover para baixo"
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = window.location.origin + `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
+                                  navigator.clipboard.writeText(url);
+                                  alert("Link do serviço copiado!");
+                                }}
+                                className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
+                                title="Copiar link"
+                              >
+                                <Link className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setEditingServiceId(svc.id)}
+                                className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer border border-transparent hover:border-amber-200 dark:hover:border-amber-900/50"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm("Confirmar a exclusão permanente deste serviço?")) {
+                                    const newSvc = (editForm.services || []).filter((s: any) => s.id !== svc.id);
+                                    setEditForm({ ...editForm, services: newSvc });
+                                  }
+                                }}
+                                className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-center pt-5 border-t border-slate-200 mt-6 gap-4">
+                <span className="text-xs text-slate-400 font-bold text-center sm:text-left">
+                  * Clique em qualquer card de serviço acima para configurá-lo no painel de edição popup.
+                </span>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition w-full sm:w-auto"
+                >
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </form>
+
+            {/* Edit Service Modal Popup Overlay */}
+            {editingServiceId && (() => {
+              const svcIdx = (editForm.services || []).findIndex((s: any) => s.id === editingServiceId);
+              if (svcIdx === -1) return null;
+              const svc = editForm.services[svcIdx];
+
+              return (
+                <div 
+                  className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                  onClick={() => setEditingServiceId(null)}
+                >
+                  <div 
+                    className="bg-white rounded-[2rem] border border-slate-105 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 animate-in zoom-in-95 duration-200 text-left flex flex-col justify-between"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+                      <div>
+                        <span className="bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-200/50">
+                          {activeServiceTab === "voce" 
+                            ? "Para Você (Atendimento Individual)" 
+                            : activeServiceTab === "empresa" 
+                              ? "Para Empresas (Corporativo)" 
+                              : activeServiceTab === "psicologos" 
+                                ? "Para Psicólogos (Mentoria/Supervisão)" 
+                                : "Para Igrejas (Institucional)"}
+                        </span>
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-1.5">
+                          {svc.title ? `Editar: ${svc.title}` : "Novo Serviço"}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingServiceId(null)}
+                        className="w-8 h-8 rounded-full hover:bg-slate-100 transition flex items-center justify-center text-slate-400 hover:text-slate-700"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div className="space-y-5 flex-1 pr-1 overflow-y-auto max-h-[55vh]">
+                      {/* Name */}
+                      <div>
+                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Título do Serviço</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-bold text-slate-800"
+                          value={svc.title}
+                          onChange={(e) => {
+                            const arr = [...editForm.services];
+                            arr[svcIdx].title = e.target.value;
+                            setEditForm({ ...editForm, services: arr });
+                          }}
+                          placeholder="Ex: Terapia Cognitivo-Comportamental Individual"
+                        />
+                      </div>
+
+                      {/* Price & Plan Range */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Regime de Cobrança</label>
+                          <select
+                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-bold"
+                            value={svc.price === 0 ? "combinar" : "fixo"}
+                            onChange={(e) => {
+                              const arr = [...(editForm.services || [])];
+                              if (e.target.value === "combinar") {
+                                arr[svcIdx].price = 0;
+                              } else {
+                                arr[svcIdx].price = svc.price || 150;
+                              }
                               setEditForm({ ...editForm, services: arr });
                             }}
-                            disabled={idx === 0}
-                            className="text-slate-400 hover:text-amber-500 disabled:opacity-30 transition"
-                            title="Mover para cima"
                           >
-                            <ArrowUp className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (idx === editForm.services.length - 1) return;
-                              const arr = [...editForm.services];
-                              // @ts-ignore
-                              [arr[idx + 1], arr[idx]] = [
-                                arr[idx],
-                                arr[idx + 1],
-                              ];
-                              setEditForm({ ...editForm, services: arr });
-                            }}
-                            disabled={idx === editForm.services.length - 1}
-                            className="text-slate-400 hover:text-amber-500 disabled:opacity-30 transition"
-                            title="Mover para baixo"
-                          >
-                            <ArrowDown className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const url =
-                                window.location.origin +
-                                `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
-                              navigator.clipboard.writeText(url);
-                              alert("Link copiado!");
-                            }}
-                            className="text-slate-400 hover:text-blue-500 transition ml-2"
-                            title="Copiar link individual"
-                          >
-                            <Link className="w-4 h-4" />
-                          </button>
+                            <option value="fixo">Preço Fixo (R$)</option>
+                            <option value="combinar">Sob Consulta / A combinar</option>
+                          </select>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
+                        {svc.price !== 0 && (
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              Título
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
-                              value={svc.title}
-                              onChange={(e) => {
-                                const arr = [...editForm.services];
-                                arr[idx].title = e.target.value;
-                                setEditForm({ ...editForm, services: arr });
-                              }}
-                              placeholder="Ex: Terapia Individual"
-                            />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div className="hidden">
+                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Preço do Serviço</label>
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-3 text-slate-400 text-sm font-bold">R$</span>
                               <input
-                                type="hidden"
-                                value={svc.category || activeServiceTab}
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                className="w-full pl-9 pr-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-black text-slate-800"
+                                value={svc.price}
+                                placeholder="150"
+                                onChange={(e) => {
+                                  const arr = [...(editForm.services || [])];
+                                  arr[svcIdx].price = Number(e.target.value);
+                                  setEditForm({ ...editForm, services: arr });
+                                }}
                               />
                             </div>
-                            <div className="col-span-1 md:col-span-2">
-                              <label className="block text-xs font-medium text-slate-500 mb-1">
-                                Preço
-                              </label>
-                              <div className="flex flex-col gap-2">
-                                <select
-                                  className="p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-amber-400 focus:outline-none"
-                                  value={svc.price === 0 ? "combinar" : "fixo"}
-                                  onChange={(e) => {
-                                    const arr = [...(editForm.services || [])];
-                                    if (e.target.value === "combinar")
-                                      arr[idx].price = 0;
-                                    else arr[idx].price = 150;
-                                    setEditForm({ ...editForm, services: arr });
-                                  }}
-                                >
-                                  <option value="fixo">Fixo (Numérico)</option>
-                                  <option value="combinar">
-                                    Entre em contato para saber mais
-                                  </option>
-                                </select>
-                                {svc.price !== 0 && (
-                                  <div className="flex gap-2 items-center">
-                                    <span className="text-sm text-slate-500">
-                                      R$
-                                    </span>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      step="0.01"
-                                      className="flex-1 p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
-                                      value={svc.price}
-                                      placeholder="150"
-                                      onChange={(e) => {
-                                        const arr = [
-                                          ...(editForm.services || []),
-                                        ];
-                                        arr[idx].price = Number(e.target.value);
-                                        setEditForm({
-                                          ...editForm,
-                                          services: arr,
-                                        });
-                                      }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
                           </div>
-                        </div>
+                        )}
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              Descrição
-                            </label>
-                            <textarea
-                              rows={2}
-                              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white"
-                              value={svc.description}
-                              onChange={(e) => {
-                                const arr = [...editForm.services];
-                                arr[idx].description = e.target.value;
-                                setEditForm({ ...editForm, services: arr });
-                              }}
-                              placeholder="Descreva o serviço..."
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">
-                              Descrição Detalhada (Página de Detalhes)
-                            </label>
-                            <textarea
-                              rows={2}
-                              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white text-justify"
-                              value={svc.detailedDescription || ""}
-                              onChange={(e) => {
-                                const arr = [...editForm.services];
-                                arr[idx].detailedDescription = e.target.value;
-                                setEditForm({ ...editForm, services: arr });
-                              }}
-                              placeholder="Texto mais elaborado sobre o serviço..."
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <label className="block text-xs font-medium text-slate-500 mb-1">
-                            Tempo de Duração (Ex: 50 minutos)
-                          </label>
+                      {/* Duration */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Tempo de Duração</label>
                           <input
                             type="text"
-                            className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:outline-none bg-white max-w-[200px]"
+                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-700 font-bold"
                             value={svc.duration || ""}
                             onChange={(e) => {
                               const arr = [...editForm.services];
-                              arr[idx].duration = e.target.value;
+                              arr[svcIdx].duration = e.target.value;
                               setEditForm({ ...editForm, services: arr });
                             }}
                             placeholder="Ex: 50 minutos"
                           />
                         </div>
 
-                        <div className="mt-4 border-t border-slate-200 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="col-span-2">
-                            <label className="block text-xs font-bold text-slate-700 mb-2">
-                              Opções de Liberação para o Paciente
-                            </label>
-                            <div className="flex flex-col gap-2">
-                              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
-                                <input
-                                  type="checkbox"
-                                  checked={svc.allowScheduling !== false}
-                                  onChange={(e) => {
-                                    const arr = [...editForm.services];
-                                    arr[idx].allowScheduling = e.target.checked;
-                                    setEditForm({ ...editForm, services: arr });
-                                  }}
-                                  className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
-                                />
-                                Liberar Agendamento de Dia e Hora pela
-                                plataforma
-                              </label>
-                              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
-                                <input
-                                  type="checkbox"
-                                  checked={svc.allowPayment !== false}
-                                  onChange={(e) => {
-                                    const arr = [...editForm.services];
-                                    arr[idx].allowPayment = e.target.checked;
-                                    setEditForm({ ...editForm, services: arr });
-                                  }}
-                                  className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
-                                />
-                                Liberar opções de pagamento (PIX ou Combinar por
-                                WhatsApp)
-                              </label>
-                            </div>
-                          </div>
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Atalho do Serviço</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = window.location.origin + `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
+                              navigator.clipboard.writeText(url);
+                              alert("Link do serviço copiado!");
+                            }}
+                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-xs bg-slate-50 hover:bg-slate-100 font-bold text-slate-600 transition flex items-center justify-center gap-2"
+                          >
+                            <Link className="w-4 h-4 text-slate-400" /> Copiar Link do Serviço
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
-                  {(editForm.services || []).filter((s: any) => {
-                    const actualCategory = s.category || "voce";
-                    const normalizedCategory =
-                      actualCategory === "psicologo"
-                        ? "psicologos"
-                        : actualCategory;
-                    return normalizedCategory === activeServiceTab;
-                  }).length === 0 && (
-                    <div className="text-center p-6 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm bg-white">
-                      Nenhum serviço cadastrado. Adicione seus serviços para
-                      exibi-los no perfil.
+
+                      {/* Brief description */}
+                      <div>
+                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Descrição Resumida (Para o Card)</label>
+                        <textarea
+                          rows={2}
+                          className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 leading-relaxed font-semibold"
+                          value={svc.description}
+                          onChange={(e) => {
+                            const arr = [...editForm.services];
+                            arr[svcIdx].description = e.target.value;
+                            setEditForm({ ...editForm, services: arr });
+                          }}
+                          placeholder="Digite um resumo sobre este atendimento..."
+                        />
+                      </div>
+
+                      {/* Detailed description */}
+                      <div>
+                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Descrição Completa e Metodologia</label>
+                        <textarea
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 text-justify leading-relaxed font-semibold"
+                          value={svc.detailedDescription || ""}
+                          onChange={(e) => {
+                            const arr = [...editForm.services];
+                            arr[svcIdx].detailedDescription = e.target.value;
+                            setEditForm({ ...editForm, services: arr });
+                          }}
+                          placeholder="Fale detalhadamente sobre a metodologia, para quem se destina, de que forma é feito..."
+                        />
+                      </div>
+
+                      {/* Feature options */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2.5">
+                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-wide mb-1">Opções do Fluxo de Atendimento</h4>
+                        
+                        <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={svc.allowScheduling !== false}
+                            onChange={(e) => {
+                              const arr = [...editForm.services];
+                              arr[svcIdx].allowScheduling = e.target.checked;
+                              setEditForm({ ...editForm, services: arr });
+                            }}
+                            className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                          />
+                          <span>Permitir agendamento online de dia e horário diretamente pela plataforma</span>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={svc.allowPayment !== false}
+                            onChange={(e) => {
+                              const arr = [...editForm.services];
+                              arr[svcIdx].allowPayment = e.target.checked;
+                              setEditForm({ ...editForm, services: arr });
+                            }}
+                            className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                          />
+                          <span>Exibir faturamento guiado com simulação/PIX no checkout</span>
+                        </label>
+                      </div>
                     </div>
-                  )}
+
+                    {/* Modal Footer */}
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-5 mt-6 gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Deseja realmente deletar permanentemente este serviço do seu perfil?")) {
+                            const newSvc = (editForm.services || []).filter((s: any) => s.id !== editingServiceId);
+                            setEditForm({ ...editForm, services: newSvc });
+                            setEditingServiceId(null);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir
+                      </button>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingServiceId(null)}
+                          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition cursor-pointer"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!svc.title.trim()) {
+                              alert("Por favor, preencha o Título do serviço.");
+                              return;
+                            }
+                            setEditingServiceId(null);
+                          }}
+                          className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition cursor-pointer"
+                        >
+                          Concluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-end pt-4 border-t border-slate-200 mt-6">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition"
-                >
-                  {saving ? "Salvando..." : "Salvar Alterações"}
-                </button>
-              </div>
-            </form>
+              );
+            })()}
           </div>
         )}
 
@@ -5024,9 +5254,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </div>
                   <div className="flex-1 flex flex-wrap gap-2">
                     {(editForm.schedule?.[dIdx] || []).length > 0 ? (
-                      (editForm.schedule[dIdx] as string[]).map((time) => (
+                      (editForm.schedule[dIdx] as string[]).map((time, tIdx) => (
                         <span
-                          key={time}
+                          key={`${time}-${tIdx}`}
                           className="px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-200"
                         >
                           {time}
@@ -6540,7 +6770,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     profileData?.services || []
                                                   ).find(
                                                     (x: any) =>
-                                                      x.id === e.target.value,
+                                                      (x.id || x.title) === e.target.value,
                                                   );
                                                   setAppointmentEditForm({
                                                     ...appointmentEditForm,
@@ -6563,8 +6793,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   )
                                                   .map((s: any) => (
                                                     <option
-                                                      value={s.id}
-                                                      key={s.id}
+                                                      value={s.id || s.title}
+                                                      key={s.id || s.title || Math.random().toString()}
                                                     >
                                                       {s.title}
                                                     </option>
@@ -6918,8 +7148,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               )
                                                               .map((s: any) => (
                                                                 <option
-                                                                  value={s.id}
-                                                                  key={s.id}
+                                                                  value={s.id || s.title}
+                                                                  key={s.id || s.title || Math.random().toString()}
                                                                 >
                                                                   {s.title}
                                                                 </option>
@@ -8911,7 +9141,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   profileData?.services || []
                                                 ).find(
                                                   (x: any) =>
-                                                    x.id === e.target.value,
+                                                    (x.id || x.title) === e.target.value,
                                                 );
                                                 setCompanyAppointmentEditForm({
                                                   ...companyAppointmentEditForm,
@@ -8942,8 +9172,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 )
                                                 .map((s: any) => (
                                                   <option
-                                                    value={s.id}
-                                                    key={s.id}
+                                                    value={s.id || s.title}
+                                                    key={s.id || s.title || Math.random().toString()}
                                                   >
                                                     {s.title}
                                                   </option>
@@ -9288,8 +9518,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             )
                                                             .map((s: any) => (
                                                               <option
-                                                                value={s.id}
-                                                                key={s.id}
+                                                                value={s.id || s.title}
+                                                                key={s.id || s.title || Math.random().toString()}
                                                               >
                                                                 {s.title}
                                                               </option>
@@ -10281,6 +10511,69 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
           </div>
         )}
+
+        {activeTab === "suporte" && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <LifeBuoy className="w-5 h-5 text-amber-500" /> Canais de Suporte
+            </h2>
+            <div className="max-w-2xl">
+              <p className="text-slate-600 mb-8 leading-relaxed">
+                Precisa de ajuda com a plataforma? Entre em contato através dos nossos canais de atendimento oficiais. Estaremos prontos para te atender.
+              </p>
+              
+              <div className="grid gap-6">
+                <a 
+                  href={supportSettings?.phone ? `https://wa.me/${supportSettings.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(supportSettings.message || 'Olá, preciso de ajuda com a plataforma.')}` : '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center p-6 border rounded-2xl transition group",
+                    supportSettings?.phone ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer" : "border-slate-200 opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mr-6 group-hover:scale-110 transition shrink-0">
+                    <MessageCircle className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">Atendimento via WhatsApp</h3>
+                    <p className="text-slate-500 text-sm">
+                      {supportSettings?.phone ? `Suporte direto no número ${supportSettings.phone}` : 'Em breve'}
+                    </p>
+                  </div>
+                </a>
+
+                <a 
+                  href={supportSettings?.email ? `mailto:${supportSettings.email}?subject=Suporte Plataforma` : '#'}
+                  className={cn(
+                    "flex items-center p-6 border rounded-2xl transition group",
+                    supportSettings?.email ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer" : "border-slate-200 opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mr-6 group-hover:scale-110 transition shrink-0">
+                    <Mail className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">Atendimento via E-mail</h3>
+                    <p className="text-slate-500 text-sm">
+                      {supportSettings?.email ? `Envie um e-mail para ${supportSettings.email}` : 'Em breve'}
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "assinatura" && (
+          <div className="animate-in fade-in">
+            <SubscriptionManager 
+              userId={userId} 
+              profileData={profileData} 
+              onUpdateProfile={onUpdateProfile} 
+            />
+          </div>
+        )}
       </div>
 
       {/* Export Modal */}
@@ -10712,7 +11005,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       )}
 
       {confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="p-6">
               <h3 className="text-xl font-bold text-slate-900 mb-2">

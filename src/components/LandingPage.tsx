@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { THEMES, hexToRgb } from '../lib/themes';
-import { MessageCircle, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, Church, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight, Mic, Users, Building2, MessageSquare, Heart, Eye, BookOpen, Brain, User, Smile, Compass, HeartPulse } from 'lucide-react';
+import { MessageCircle, ArrowRight, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, Church, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight, Mic, Users, Building2, MessageSquare, Heart, Eye, BookOpen, Brain, User, Smile, Compass, HeartPulse } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 
@@ -118,6 +118,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
     name: 'Marcio Rocha',
     title: 'Psicólogo Clínico',
     crp: '06/128410',
+    cpf: '123.456.789-00',
     city: 'São Paulo, SP',
     about: 'Olá, sou especialista no tratamento de transtornos de ansiedade e depressão. Minha missão é te ajudar a encontrar equilíbrio emocional e melhorar sua qualidade de vida através da Terapia Cognitivo-Comportamental.',
     specialties: ['Ansiedade', 'Depressão', 'Terapia de Casal', 'Autoconhecimento'],
@@ -336,7 +337,9 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 <div className="pt-16 sm:pt-20 flex-1">
                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{finalProfile.name}</h1>
                    <p className="text-lg text-theme-primary font-medium mt-1">{finalProfile.title}</p>
-                   {finalProfile.crp && <p className="text-slate-500 mt-1">{finalProfile.crp}</p>}
+                   {finalProfile.crp && (
+                     <p className="text-slate-500 mt-1">CRP: {finalProfile.crp}</p>
+                   )}
                 </div>
               </div>
             </div>
@@ -426,7 +429,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
               {finalProfile.crp && (
                 <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
                   <Award className="w-4 h-4 text-[rgb(var(--theme-primary))]" />
-                  {finalProfile.crp}
+                  CRP: {finalProfile.crp}
                 </span>
               )}
               {finalProfile.city && (
@@ -977,9 +980,17 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
 
             </div>
             
-            <div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
-              <button className="hover:text-amber-500 transition">Política de Privacidade</button>
-              <button className="hover:text-amber-500 transition">Termos de Uso</button>
+            <div className="flex flex-col md:items-end gap-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center md:text-right w-full md:w-auto">
+              <div className="flex items-center justify-center md:justify-end gap-4 mb-2 md:mb-0">
+                <button className="hover:text-amber-500 transition">Privacidade</button>
+                <button className="hover:text-amber-500 transition">Termos</button>
+              </div>
+              <button 
+                onClick={() => window.location.href = '/?saas=true'} 
+                className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 px-3 py-1.5 rounded-lg transition-colors capitalize normal-case text-xs font-semibold border border-amber-100 mx-auto md:mx-0"
+              >
+                Sou Psicólogo: Conheça a Plataforma <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
           </div>
         </footer>
@@ -1185,8 +1196,8 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                               }
                               return (
                                 <div className="flex flex-wrap gap-2">
-                                  {slots.map((t: string) => (
-                                      <button type="button" key={t}
+                                  {slots.map((t: string, idx: number) => (
+                                      <button type="button" key={`${t}-${idx}`}
                                         onClick={() => { setClientForm({...clientForm, appointmentTime: t}); setFormErrors({...formErrors, appointmentTime: ''}); }}
                                         className={cn("px-4 py-2 border rounded-lg text-sm font-medium transition", clientForm.appointmentTime === t ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-300 hover:border-emerald-400 hover:bg-emerald-50")}
                                       >

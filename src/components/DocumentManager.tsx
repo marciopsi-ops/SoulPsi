@@ -431,7 +431,11 @@ export function DocumentManager({ userId, profileData, clients }: DocumentManage
                 <div className="w-[260px] border-t border-slate-400 mb-2"></div>
                 <div className="font-bold text-slate-800 text-[10pt]">{profileData?.name || 'Márcio Rocha'}</div>
                 <div className="text-slate-500 text-[8pt] mt-0.5">{profileData?.title || 'Psicólogo Clínico'}</div>
-                {profileData?.crp && <div className="text-slate-500 text-[8pt]">CRP {profileData.crp}</div>}
+                {profileData?.cpf ? (
+                  <div className="text-slate-500 text-[8pt]">CPF {profileData.cpf}</div>
+                ) : (
+                  profileData?.crp && <div className="text-slate-500 text-[8pt]">CRP {profileData.crp}</div>
+                )}
              </div>
            </div>
 

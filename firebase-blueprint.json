@@ -12,6 +12,8 @@
         "about": { "type": "string" },
         "specialties": { "type": "array", "items": { "type": "string" } },
         "crp": { "type": "string" },
+        "cpf": { "type": "string" },
+        "email": { "type": "string" },
         "city": { "type": "string" },
         "whatsapp": { "type": "string" },
         "coverPhoto": { "type": "string" },

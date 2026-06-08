@@ -12,7 +12,12 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function incoming() { return request.resource.data; }
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isAdmin() { 
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'marciopsi@elosolucoeshumanas.com')
+      );
+    }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
 
     // --- Admins ---
@@ -21,6 +26,12 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isSignedIn(); // allow bootstrap
       allow update, delete: if false; 
+    }
+
+    // --- Admin Settings ---
+    match /admin_settings/{settingId} {
+      allow read: if isSignedIn() || true;
+      allow create, update, delete: if isAdmin();
     }
 
     // --- Allowed Users ---
@@ -34,7 +45,7 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'updatedAt'])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.updatedAt == request.time
-        && (!('userId' in data) || (data.userId is string && data.userId.size() <= 128 && data.userId == request.auth.uid))
+        && (!('userId' in data) || (data.userId is string && data.userId.size() <= 128 && (data.userId == request.auth.uid || isAdmin())))
         && data.get('title', '') is string && data.get('title', '').size() <= 100
         && data.get('about', '') is string && data.get('about', '').size() <= 2000
         && (data.get('specialties', []) is list && data.get('specialties', []).size() <= 20 && (data.get('specialties', []).size() == 0 || data.get('specialties', [])[0] is string))
@@ -43,14 +54,22 @@ service cloud.firestore {
         && data.get('profilePhoto', '') is string && data.get('profilePhoto', '').size() <= 600000
         && data.get('calendarSync', false) is bool
         && data.get('driveSync', false) is bool
-        && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled']
+        && data.get('subscriptionStatus', 'active') is string && data.get('subscriptionStatus', 'active') in ['active', 'past_due', 'canceled', 'trial', 'pending']
         && (data.get('materials', []) is list && data.get('materials', []).size() <= 50 && (data.get('materials', []).size() == 0 || (data.get('materials', [])[0] is map || data.get('materials', [])[0] is string)))
         && data.get('billingAccountsStr', '') is string && data.get('billingAccountsStr', '').size() <= 60000
         && (data.get('services', []) is list && data.get('services', []).size() <= 20)
+        && data.get('crp', '') is string && data.get('crp', '').size() <= 100
+        && data.get('cpf', '') is string && data.get('cpf', '').size() <= 100
+        && data.get('email', '') is string && data.get('email', '').size() <= 150
         && data.get('whatsappReminderTemplate', '') is string && data.get('whatsappReminderTemplate', '').size() <= 5000
         && data.get('whatsappFinancialTemplate', '') is string && data.get('whatsappFinancialTemplate', '').size() <= 5000
         && data.get('whatsappBirthdayTemplate', '') is string && data.get('whatsappBirthdayTemplate', '').size() <= 5000
-        && data.get('whatsappOtherTemplate', '') is string && data.get('whatsappOtherTemplate', '').size() <= 5000;
+        && data.get('whatsappOtherTemplate', '') is string && data.get('whatsappOtherTemplate', '').size() <= 5000
+        && data.get('adminNotes', '') is string && data.get('adminNotes', '').size() <= 10000
+        && data.get('autoNotifEnabled', false) is bool
+        && data.get('autoNotifPeriod', '') is string && data.get('autoNotifPeriod', '').size() <= 50
+        && data.get('autoNotifFrequency', '') is string && data.get('autoNotifFrequency', '').size() <= 50
+        && (!('createdAt' in data) || data.createdAt == null || data.createdAt is string || data.createdAt is timestamp);
     }
 
     match /profiles/{profileId} {
@@ -64,6 +83,8 @@ service cloud.firestore {
       allow update: if (isOwner(profileId) || isAdmin())
                     && isValidId(profileId)
                     && isValidProfile(incoming());
+                    
+      allow delete: if isAdmin() || isOwner(profileId);
     }
 
     // --- Reviews ---
