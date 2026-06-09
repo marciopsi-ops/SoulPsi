@@ -1365,6 +1365,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       if (clientMonth !== currentMonth) return false;
     }
 
+    // Apply Global Period Filter (Must have appointment in period OR be registered in period)
+    const hasApptInPeriod = appointmentsInPeriod.some(a => a.clientId === client.id);
+    const isRegisteredInPeriod = clientsInPeriod.some(c => c.id === client.id);
+    if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
+
     if (globalBillingFilter !== "all") {
       if (!clientIdsWithBillingFilter.has(client.id)) return false;
     }
@@ -1388,6 +1393,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       company.email?.toLowerCase().includes(companySearchText.toLowerCase());
 
     if (!matchesSearch) return false;
+
+    // Apply Global Period Filter
+    const hasApptInPeriod = companyAppointmentsInPeriod.some(a => a.companyId === company.id);
+    const isRegisteredInPeriod = company.createdAt || company.entryDate ? (() => {
+      const dStr = company.entryDate || company.createdAt;
+      const date = new Date(dStr);
+      if (isNaN(date.getTime())) return true;
+      const month = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCMonth() : date.getMonth();
+      const year = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCFullYear() : date.getFullYear();
+      return filterMonths.includes(month) && year === filterYear;
+    })() : true;
+
+    if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
 
     if (globalBillingFilter !== "all") {
       if (!companyIdsWithBillingFilter.has(company.id)) return false;
@@ -3042,12 +3060,45 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <h2 className="text-xl font-bold text-slate-800 mb-6">
                 Dashboard Geral de Faturamento
               </h2>
+
+              {(() => {
+                let outrasReceitasTotal = 0;
+                try {
+                  const income = JSON.parse(profileData?.generalIncomesStr || "[]");
+                  const stringMonths = filterMonths.map(
+                    (i) => ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i]
+                  );
+                  const filtered = income.filter((c: any) => {
+                    if (!c.month) return true;
+                    if (stringMonths.length > 0)
+                      return stringMonths.includes(c.month) && c.year === filterYear.toString();
+                    return true;
+                  });
+                  outrasReceitasTotal = filtered.reduce((a: any, b: any) => a + b.amount, 0);
+                } catch {}
+                
+                const globalFaturado = totalPaidInPeriod + totalPendingInPeriod + totalCompanyPaidInPeriod + totalCompanyPendingInPeriod + outrasReceitasTotal;
+
+                return (
+                  <div className="bg-white border text-center border-slate-200 rounded-xl p-6 mb-6 shadow-sm flex flex-col items-center justify-center">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-1">
+                        Faturamento Global (Total)
+                      </h3>
+                      <p className="text-4xl font-bold text-slate-900">
+                        R$ {globalFaturado.toFixed(2).replace(".", ",")}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-4">
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-amber-800 mb-1">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-blue-800 mb-1">
                     Pacientes (Recebido)
                   </h3>
-                  <p className="text-2xl font-bold text-amber-900">
+                  <p className="text-2xl font-bold text-blue-900">
                     R${" "}
                     {appointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "paid")
@@ -3055,7 +3106,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       .toFixed(2)
                       .replace(".", ",")}
                   </p>
-                  <p className="text-xs text-amber-700 mt-2">
+                  <p className="text-xs text-red-500 font-medium mt-2">
                     + R${" "}
                     {appointmentsInPeriod
                       .filter(
@@ -3079,7 +3130,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       .toFixed(2)
                       .replace(".", ",")}
                   </p>
-                  <p className="text-xs text-emerald-700 mt-2">
+                  <p className="text-xs text-red-500 font-medium mt-2">
                     + R${" "}
                     {companyAppointmentsInPeriod
                       .filter(
@@ -3351,119 +3402,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </div>
             )}
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-emerald-600" />
-                  Faturamento da Unidade / Conta (Período Filtrado)
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "all"
-                      ? "bg-white border-amber-400 ring-1 ring-blue-400"
-                      : "bg-white border-slate-200 hover:border-slate-300",
-                  )}
-                  onClick={() => setGlobalBillingFilter("all")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-slate-500 font-medium mb-1">
-                      Total do Mês (Previsto)
-                    </p>
-                    <p className="text-2xl font-bold text-slate-800">
-                      R${" "}
-                      {(totalPaidInPeriod + totalPendingInPeriod)
-                        .toFixed(2)
-                        .replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "all" && (
-                    <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "paid"
-                      ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
-                      : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("paid")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-emerald-700 font-medium mb-1">
-                      Recebido
-                    </p>
-                    <p className="text-2xl font-bold text-emerald-900">
-                      R$ {totalPaidInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "paid" && (
-                    <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "pending"
-                      ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
-                      : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("pending")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-amber-700 font-medium mb-1">
-                      Pendente (À receber)
-                    </p>
-                    <p className="text-2xl font-bold text-amber-900">
-                      R$ {totalPendingInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "pending" && (
-                    <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
-                  )}
-                </div>
-              </div>
-
-              {Object.keys(totalByBillingAccount).length > 0 && (
-                <div className="mt-6 pt-4 border-t border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-700 mb-3">
-                    Recebido por Conta / Local (Pacientes)
-                  </h4>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(totalByBillingAccount)
-                      .sort((a, b) => (b[1] as number) - (a[1] as number))
-                      .map(([account, total]) => (
-                        <div
-                          key={account}
-                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3"
-                        >
-                          <span className="font-medium text-slate-600">
-                            {account}
-                          </span>
-                          <span className="font-bold text-emerald-700">
-                            R$ {(total as number).toFixed(2).replace(".", ",")}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {globalBillingFilter !== "all" && (
-                <p className="text-xs text-slate-500 mt-4 text-center">
-                  Exibindo apenas pacientes com faturamento{" "}
-                  <strong>
-                    {globalBillingFilter === "paid"
-                      ? "concluído (pago)"
-                      : "pendente"}
-                  </strong>{" "}
-                  no período selecionado.
-                </p>
-              )}
-            </div>
             {/* Quadro com os totais gerais por Conta / local de faturamento */}
             {(() => {
               try {
