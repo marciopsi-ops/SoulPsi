@@ -1,0 +1,19 @@
+89:   if (hideFinance) return "R$ •••••";
+90:   if (value === undefined || value === null) return "R$ 0,00";
+92:   if (isNaN(num)) return "R$ 0,00";
+93:   return `R$ ${num.toFixed(2).replace(".", ",")}`;
+399:           placeholder="R$ 0,00"
+912:                 ? ` no valor de R$ ${Number(apptData.totalAmount)}`
+940:                 ? ` no valor de R$ ${Number(apptData.totalAmount)}`
+1600:           `Olá ${firstName},\n\nSegue o resumo do nosso fechamento financeiro.\nO valor total de sessões pendentes é de R$ ${totalPending}.\n\nPode ser transferido para o Pix: ${profileData?.pixKey || "SUA_CHAVE_PIX_AQUI"}\n\nQualquer dúvida, estou à disposição.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`,
+1606:         `Olá ${firstName},\n\nSegue o recibo referente às sessões realizadas:\n\nTotal: R$ 0,00\n\nAgradeço a confiança,\n${profileData?.name || "Psicólogo(a)"}`,
+4770:                             <option value="fixo">Preço Fixo (R$)</option>
+4779:                               <span className="absolute left-3.5 top-3 text-slate-400 text-sm font-bold">R$</span>
+6779:                                                 Valor (R$)
+7135:                                                               R$
+9141:                                               Valor (R$)
+9506:                                                             R$
+10802:                           const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace('.', ',')}`;
+10839:                                       "Total: R$ ",
+10840:                                       appendText + "\nTotal: R$ ",
+10851:                                     `Total: R$ ${newTotal.toFixed(2).replace('.', ',')}`,

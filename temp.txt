@@ -1,0 +1,36 @@
+88:export const formatMoneyUI = (value: any, hideFinance: boolean = false) => {
+297:          {formatMoneyUI(currentTotal, hideFinance)}
+468:                  {formatMoneyUI(c.amount, hideFinance)}
+3125:                        {formatMoneyUI(globalFaturado, hideFinance)}
+3138:                    {formatMoneyUI(appointmentsInPeriod
+3143:                    + {formatMoneyUI(appointmentsInPeriod
+3157:                    {formatMoneyUI(companyAppointmentsInPeriod
+3163:                    + {formatMoneyUI(companyAppointmentsInPeriod
+3177:                    {formatMoneyUI((() => {
+3222:                    {formatMoneyUI((() => {
+3292:                      {formatMoneyUI(appointmentsInPeriod.length > 0 ? (totalPaidInPeriod + totalPendingInPeriod) / appointmentsInPeriod.length : 0, hideFinance)}
+3591:                                  {formatMoneyUI(gp.totalPaid, hideFinance)}
+3594:                                  {formatMoneyUI(gp.totalPending, hideFinance)}
+3597:                                  {formatMoneyUI(gp.total, hideFinance)}
+3608:                              {formatMoneyUI(grandTotals.totalPaid, hideFinance)}
+3611:                              {formatMoneyUI(grandTotals.totalPending, hideFinance)}
+3614:                              {formatMoneyUI(grandTotals.total, hideFinance)}
+4594:                                  {svc.price === 0 ? "A combinar" : formatMoneyUI(svc.price, hideFinance)}
+5509:                    {formatMoneyUI(appointmentsInPeriod
+5531:                    {formatMoneyUI(appointmentsInPeriod
+5555:                    {formatMoneyUI(appointmentsInPeriod
+7388:                                                          {formatMoneyUI(Number(
+7558:                                              {formatMoneyUI(filteredClientAppts
+7583:                                              {formatMoneyUI(filteredClientAppts
+7695:                    {formatMoneyUI(companyAppointmentsInPeriod
+7717:                    {formatMoneyUI(companyAppointmentsInPeriod
+7741:                    {formatMoneyUI(companyAppointmentsInPeriod
+7842:                      {formatMoneyUI(totalCompanyPaidInPeriod + totalCompanyPendingInPeriod, hideFinance)}
+7863:                      {formatMoneyUI(totalCompanyPaidInPeriod, hideFinance)}
+7884:                      {formatMoneyUI(totalCompanyPendingInPeriod, hideFinance)}
+7910:                            {formatMoneyUI(total as number, hideFinance)}
+9757:                                                        {formatMoneyUI(Number(
+9927:                                            {formatMoneyUI(filteredCompanyAppts
+9950:                                            {formatMoneyUI(filteredCompanyAppts
+10383:                      placeholder={`Ex: Olá {nome}. Segue fechamento das nossas sessões realizadas. O valor pendente é de {formatMoneyUI(valor}. Pix de pagamento: {pix}. Abraço.`}
+10864:                                {formatMoneyUI(amount, hideFinance)}

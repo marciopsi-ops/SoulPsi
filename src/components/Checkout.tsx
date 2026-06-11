@@ -1,3 +1,4 @@
+import { formatWa } from "../lib/utils";
 import React, { useState } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -83,7 +84,7 @@ export function Checkout({ therapistId, profileData, bookingData, onSuccess, onC
             </ul>
           </div>
           <a
-            href={`https://wa.me/${(bookingData?.therapistWhatsapp || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+            href={`https://wa.me/${formatWa(bookingData?.therapistWhatsapp || "")}?text=${encodeURIComponent(
               (patientChoice === 'whatsapp' || !patientChoice) 
                 ? `Olá, confirmando minha reserva de horário${bookingData?.appointmentDate ? ` para o dia ${bookingData?.appointmentDate} às ${bookingData?.appointmentTime}` : ''} (Valor: ${bookingData?.sessionPrice === 0 ? 'À combinar' : `R$ ${bookingData?.sessionPrice}`}). Gostaria de verificar as formas de pagamento e acertar os detalhes da sessão.`
                 : `Olá, confirmo minha reserva de horário${bookingData?.appointmentDate ? ` para o dia ${bookingData?.appointmentDate} às ${bookingData?.appointmentTime}` : ''} (Valor: R$ ${bookingData?.sessionPrice}). O pagamento foi realizado via PIX. Segue meu comprovante!`

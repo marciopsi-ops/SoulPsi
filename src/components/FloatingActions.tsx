@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Share2, Check, MessageCircle } from 'lucide-react';
+import { formatWa } from '../lib/utils';
 
 export function FloatingActions({ whatsapp }: { whatsapp?: string }) {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -22,7 +23,7 @@ export function FloatingActions({ whatsapp }: { whatsapp?: string }) {
       
       {whatsapp && (
         <a
-          href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`}
+          href={`https://wa.me/${formatWa(whatsapp)}`}
           target="_blank"
           rel="noreferrer"
           className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)] hover:bg-emerald-600 hover:scale-105 transition-all backdrop-blur-md"

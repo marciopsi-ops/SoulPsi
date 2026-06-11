@@ -62,10 +62,13 @@ import {
   FileText,
   LifeBuoy,
   CreditCard,
+  Star,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { DocumentManager } from "./DocumentManager";
 import { SubscriptionManager } from "./SubscriptionManager";
-import { cn } from "../lib/utils";
+import { cn, formatWa } from "../lib/utils";
 import { format } from "date-fns";
 import { FastAverageColor } from "fast-average-color";
 import { THEMES } from "../lib/themes";
@@ -82,6 +85,14 @@ import {
   CartesianGrid,
 } from "recharts";
 
+export const formatMoneyUI = (value: any, hideFinance: boolean = false) => {
+  if (hideFinance) return "R$ •••••";
+  if (value === undefined || value === null) return "R$ 0,00";
+  const num = Number(value);
+  if (isNaN(num)) return "R$ 0,00";
+  return `R$ ${num.toFixed(2).replace(".", ",")}`;
+};
+
 function CostManager({
   costsStr,
   type,
@@ -92,6 +103,7 @@ function CostManager({
   isIncome = false,
   billingAccounts = ["ELO", "MEI Carla", "CPF Marcio", "CPF Carla", "Dinheiro"],
   onManageAccounts,
+  hideFinance = true,
 }: {
   costsStr: string;
   type:
@@ -106,6 +118,7 @@ function CostManager({
   isIncome?: boolean;
   billingAccounts?: string[];
   onManageAccounts?: () => void;
+  hideFinance?: boolean;
 }) {
   const [costs, setCosts] = useState<
     {
@@ -281,7 +294,7 @@ function CostManager({
           </span>
         </div>
         <div className="text-lg font-bold">
-          R$ {currentTotal.toFixed(2).replace(".", ",")}
+          {formatMoneyUI(currentTotal, hideFinance)}
         </div>
       </div>
 
@@ -452,7 +465,7 @@ function CostManager({
 
               <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto border-t sm:border-0 pt-2 sm:pt-0 border-slate-100">
                 <span className="font-bold text-slate-800">
-                  R$ {c.amount.toFixed(2).replace(".", ",")}
+                  {formatMoneyUI(c.amount, hideFinance)}
                 </span>
                 <button
                   onClick={() => removeCost(c.id)}
@@ -475,6 +488,22 @@ function CostManager({
   );
 }
 
+
+const TabHeader = ({ icon: Icon, title, description, badge }: any) => (
+  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 animate-in fade-in slide-in-from-bottom-2">
+    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 text-[rgb(var(--theme-primary))]">
+      <Icon className="w-6 h-6" />
+    </div>
+    <div className="flex-1">
+      <div className="flex items-center gap-3 mb-1">
+        <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+        {badge && <span className="px-2 py-0.5 bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary))] text-xs font-medium rounded-full">{badge}</span>}
+      </div>
+      <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
+    </div>
+  </div>
+);
+
 export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const fireWebhook = (event: string, data: any) => {
     if (profileData && profileData.webhookUrl) {
@@ -495,6 +524,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [activeServiceTab, setActiveServiceTab] = useState<
     "voce" | "empresa" | "psicologos" | "igrejas"
   >("voce");
+  const [showContractEditor, setShowContractEditor] = useState<"paciente" | "empresa" | null>(null);
   const [activeTab, setActiveTab] = useState<
     | "visao_geral"
     | "pacientes"
@@ -511,6 +541,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "assinatura"
   >("visao_geral");
   const [clients, setClients] = useState<any[]>([]);
+  const [hideFinance, setHideFinance] = useState(true);
+
+
   const [supportSettings, setSupportSettings] = useState<any>(null);
 
   useEffect(() => {
@@ -877,7 +910,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             if (change.type === "added") {
               const apptData = change.doc.data();
               const formattedValue = apptData.totalAmount 
-                ? ` no valor de R$ ${Number(apptData.totalAmount).toFixed(2).replace(".", ",")}`
+                ? ` no valor de R$ ${Number(apptData.totalAmount)}`
                 : "";
               sendBrowserNotification(
                 "📅 Novo Agendamento Recebido",
@@ -905,7 +938,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             if (change.type === "added") {
               const apptData = change.doc.data();
               const formattedValue = apptData.totalAmount
-                ? ` no valor de R$ ${Number(apptData.totalAmount).toFixed(2).replace(".", ",")}`
+                ? ` no valor de R$ ${Number(apptData.totalAmount)}`
                 : "";
               sendBrowserNotification(
                 "🏢 Novo Agendamento de Empresa",
@@ -1028,6 +1061,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         "generalCostsStr",
         "generalIncomesStr",
         "contractTerms",
+        "companyContractTerms",
         "webhookUrl",
         "updatedAt",
         "isPublicSiteActive",
@@ -1394,19 +1428,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
     if (!matchesSearch) return false;
 
-    // Apply Global Period Filter
-    const hasApptInPeriod = companyAppointmentsInPeriod.some(a => a.companyId === company.id);
-    const isRegisteredInPeriod = company.createdAt || company.entryDate ? (() => {
-      const dStr = company.entryDate || company.createdAt;
-      const date = new Date(dStr);
-      if (isNaN(date.getTime())) return true;
-      const month = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCMonth() : date.getMonth();
-      const year = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCFullYear() : date.getFullYear();
-      return filterMonths.includes(month) && year === filterYear;
-    })() : true;
-
-    if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
-
     if (globalBillingFilter !== "all") {
       if (!companyIdsWithBillingFilter.has(company.id)) return false;
     }
@@ -1543,7 +1564,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       (acc, curr) => acc + Number(curr.totalAmount || 0),
       0,
     );
-    const valorPending = totalPending.toFixed(2).replace(".", ",");
+    const valorPending = totalPending;
 
     const replaceTags = (text: string) => {
       if (!text) return "";
@@ -1565,7 +1586,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         );
       } else {
         setNotificationMessage(
-          `Olá ${firstName},\n\nSegue o resumo do nosso fechamento financeiro.\nO valor total de sessões pendentes é de R$ ${totalPending.toFixed(2).replace(".", ",")}.\n\nPode ser transferido para o Pix: ${profileData?.pixKey || "SUA_CHAVE_PIX_AQUI"}\n\nQualquer dúvida, estou à disposição.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`,
+          `Olá ${firstName},\n\nSegue o resumo do nosso fechamento financeiro.\nO valor total de sessões pendentes é de R$ ${totalPending}.\n\nPode ser transferido para o Pix: ${profileData?.pixKey || "SUA_CHAVE_PIX_AQUI"}\n\nQualquer dúvida, estou à disposição.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`,
         );
       }
     } else if (template === "receipt") {
@@ -2314,7 +2335,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               `"${!isNaN(new Date(a.datetime).getTime()) ? format(new Date(a.datetime), "dd/MM/yyyy HH:mm") : a.datetime}"`,
               `"${a.status}"`,
               `"${a.paymentStatus}"`,
-              `"${a.totalAmount.toFixed(2).replace(".", ",")}"`,
+              `"${a.totalAmount}"`,
               `"${(a.notes || "").replace(/"/g, '""')}"`,
             ]);
           });
@@ -2810,6 +2831,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
       {/* Sidebar */}
       <aside className="w-full md:w-64 flex-shrink-0 print:hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2 mb-6">
+          <button onClick={() => setHideFinance(!hideFinance)} className="flex items-center justify-center gap-2 p-3 text-sm font-bold text-slate-600 hover:text-slate-800 transition rounded-2xl hover:bg-slate-50">
+            {hideFinance ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+            {hideFinance ? "Mostrar Valores" : "Ocultar Valores"}
+          </button>
+        </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
           <button
             onClick={() => setActiveTab("visao_geral")}
@@ -3056,10 +3083,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         )}
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-in fade-in">
+            <TabHeader icon={LayoutDashboard} title="Visão Geral" description="Apresenta o painel resumo onde o profissional consegue visualizar rapidamente seu faturamento (pago vs. pendente) e os principais indicadores do momento." />
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">
-                Dashboard Geral de Faturamento
-              </h2>
 
               {(() => {
                 let outrasReceitasTotal = 0;
@@ -3086,7 +3111,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         Faturamento Global (Total)
                       </h3>
                       <p className="text-4xl font-bold text-slate-900">
-                        R$ {globalFaturado.toFixed(2).replace(".", ",")}
+                        {formatMoneyUI(globalFaturado, hideFinance)}
                       </p>
                     </div>
                   </div>
@@ -3099,22 +3124,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Pacientes (Recebido)
                   </h3>
                   <p className="text-2xl font-bold text-blue-900">
-                    R${" "}
-                    {appointmentsInPeriod
+                    {formatMoneyUI(appointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "paid")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
                   </p>
                   <p className="text-xs text-red-500 font-medium mt-2">
-                    + R${" "}
-                    {appointmentsInPeriod
+                    + {formatMoneyUI(appointmentsInPeriod
                       .filter(
                         (a) => (a.paymentStatus || "pending") === "pending",
                       )
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}{" "}
+                      , hideFinance)}{" "}
                     pendente
                   </p>
                 </div>
@@ -3123,22 +3143,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Empresas (Recebido)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    R${" "}
-                    {companyAppointmentsInPeriod
+                    {formatMoneyUI(companyAppointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "paid")
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      , hideFinance)}
                   </p>
                   <p className="text-xs text-red-500 font-medium mt-2">
-                    + R${" "}
-                    {companyAppointmentsInPeriod
+                    + {formatMoneyUI(companyAppointmentsInPeriod
                       .filter(
                         (a) => (a.paymentStatus || "pending") === "pending",
                       )
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}{" "}
+                      , hideFinance)}{" "}
                     pendente
                   </p>
                 </div>
@@ -3147,8 +3163,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Outras Receitas
                   </h3>
                   <p className="text-2xl font-bold text-purple-900">
-                    R${" "}
-                    {(() => {
+                    {formatMoneyUI((() => {
                       try {
                         const income = JSON.parse(
                           profileData?.generalIncomesStr || "[]",
@@ -3181,12 +3196,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         });
                         return filtered
                           .reduce((a: any, b: any) => a + b.amount, 0)
-                          .toFixed(2)
-                          .replace(".", ",");
+                          ;
                       } catch {
                         return "0,00";
                       }
-                    })()}
+                    })(), hideFinance)}
                   </p>
                 </div>
                 <div className="bg-red-50 border border-red-100 rounded-xl p-5">
@@ -3194,8 +3208,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Todos os Custos e Despesas
                   </h3>
                   <p className="text-2xl font-bold text-red-900">
-                    R${" "}
-                    {(() => {
+                    {formatMoneyUI((() => {
                       try {
                         const stringMonths = filterMonths.map(
                           (i) =>
@@ -3233,12 +3246,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         const c3 = getCosts(profileData?.companyCostsStr);
 
                         return (c1 + c2 + c3)
-                          .toFixed(2)
-                          .replace(".", ",");
+                          ;
                       } catch {
                         return "0,00";
                       }
-                    })()}
+                    })(), hideFinance)}
                   </p>
                 </div>
               </div>
@@ -3266,15 +3278,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       Média de Valor de Serviços
                     </h3>
                     <p className="text-2xl font-bold text-slate-800">
-                      R${" "}
-                      {appointmentsInPeriod.length > 0
-                        ? (
-                            (totalPaidInPeriod + totalPendingInPeriod) /
-                            appointmentsInPeriod.length
-                          )
-                            .toFixed(2)
-                            .replace(".", ",")
-                        : "0,00"}
+                      {formatMoneyUI(appointmentsInPeriod.length > 0 ? (totalPaidInPeriod + totalPendingInPeriod) / appointmentsInPeriod.length : 0, hideFinance)}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -3573,13 +3577,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <span className="truncate">{key}</span>
                                 </td>
                                 <td className="px-5 py-4 text-right text-emerald-600 font-semibold">
-                                  R$ {gp.totalPaid.toFixed(2).replace(".", ",")}
+                                  {formatMoneyUI(gp.totalPaid, hideFinance)}
                                 </td>
                                 <td className="px-5 py-4 text-right text-amber-600 font-semibold">
-                                  R$ {gp.totalPending.toFixed(2).replace(".", ",")}
+                                  {formatMoneyUI(gp.totalPending, hideFinance)}
                                 </td>
                                 <td className="px-5 py-4 text-right font-bold text-slate-800 bg-slate-50/20">
-                                  R$ {gp.total.toFixed(2).replace(".", ",")}
+                                  {formatMoneyUI(gp.total, hideFinance)}
                                 </td>
                               </tr>
                             );
@@ -3590,13 +3594,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               TOTAIS DO PERÍODO
                             </td>
                             <td className="px-5 py-4 text-right text-emerald-700 font-bold">
-                              R$ {grandTotals.totalPaid.toFixed(2).replace(".", ",")}
+                              {formatMoneyUI(grandTotals.totalPaid, hideFinance)}
                             </td>
                             <td className="px-5 py-4 text-right text-amber-700 font-bold">
-                              R$ {grandTotals.totalPending.toFixed(2).replace(".", ",")}
+                              {formatMoneyUI(grandTotals.totalPending, hideFinance)}
                             </td>
                             <td className="px-5 py-4 text-right text-slate-900 font-extrabold bg-slate-150/40 text-sm">
-                              R$ {grandTotals.total.toFixed(2).replace(".", ",")}
+                              {formatMoneyUI(grandTotals.total, hideFinance)}
                             </td>
                           </tr>
                         </tbody>
@@ -3610,7 +3614,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               }
             })()}
 
-            <CostManager
+            <CostManager hideFinance={hideFinance}
               costsStr={profileData?.generalIncomesStr}
               type="generalIncomesStr"
               userId={userId}
@@ -3634,7 +3638,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               const mergedCostsStr = JSON.stringify(mergedCosts);
               
               return (
-                <CostManager
+                <CostManager hideFinance={hideFinance}
                   costsStr={mergedCostsStr}
                   type="generalCostsStr"
                   userId={userId}
@@ -3947,25 +3951,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 ></textarea>
               </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Termos de Contrato e Prestação de Serviços Técnicos (LGPD e
-                  Regras)
-                </label>
-                <p className="text-xs text-slate-500 mb-2">
-                  Este texto será exibido aos pacientes quando você enviar o
-                  link para assinatura online.
-                </p>
-                <textarea
-                  rows={8}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none placeholder-slate-400"
-                  value={editForm.contractTerms || ""}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, contractTerms: e.target.value })
-                  }
-                  placeholder="Ex: Cláusula 1..."
-                ></textarea>
-              </div>
+              
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div>
@@ -4575,9 +4561,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between lg:justify-end gap-6 shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-700/60">
                             <div className="text-left lg:text-right">
                               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider leading-none">Preço cobrado</span>
-                              <p className="text-base sm:text-lg font-black text-slate-700 dark:text-slate-200 mt-1">
-                                {svc.price === 0 ? "A combinar" : `R$ ${svc.price.toFixed(2).replace('.', ',')}`}
-                              </p>
+                                <p className="text-base sm:text-lg font-black text-slate-700 dark:text-slate-200 mt-1">
+                                  {svc.price === 0 ? "A combinar" : formatMoneyUI(svc.price, hideFinance)}
+                                </p>
                             </div>
 
                             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -5448,6 +5434,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       >
                         <Copy className="w-3.5 h-3.5" /> Copiar Link
                       </button>
+                      <button
+                        onClick={() => setShowContractEditor("paciente")}
+                        className="bg-amber-50 hover:bg-amber-100 text-amber-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                        title="Editar Contrato"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Editar
+                      </button>
                     </p>
                   </div>
                   {!profileData?.publicDomain &&
@@ -5491,11 +5484,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Faturamento Total (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-slate-800">
-                    R${" "}
-                    {appointmentsInPeriod
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                    {formatMoneyUI(appointmentsInPeriod
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
                   </p>
                 </div>
                 {pacientesBillingFilter === "all" && (
@@ -5516,12 +5506,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Recebido (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    R${" "}
-                    {appointmentsInPeriod
+                    {formatMoneyUI(appointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "paid")
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      , hideFinance)}
                   </p>
                 </div>
                 {pacientesBillingFilter === "paid" && (
@@ -5542,12 +5530,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     A Receber (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-amber-900">
-                    R${" "}
-                    {appointmentsInPeriod
+                    {formatMoneyUI(appointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "pending")
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      , hideFinance)}
                   </p>
                 </div>
                 {pacientesBillingFilter === "pending" && (
@@ -7377,12 +7363,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     <td className="p-3 border-r border-slate-100">
                                                       <div className="flex flex-col gap-1">
                                                         <span className="text-sm font-medium">
-                                                          R${" "}
-                                                          {Number(
+                                                          {formatMoneyUI(Number(
                                                             ap.totalAmount || 0,
                                                           )
-                                                            .toFixed(2)
-                                                            .replace(".", ",")}
+                                                            , hideFinance)}
                                                         </span>
                                                         <div className="flex flex-wrap items-center gap-1">
                                                           {ap.priceAdjust && (
@@ -7549,8 +7533,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Total Pendente:
                                             </span>
                                             <span className="font-bold text-amber-900 text-xl">
-                                              R${" "}
-                                              {filteredClientAppts
+                                              {formatMoneyUI(filteredClientAppts
                                                 .filter(
                                                   (a: any) =>
                                                     (a.paymentStatus ||
@@ -7564,8 +7547,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     ),
                                                   0,
                                                 )
-                                                .toFixed(2)
-                                                .replace(".", ",")}
+                                                , hideFinance)}
                                             </span>
                                           </div>
                                         )}
@@ -7576,8 +7558,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Total Pago (Período/Histórico):
                                             </span>
                                             <span className="font-bold text-emerald-900 text-xl">
-                                              R${" "}
-                                              {filteredClientAppts
+                                              {formatMoneyUI(filteredClientAppts
                                                 .filter(
                                                   (a: any) =>
                                                     (a.paymentStatus ||
@@ -7591,8 +7572,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     ),
                                                   0,
                                                 )
-                                                .toFixed(2)
-                                                .replace(".", ",")}
+                                                , hideFinance)}
                                             </span>
                                           </div>
                                         )}
@@ -7647,6 +7627,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       >
                         <Copy className="w-3.5 h-3.5" /> Copiar Link
                       </button>
+                      <button
+                        onClick={() => setShowContractEditor("empresa")}
+                        className="bg-amber-50 hover:bg-amber-100 text-amber-600 px-2.5 py-1 rounded-md transition font-medium flex items-center gap-1.5"
+                        title="Editar Contrato"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Editar
+                      </button>
                     </p>
                   </div>
                   {!profileData?.publicDomain &&
@@ -7690,11 +7677,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Faturamento Total (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-slate-800">
-                    R${" "}
-                    {companyAppointmentsInPeriod
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                    {formatMoneyUI(companyAppointmentsInPeriod
+                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
                   </p>
                 </div>
                 {empresasBillingFilter === "all" && (
@@ -7715,12 +7699,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Recebido (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    R${" "}
-                    {companyAppointmentsInPeriod
+                    {formatMoneyUI(companyAppointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "paid")
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      , hideFinance)}
                   </p>
                 </div>
                 {empresasBillingFilter === "paid" && (
@@ -7741,12 +7723,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     A Receber (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-amber-900">
-                    R${" "}
-                    {companyAppointmentsInPeriod
+                    {formatMoneyUI(companyAppointmentsInPeriod
                       .filter((a) => (a.paymentStatus || "pending") === "pending")
                       .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                      , hideFinance)}
                   </p>
                 </div>
                 {empresasBillingFilter === "pending" && (
@@ -7820,121 +7800,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   <Plus className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-emerald-600" />
-                  Faturamento da Empresa (Período Filtrado)
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    companyGlobalInvoiceFilter !== "all"
-                      ? "bg-white border-blue-400 ring-1 ring-blue-400"
-                      : "bg-white border-slate-200 hover:border-slate-300",
-                  )}
-                  onClick={() => setGlobalBillingFilter("all")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-slate-500 font-medium mb-1">
-                      Total do Mês (Previsto)
-                    </p>
-                    <p className="text-2xl font-bold text-slate-800">
-                      R${" "}
-                      {(totalCompanyPaidInPeriod + totalCompanyPendingInPeriod)
-                        .toFixed(2)
-                        .replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "all" && (
-                    <Check className="w-5 h-5 text-amber-500 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "paid"
-                      ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
-                      : "bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("paid")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-emerald-700 font-medium mb-1">
-                      Recebido
-                    </p>
-                    <p className="text-2xl font-bold text-emerald-900">
-                      R$ {totalCompanyPaidInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "paid" && (
-                    <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border shadow-sm transition cursor-pointer relative overflow-hidden",
-                    globalBillingFilter === "pending"
-                      ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
-                      : "bg-white border-amber-100 hover:border-amber-300 hover:bg-amber-50/50",
-                  )}
-                  onClick={() => setGlobalBillingFilter("pending")}
-                >
-                  <div className="z-10 relative">
-                    <p className="text-sm text-amber-700 font-medium mb-1">
-                      Pendente (À receber)
-                    </p>
-                    <p className="text-2xl font-bold text-amber-900">
-                      R${" "}
-                      {totalCompanyPendingInPeriod.toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {globalBillingFilter === "pending" && (
-                    <Check className="w-5 h-5 text-amber-600 absolute top-4 right-4" />
-                  )}
-                </div>
-              </div>
-
-              {Object.keys(totalCompanyByBillingAccount).length > 0 && (
-                <div className="mt-6 pt-4 border-t border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-700 mb-3">
-                    Recebido por Conta / Local (Empresas)
-                  </h4>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(totalCompanyByBillingAccount)
-                      .sort((a, b) => (b[1] as number) - (a[1] as number))
-                      .map(([account, total]) => (
-                        <div
-                          key={account}
-                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm shadow-sm flex items-center gap-3"
-                        >
-                          <span className="font-medium text-slate-600">
-                            {account}
-                          </span>
-                          <span className="font-bold text-emerald-700">
-                            R$ {(total as number).toFixed(2).replace(".", ",")}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {globalBillingFilter !== "all" && (
-                <p className="text-xs text-slate-500 mt-4 text-center">
-                  Exibindo apenas empresas com faturamento{" "}
-                  <strong>
-                    {globalBillingFilter === "paid"
-                      ? "concluído (pago)"
-                      : "pendente"}
-                  </strong>{" "}
-                  no período selecionado.
-                </p>
-              )}
             </div>
 
             {editingCompanyId === "new" && (
@@ -8231,21 +8096,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </button>
                     </div>
                   </form>
-                </div>
-              </div>
-            )}
-
-            {companies.length > 0 && (
-              <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-end">
-                <div className="relative w-full sm:max-w-md">
-                  <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nome ou e-mail..."
-                    className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
-                    value={companySearchText}
-                    onChange={(e) => setCompanySearchText(e.target.value)}
-                  />
                 </div>
               </div>
             )}
@@ -9763,12 +9613,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   <td className="p-3 border-r border-slate-100">
                                                     <div className="flex flex-col gap-2">
                                                       <span className="font-medium">
-                                                        R${" "}
-                                                        {Number(
+                                                        {formatMoneyUI(Number(
                                                           ap.totalAmount || 0,
-                                                        )
-                                                          .toFixed(2)
-                                                          .replace(".", ",")}
+                                                        ), hideFinance)}
                                                       </span>
                                                       <div className="flex flex-wrap items-center gap-2">
                                                         {ap.priceAdjust && (
@@ -9936,8 +9783,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             Total Pendente:
                                           </span>
                                           <span className="font-bold text-amber-900 text-xl">
-                                            R${" "}
-                                            {filteredCompanyAppts
+                                            {formatMoneyUI(filteredCompanyAppts
                                               .filter(
                                                 (a: any) =>
                                                   (a.paymentStatus ||
@@ -9949,8 +9795,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   Number(curr.totalAmount || 0),
                                                 0,
                                               )
-                                              .toFixed(2)
-                                              .replace(".", ",")}
+                                              , hideFinance)}
                                           </span>
                                         </div>
                                       )}
@@ -9961,8 +9806,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             Total Pago (Período/Histórico):
                                           </span>
                                           <span className="font-bold text-emerald-900 text-xl">
-                                            R${" "}
-                                            {filteredCompanyAppts
+                                            {formatMoneyUI(filteredCompanyAppts
                                               .filter(
                                                 (a: any) =>
                                                   (a.paymentStatus ||
@@ -9974,8 +9818,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   Number(curr.totalAmount || 0),
                                                 0,
                                               )
-                                              .toFixed(2)
-                                              .replace(".", ",")}
+                                              , hideFinance)}
                                           </span>
                                         </div>
                                       )}
@@ -10396,7 +10239,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       onChange={(e) =>
                         setEditForm({ ...editForm, whatsappFinancialTemplate: e.target.value })
                       }
-                      placeholder={`Ex: Olá {nome}. Segue fechamento das nossas sessões realizadas. O valor pendente é de R$ {valor}. Pix de pagamento: {pix}. Abraço.`}
+                      placeholder={`Ex: Olá {nome}. Segue fechamento das nossas sessões realizadas. O valor pendente é de {valor}. Pix de pagamento: {pix}. Abraço.`}
                     />
                   </div>
 
@@ -10462,7 +10305,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               
               <div className="grid gap-6">
                 <a 
-                  href={supportSettings?.phone ? `https://wa.me/${supportSettings.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(supportSettings.message || 'Olá, preciso de ajuda com a plataforma.')}` : '#'}
+                  href={supportSettings?.phone ? `https://wa.me/${formatWa(supportSettings.phone)}?text=${encodeURIComponent(supportSettings.message || 'Olá, preciso de ajuda com a plataforma.')}` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
@@ -10505,6 +10348,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "assinatura" && (
           <div className="animate-in fade-in">
+            <TabHeader icon={CreditCard} title="Assinatura" description="Área onde o próprio psicólogo gerencia sua assinatura do SaaS da ELO (planos, atualizações e pagamentos)." />
             <SubscriptionManager 
               userId={userId} 
               profileData={profileData} 
@@ -10814,7 +10658,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           const serviceName =
                             appt.serviceName || "Sessão Padrão";
                           const amount = Number(appt.totalAmount || 0);
-                          const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace(".", ",")}`;
+                          const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace('.', ',')}`;
                           const isChecked = receiptSessionIds.includes(appt.id);
 
                           return (
@@ -10863,7 +10707,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                                   currentMsg = currentMsg.replace(
                                     /Total: R\$ \d*(?:\.\d+)?(?:,\d{2})?/,
-                                    `Total: R$ ${newTotal.toFixed(2).replace(".", ",")}`,
+                                    `Total: R$ ${newTotal.toFixed(2).replace('.', ',')}`,
                                   );
 
                                   setNotificationMessage(currentMsg);
@@ -10876,7 +10720,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 {serviceName}
                               </span>
                               <span className="font-bold text-slate-700 ml-auto">
-                                R$ {amount.toFixed(2).replace(".", ",")}
+                                {formatMoneyUI(amount, hideFinance)}
                               </span>
                             </label>
                           );
@@ -10929,7 +10773,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <Mail className="w-4 h-4" /> Enviar por E-mail
               </a>
               <a
-                href={`https://wa.me/55${notificationModalClient.phone?.replace(/\D/g, "")}?text=${encodeURIComponent(notificationMessage)}`}
+                href={`https://wa.me/${formatWa(notificationModalClient.phone)}?text=${encodeURIComponent(notificationMessage)}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => setNotificationModalClient(null)}
@@ -10969,6 +10813,76 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   Confirmar Exclusão
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showContractEditor && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-3xl flex flex-col max-h-[90vh] shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-500" />
+                Editar Termos de Contrato ({showContractEditor === "paciente" ? "Pacientes" : "Empresas"})
+              </h3>
+              <button
+                onClick={() => setShowContractEditor(null)}
+                className="p-2 hover:bg-slate-100 rounded-full transition text-slate-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <p className="text-sm text-slate-500 mb-4">
+                Este texto será exibido aos {showContractEditor === "paciente" ? "pacientes" : "empresas"} quando você enviar o
+                link de termos para assinatura online.
+              </p>
+              <textarea
+                rows={15}
+                className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none placeholder-slate-400 font-mono text-sm leading-relaxed"
+                value={
+                  showContractEditor === "paciente"
+                    ? profileData?.contractTerms || ""
+                    : profileData?.companyContractTerms || ""
+                }
+                onChange={(e) => {
+                  onUpdateProfile({
+                    ...profileData,
+                    [showContractEditor === "paciente" ? "contractTerms" : "companyContractTerms"]: e.target.value
+                  });
+                }}
+                placeholder="Insira as cláusulas do contrato aqui..."
+              />
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0 bg-white/80 backdrop-blur-md">
+              <button
+                onClick={() => setShowContractEditor(null)}
+                className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const field = showContractEditor === "paciente" ? "contractTerms" : "companyContractTerms";
+                    await updateDoc(doc(db, "profiles", userId), {
+                       [field]: profileData?.[field] || "",
+                       updatedAt: serverTimestamp(),
+                    });
+                    alert("Contrato salvo com sucesso!");
+                    setShowContractEditor(null);
+                  } catch(e) {
+                    alert("Erro ao salvar");
+                  }
+                  setSaving(false);
+                }}
+                disabled={saving}
+                className="px-5 py-2.5 bg-slate-900 text-white font-medium hover:bg-slate-800 rounded-xl transition flex items-center gap-2"
+              >
+                {saving ? "Salvando..." : "Salvar Contrato"}
+              </button>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'fire
 import { THEMES, hexToRgb } from '../lib/themes';
 import { MessageCircle, ArrowRight, Star, Calendar, Building, GraduationCap, X, FileText, ExternalLink, Church, MapPin, Award, Share2, Check, Instagram, Facebook, Linkedin, Youtube, Link as LinkIcon, Phone, Mail, ArrowLeftRight, Mic, Users, Building2, MessageSquare, Heart, Eye, BookOpen, Brain, User, Smile, Compass, HeartPulse } from 'lucide-react';
 
-import { cn } from '../lib/utils';
+import { cn, formatWa } from '../lib/utils';
 
 const WidgetRenderer = ({ htmlCode }: { htmlCode: string }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
@@ -94,7 +94,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
 
   const openScheduleModal = (service: any, isPresencial: boolean = false) => {
     if (service.allowScheduling === false) {
-      window.open(`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + service.title)}`, '_blank');
+      window.open(`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + service.title)}`, '_blank');
       return;
     }
     setSelectedService(service);
@@ -131,7 +131,22 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
     whatsapp: '5511999999999',
   };
 
+
   const finalProfile = profileData || dummyProfile;
+
+  const hasVoce = finalProfile.services?.some((s: any) => s.category === 'voce') ?? false;
+  const hasEmpresa = finalProfile.services?.some((s: any) => s.category === 'empresa') ?? false;
+  const hasPsicologos = finalProfile.services?.some((s: any) => s.category === 'psicologos' || s.category === 'psicologo') ?? false;
+  const hasIgrejas = finalProfile.services?.some((s: any) => s.category === 'igrejas') ?? false;
+
+  useEffect(() => {
+    if (!hasVoce && activeTab === 'voce') {
+      if (hasEmpresa) setActiveTab('empresa');
+      else if (hasIgrejas) setActiveTab('igrejas');
+      else if (hasPsicologos) setActiveTab('psicologos');
+    }
+  }, [hasVoce, hasEmpresa, hasIgrejas, hasPsicologos, activeTab]);
+
 
   const customStyle: React.CSSProperties = {};
   if (finalProfile.themeColor && (!finalProfile.theme || finalProfile.theme === 'auto')) {
@@ -482,24 +497,24 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
         <ArrowLeftRight className="w-3 h-3 animate-pulse" />
       </div>
       <div className="relative flex overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-slate-200 mb-8 w-full">
-        <button 
+        {hasVoce && (<button 
           onClick={() => setActiveTab('voce')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'voce' ? "border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))]" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
           <div className="flex items-center gap-1.5 sm:gap-2"><Calendar className="w-4 h-4"/> Para Você</div>
-        </button>
-        <button 
+        </button>)}
+        {hasEmpresa && (<button 
           onClick={() => setActiveTab('empresa')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'empresa' ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
           <div className="flex items-center gap-1.5 sm:gap-2"><Building className="w-4 h-4"/> Para sua Empresa</div>
-        </button>
-        <button 
+        </button>)}
+        {hasPsicologos && (<button 
           onClick={() => setActiveTab('psicologos')}
           className={cn("px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-medium flex-shrink-0 transition-colors border-b-2", activeTab === 'psicologos' ? "border-purple-500 text-purple-600" : "border-transparent text-slate-500 hover:text-slate-800")}
         >
           <div className="flex items-center gap-1.5 sm:gap-2"><GraduationCap className="w-4 h-4"/> Para Psicólogos</div>
-        </button>
+        </button>)}
         {(isLoggedIn || showIgrejasTab) && (
           <button 
             onClick={() => setActiveTab('igrejas')}
@@ -532,7 +547,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                       {svc.allowScheduling === false ? (
                         <a 
-                          href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                          href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                           target="_blank" 
                           rel="noreferrer"
                           className="w-full bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center flex items-center justify-center gap-2"
@@ -555,7 +570,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                             </button>
                           )}
                           <a 
-                            href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                            href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                             target="_blank" 
                             rel="noreferrer"
                             className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
@@ -577,7 +592,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                   {finalProfile.services?.[0]?.allowScheduling === false ? (
                     <a 
-                      href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
+                      href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
                       target="_blank" 
                       rel="noreferrer"
                       className="w-full bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-center"
@@ -600,7 +615,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                         </button>
                       )}
                       <a 
-                        href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
+                        href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre a Terapia Individual')}`}
                         target="_blank" 
                         rel="noreferrer"
                         className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-sm sm:text-base shadow-sm hover:bg-slate-100 transition-colors flex items-center justify-center text-center gap-2"
@@ -625,7 +640,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                       <div className="flex items-center gap-3 mb-2">                        <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">                          {getServiceIcon(svc.category, svc.title)}                        </div>                        <h3 className="text-base sm:text-lg font-bold text-emerald-900">{svc.title}</h3>                      </div>
                       <p className="text-sm sm:text-base text-emerald-800 mb-5 sm:mb-6 text-justify">{svc.description}</p>
                       <div className="flex justify-start">
-                        <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
+                        <a href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa (${svc.title}).`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
                       </div>
                     </div>
                  ))}
@@ -638,7 +653,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  </p>
                  <div className="p-6 border border-emerald-100 bg-emerald-50 rounded-xl text-center">
                    <p className="text-emerald-800 font-medium mb-4">Tem interesse em levar meu trabalho para sua equipe?</p>
-                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa.`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
+                   <a href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent(`Olá, gostaria de solicitar um orçamento para serviços para empresa.`)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-emerald-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-emerald-700 transition-colors">Solicitar Orçamento</a>
                  </div>
                </>
             )}
@@ -660,7 +675,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                           className="w-full sm:flex-1 bg-blue-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-blue-700 transition-colors text-center"
                         >{svc?.allowScheduling === false ? 'Agendar pelo WhatsApp' : 'Agendar Agora'}</button>
                         <a 
-                          href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                          href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                           target="_blank" 
                           rel="noreferrer"
                           className="w-full sm:flex-1 bg-white border border-blue-200 text-blue-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-blue-50 transition-colors text-center flex items-center justify-center"
@@ -679,7 +694,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  </p>
                  <div className="p-6 border border-blue-100 bg-blue-50 rounded-xl text-center">
                    <p className="text-blue-800 font-medium mb-4">Entre em contato para saber mais sobre palestras e atendimento focado neste segmento.</p>
-                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de saber mais sobre os serviços voltados para igrejas.')}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-colors">Solicitar mais informações</a>
+                   <a href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de saber mais sobre os serviços voltados para igrejas.')}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-colors">Solicitar mais informações</a>
                  </div>
                </>
             )}
@@ -698,7 +713,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                       <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
                         {svc.allowScheduling === false ? (
                           <a 
-                            href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                            href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                             target="_blank" 
                             rel="noreferrer"
                             className="w-full bg-purple-600 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center flex items-center justify-center gap-2"
@@ -721,7 +736,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                               </button>
                             )}
                             <a 
-                              href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
+                              href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, gostaria de conversar sobre ' + svc.title)}`}
                               target="_blank" 
                               rel="noreferrer"
                               className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
@@ -742,7 +757,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                  </p>
                  <div className="p-6 border border-purple-100 bg-purple-50 rounded-xl text-center">
                    <p className="text-purple-800 font-medium mb-4">Vagas limitadas para grupos de estudo e supervisão individual.</p>
-                   <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-purple-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-purple-700 transition-colors">Falar sobre Supervisão</a>
+                   <a href={`https://wa.me/${formatWa(finalProfile.whatsapp)}`} target="_blank" rel="noreferrer" className="w-full text-center sm:w-auto inline-block bg-purple-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium hover:bg-purple-700 transition-colors">Falar sobre Supervisão</a>
                  </div>
                </>
             )}
@@ -900,7 +915,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-t border-slate-100 pt-10">
               
               {/* Coluna 1: Para Você */}
-              <div>
+              {hasVoce && (<div>
                 <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Você</h4>
                 <ul className="space-y-3 text-sm text-slate-500">
                   {finalProfile.services?.filter((s: any) => s.category === 'voce').map((svc: any, idx: number) => (
@@ -911,10 +926,10 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     </li>
                   ))}
                 </ul>
-              </div>
+              </div>)}
 
               {/* Coluna 2: Para a Empresa */}
-              <div>
+              {hasEmpresa && (<div>
                 <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para sua Empresa</h4>
                 <ul className="space-y-3 text-sm text-slate-500">
                   {finalProfile.services?.filter((s: any) => s.category === 'empresa').map((svc: any, idx: number) => (
@@ -925,10 +940,10 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     </li>
                   ))}
                 </ul>
-              </div>
+              </div>)}
 
               {/* Coluna 3: Para Psicólogos */}
-              <div>
+              {hasPsicologos && (<div>
                 <h4 className="text-slate-800 font-bold mb-4 uppercase text-xs tracking-wider">Para Psicólogos</h4>
                 <ul className="space-y-3 text-sm text-slate-500">
                   {finalProfile.services?.filter((s: any) => s.category === 'psicologos' || s.category === 'psicologo').map((svc: any, idx: number) => (
@@ -939,7 +954,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                     </li>
                   ))}
                 </ul>
-              </div>
+              </div>)}
               {/* Coluna 4: Para Igrejas */}
               {(isLoggedIn || showIgrejasTab) && (
                 <div>
@@ -1036,7 +1051,7 @@ export function LandingPage({ therapistId, profileData, onBook, isLoggedIn }: { 
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <a href={`https://wa.me/${finalProfile.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá, tenho fácil acesso ao seu consultório e gostaria de agendar uma sessão presencialmente.')}`}
+                  <a href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent('Olá, tenho fácil acesso ao seu consultório e gostaria de agendar uma sessão presencialmente.')}`}
                      target="_blank" rel="noreferrer"
                      className="w-full bg-[rgb(var(--theme-primary))] text-white font-semibold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity text-center text-sm"
                      onClick={() => setShowScheduleModal(false)}>

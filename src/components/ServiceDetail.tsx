@@ -1,3 +1,4 @@
+import { formatWa } from "../lib/utils";
 import React from 'react';
 import { ArrowLeft, Clock, MapPin, Building, GraduationCap, Calendar, Church } from 'lucide-react';
 import { ReviewSection } from './ReviewSection';
@@ -9,7 +10,7 @@ export function ServiceDetail({ therapistId, service, profileData, onBack }: { t
     const text = encodeURIComponent(`Olá, gostaria de conversar sobre o serviço: ${service.title}`);
     const whatsapp = profileData?.whatsapp?.replace(/\\D/g, '');
     if (whatsapp) {
-      window.open(`https://wa.me/${whatsapp}?text=${text}`, '_blank');
+      window.open(`https://wa.me/${formatWa(whatsapp)}?text=${text}`, '_blank');
     }
   };
 
