@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Share2, Check, MessageCircle } from 'lucide-react';
-import { formatWa } from '../lib/utils';
+import React, { useState } from "react";
+import { Share2, Check, MessageCircle } from "lucide-react";
+import { formatWa } from "../lib/utils";
 
 export function FloatingActions({ whatsapp }: { whatsapp?: string }) {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -18,9 +18,13 @@ export function FloatingActions({ whatsapp }: { whatsapp?: string }) {
         className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-slate-600 hover:bg-slate-800 hover:scale-105 transition-all backdrop-blur-md"
         title="Compartilhar Perfil"
       >
-        {copiedLink ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
+        {copiedLink ? (
+          <Check className="w-5 h-5 text-emerald-400" />
+        ) : (
+          <Share2 className="w-5 h-5" />
+        )}
       </button>
-      
+
       {whatsapp && (
         <a
           href={`https://wa.me/${formatWa(whatsapp)}`}

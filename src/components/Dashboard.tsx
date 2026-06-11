@@ -214,7 +214,10 @@ function CostManager({
       if (c.id === item.id) {
         return {
           ...c,
-          status: (c.status || "pago") === "pendente" ? "pago" : "pendente" as "pago" | "pendente"
+          status:
+            (c.status || "pago") === "pendente"
+              ? "pago"
+              : ("pendente" as "pago" | "pendente"),
         };
       }
       return c;
@@ -317,14 +320,14 @@ function CostManager({
         <input
           type="text"
           placeholder={isIncome ? "Nome da receita..." : "Nome do custo..."}
-          className="flex-1 min-w-[150px] p-2 border rounded-lg text-sm bg-white focus:ring-amber-400"
+          className="flex-1 min-w-[150px] p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
         <div className="flex w-full sm:w-auto gap-2">
           <select
-            className="p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 flex-1 sm:flex-none"
+            className="p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 flex-1 sm:flex-none text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
             value={form.month}
             onChange={(e) => setForm({ ...form, month: e.target.value })}
           >
@@ -348,7 +351,7 @@ function CostManager({
               min="2000"
               max="2099"
               step="1"
-              className="w-20 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400"
+              className="w-20 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
               value={form.year}
               onChange={(e) => setForm({ ...form, year: e.target.value })}
               required
@@ -358,7 +361,7 @@ function CostManager({
 
         {/* Status Selection */}
         <select
-          className="p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-450 font-medium"
+          className="p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-450 font-medium text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
           value={form.status}
           onChange={(e) => setForm({ ...form, status: e.target.value as any })}
         >
@@ -369,7 +372,7 @@ function CostManager({
         {/* Billing Account/Location Selection field */}
         <div className="flex items-center gap-1 w-full sm:w-auto">
           <select
-            className="p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-400 w-full sm:w-48"
+            className="p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-400 w-full sm:w-48 text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
             value={form.account}
             onChange={(e) => setForm({ ...form, account: e.target.value })}
           >
@@ -397,7 +400,7 @@ function CostManager({
           step="0.01"
           min="0"
           placeholder="R$ 0,00"
-          className="w-28 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400"
+          className="w-28 p-2 border rounded-lg text-sm bg-white focus:ring-amber-400 text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
           value={form.amount}
           onChange={(e) => setForm({ ...form, amount: e.target.value })}
           required
@@ -445,7 +448,7 @@ function CostManager({
                     "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold border transition cursor-pointer hover:brightness-95 active:scale-95",
                     (c.status || "pago") === "pago"
                       ? "bg-emerald-50 text-emerald-700 border-emerald-150"
-                      : "bg-amber-50 text-amber-700 border-amber-150"
+                      : "bg-amber-50 text-amber-700 border-amber-150",
                   )}
                   title="Clique para alternar Pago / Pendente"
                 >
@@ -488,7 +491,6 @@ function CostManager({
   );
 }
 
-
 const TabHeader = ({ icon: Icon, title, description, badge }: any) => (
   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 animate-in fade-in slide-in-from-bottom-2">
     <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 text-[rgb(var(--theme-primary))]">
@@ -497,7 +499,11 @@ const TabHeader = ({ icon: Icon, title, description, badge }: any) => (
     <div className="flex-1">
       <div className="flex items-center gap-3 mb-1">
         <h2 className="text-xl font-bold text-slate-800">{title}</h2>
-        {badge && <span className="px-2 py-0.5 bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary))] text-xs font-medium rounded-full">{badge}</span>}
+        {badge && (
+          <span className="px-2 py-0.5 bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary))] text-xs font-medium rounded-full">
+            {badge}
+          </span>
+        )}
       </div>
       <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
     </div>
@@ -524,7 +530,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [activeServiceTab, setActiveServiceTab] = useState<
     "voce" | "empresa" | "psicologos" | "igrejas"
   >("voce");
-  const [showContractEditor, setShowContractEditor] = useState<"paciente" | "empresa" | null>(null);
+  const [showContractEditor, setShowContractEditor] = useState<
+    "paciente" | "empresa" | null
+  >(null);
   const [activeTab, setActiveTab] = useState<
     | "visao_geral"
     | "pacientes"
@@ -543,7 +551,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [clients, setClients] = useState<any[]>([]);
   const [hideFinance, setHideFinance] = useState(true);
 
-
   const [supportSettings, setSupportSettings] = useState<any>(null);
 
   useEffect(() => {
@@ -553,10 +560,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   useEffect(() => {
     const fetchSupport = async () => {
       try {
-        const snap = await getDoc(doc(db, 'admin_settings', 'support'));
+        const snap = await getDoc(doc(db, "admin_settings", "support"));
         if (snap.exists()) setSupportSettings(snap.data());
       } catch (e) {
-        console.error('Error fetching support settings:', e);
+        console.error("Error fetching support settings:", e);
       }
     };
     fetchSupport();
@@ -592,7 +599,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [notiPermission, setNotiPermission] = useState<string>(
     typeof window !== "undefined" && "Notification" in window
       ? Notification.permission
-      : "default"
+      : "default",
   );
 
   const requestNotificationPermission = async () => {
@@ -604,8 +611,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     return "default";
   };
 
-  const sendBrowserNotification = (title: string, body: string, tabToOnOpen?: string) => {
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+  const sendBrowserNotification = (
+    title: string,
+    body: string,
+    tabToOnOpen?: string,
+  ) => {
+    if (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
       const notification = new Notification(title, {
         body: body,
         icon: "/icon.png",
@@ -659,7 +674,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           ...profileData,
           billingAccountsStr: JSON.stringify(updated),
         });
-      }
+      },
     );
   };
 
@@ -669,27 +684,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       const currentDay = today.getDate();
       const currentMonth = today.getMonth() + 1; // 1-based
       const dateKey = `${today.getFullYear()}-${currentMonth}-${currentDay}`;
-      
+
       const storageKey = `notified_birthdays_${userId}_${dateKey}`;
       const notifiedListRaw = localStorage.getItem(storageKey);
       const notifiedIds = notifiedListRaw ? JSON.parse(notifiedListRaw) : [];
-      
+
       const newNotifiedIds = [...notifiedIds];
-      
+
       clientList.forEach((client) => {
         if (!client.dob || notifiedIds.includes(client.id)) return;
-        
+
         // Match DOB (YYYY-MM-DD)
         const parts = client.dob.split("-");
         if (parts.length === 3) {
           const monthPart = parseInt(parts[1], 10);
           const dayPart = parseInt(parts[2], 10);
-          
+
           if (dayPart === currentDay && monthPart === currentMonth) {
             sendBrowserNotification(
               "🎂 Aniversário Hoje!",
               `Hoje é aniversário de seu paciente ${client.name}! Envie os parabéns.`,
-              "pacientes"
+              "pacientes",
             );
             newNotifiedIds.push(client.id);
           }
@@ -703,14 +718,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               sendBrowserNotification(
                 "🎂 Aniversário Hoje!",
                 `Hoje é aniversário de seu paciente ${client.name}! Envie os parabéns.`,
-                "pacientes"
+                "pacientes",
               );
               newNotifiedIds.push(client.id);
             }
           }
         }
       });
-      
+
       if (newNotifiedIds.length !== notifiedIds.length) {
         localStorage.setItem(storageKey, JSON.stringify(newNotifiedIds));
       }
@@ -876,7 +891,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       (snapshot) => {
         const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setClients(list);
-        
+
         // Check birthdays for today
         checkTodayBirthdays(list);
 
@@ -887,14 +902,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               sendBrowserNotification(
                 "👤 Novo Paciente Cadastrado",
                 `O paciente ${clientData.name || "Sem nome"} foi adicionado ao sistema.`,
-                "pacientes"
+                "pacientes",
               );
             }
           });
         }
         isClientsInitial = false;
       },
-      (err) => console.error("Clients listener error:", err)
+      (err) => console.error("Clients listener error:", err),
     );
 
     // 2) Real-time listener for individual appointments
@@ -909,20 +924,20 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           snapshot.docChanges().forEach((change) => {
             if (change.type === "added") {
               const apptData = change.doc.data();
-              const formattedValue = apptData.totalAmount 
+              const formattedValue = apptData.totalAmount
                 ? ` no valor de R$ ${Number(apptData.totalAmount)}`
                 : "";
               sendBrowserNotification(
                 "📅 Novo Agendamento Recebido",
                 `Consulta de ${apptData.clientName || "Paciente"} agendada${formattedValue}.`,
-                "agenda"
+                "agenda",
               );
             }
           });
         }
         isApptsInitial = false;
       },
-      (err) => console.error("Appointments listener error:", err)
+      (err) => console.error("Appointments listener error:", err),
     );
 
     // 3) Real-time listener for company appointments
@@ -943,14 +958,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               sendBrowserNotification(
                 "🏢 Novo Agendamento de Empresa",
                 `Agendamento corporativo para ${apptData.companyName || "Empresa"} recebido${formattedValue}.`,
-                "empresas"
+                "empresas",
               );
             }
           });
         }
         isCompApptsInitial = false;
       },
-      (err) => console.error("Company appointments listener error:", err)
+      (err) => console.error("Company appointments listener error:", err),
     );
 
     // 4) Real-time listener for system notifications
@@ -968,8 +983,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               if (!notifData.isRead) {
                 sendBrowserNotification(
                   notifData.title || "🔔 Nova Notificação",
-                  notifData.message || "Você recebeu uma nova notificação do sistema.",
-                  "notificacoes"
+                  notifData.message ||
+                    "Você recebeu uma nova notificação do sistema.",
+                  "notificacoes",
                 );
               }
             }
@@ -977,7 +993,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         }
         isNotifsInitial = false;
       },
-      (err) => console.error("System notifications listener error:", err)
+      (err) => console.error("System notifications listener error:", err),
     );
 
     return () => {
@@ -1214,7 +1230,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             `profiles/${userId}/reviews/${reviewId}`,
           );
         }
-      }
+      },
     );
   };
 
@@ -1242,7 +1258,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [globalBillingFilter, setGlobalBillingFilter] = useState<
     "all" | "paid" | "pending"
   >("all");
-  
+
   const [pacientesBillingFilter, setPacientesBillingFilter] = useState<
     "all" | "paid" | "pending"
   >("all");
@@ -1279,8 +1295,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     if (!dStr) return true;
     const date = new Date(dStr || "");
     if (isNaN(date.getTime())) return true;
-    const month = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCMonth() : date.getMonth();
-    const year = (typeof dStr === 'string' && !dStr.includes("T")) ? date.getUTCFullYear() : date.getFullYear();
+    const month =
+      typeof dStr === "string" && !dStr.includes("T")
+        ? date.getUTCMonth()
+        : date.getMonth();
+    const year =
+      typeof dStr === "string" && !dStr.includes("T")
+        ? date.getUTCFullYear()
+        : date.getFullYear();
     return filterMonths.includes(month) && year === filterYear;
   });
 
@@ -1400,8 +1422,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
 
     // Apply Global Period Filter (Must have appointment in period OR be registered in period)
-    const hasApptInPeriod = appointmentsInPeriod.some(a => a.clientId === client.id);
-    const isRegisteredInPeriod = clientsInPeriod.some(c => c.id === client.id);
+    const hasApptInPeriod = appointmentsInPeriod.some(
+      (a) => a.clientId === client.id,
+    );
+    const isRegisteredInPeriod = clientsInPeriod.some(
+      (c) => c.id === client.id,
+    );
     if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
 
     if (globalBillingFilter !== "all") {
@@ -1625,7 +1651,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     } else if (template === "readjustment") {
       setNotificationSubject("Reajuste Anual de Honorários");
       setNotificationMessage(
-        `Olá ${firstName},\n\nPassando para informar que, conforme nosso contrato e/ou tempo de acompanhamento (anual), no próximo mês haverá o reajuste anual dos honorários das sessões. O objetivo desse reajuste é manter a qualidade do suporte, acompanhar a atualização da inflação e os novos investimentos em formação contínua.\n\nFico à disposição caso tenha alguma dúvida sobre os novos valores.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`
+        `Olá ${firstName},\n\nPassando para informar que, conforme nosso contrato e/ou tempo de acompanhamento (anual), no próximo mês haverá o reajuste anual dos honorários das sessões. O objetivo desse reajuste é manter a qualidade do suporte, acompanhar a atualização da inflação e os novos investimentos em formação contínua.\n\nFico à disposição caso tenha alguma dúvida sobre os novos valores.\n\nAbraço,\n${profileData?.name || "Psicólogo(a)"}`,
       );
     } else {
       setNotificationSubject("Contato");
@@ -1846,10 +1872,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     newStatus: string,
   ) => {
     try {
-      await updateDoc(
-        doc(db, `profiles/${userId}/appointments/${apptId}`),
-        { invoiceStatus: newStatus },
-      );
+      await updateDoc(doc(db, `profiles/${userId}/appointments/${apptId}`), {
+        invoiceStatus: newStatus,
+      });
       setAppointments(
         appointments.map((a) =>
           a.id === apptId ? { ...a, invoiceStatus: newStatus } : a,
@@ -1892,10 +1917,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     newStatus: string,
   ) => {
     try {
-      await updateDoc(
-        doc(db, `profiles/${userId}/appointments/${apptId}`),
-        { paymentStatus: newStatus },
-      );
+      await updateDoc(doc(db, `profiles/${userId}/appointments/${apptId}`), {
+        paymentStatus: newStatus,
+      });
       setAppointments(
         appointments.map((a) =>
           a.id === apptId ? { ...a, paymentStatus: newStatus } : a,
@@ -2214,7 +2238,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         isActive: companyEditForm.isActive,
         notes: companyEditForm.notes || "",
         source: companyEditForm.source || "Outros",
-        entryDate: companyEditForm.entryDate || new Date().toISOString().split('T')[0],
+        entryDate:
+          companyEditForm.entryDate || new Date().toISOString().split("T")[0],
       };
 
       if (editingCompanyId === "new") {
@@ -2713,7 +2738,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         isActive: clientEditForm.isActive !== false,
         notes: clientEditForm.notes || "",
         source: clientEditForm.source || "Outros",
-        entryDate: clientEditForm.entryDate || new Date().toISOString().split('T')[0],
+        entryDate:
+          clientEditForm.entryDate || new Date().toISOString().split("T")[0],
       };
 
       if (editingClientId === "new") {
@@ -2778,25 +2804,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const readjustmentAlerts = useMemo(() => {
     const alerts: any[] = [];
     const today = new Date();
-    
+
     const checkAlert = (entity: any, type: string) => {
       if (!entity.entryDate) return;
-      const entryParts = entity.entryDate.split('-');
+      const entryParts = entity.entryDate.split("-");
       if (entryParts.length !== 3) return;
-      
-      const entryDate = new Date(parseInt(entryParts[0]), parseInt(entryParts[1]) - 1, parseInt(entryParts[2]));
+
+      const entryDate = new Date(
+        parseInt(entryParts[0]),
+        parseInt(entryParts[1]) - 1,
+        parseInt(entryParts[2]),
+      );
       if (isNaN(entryDate.getTime())) return;
-      
+
       const currentYear = today.getFullYear();
-      let nextAnniv = new Date(currentYear, entryDate.getMonth(), entryDate.getDate());
-      
+      let nextAnniv = new Date(
+        currentYear,
+        entryDate.getMonth(),
+        entryDate.getDate(),
+      );
+
       if (nextAnniv.getTime() < today.getTime() - 24 * 60 * 60 * 1000) {
         nextAnniv.setFullYear(currentYear + 1);
       }
-      
+
       const diffMs = nextAnniv.getTime() - today.getTime();
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      
+
       const totalTimeMs = today.getTime() - entryDate.getTime();
       const totalTimeDays = Math.ceil(totalTimeMs / (1000 * 60 * 60 * 24));
 
@@ -2804,17 +2838,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         alerts.push({
           id: `readjustment-${entity.id}`,
           title: `Alerta de Reajuste: ${entity.name || entity.tradeName}`,
-          message: `O reajuste anual de honorários para ${type === 'client' ? 'o paciente' : 'a empresa'} ${entity.name || entity.tradeName} é no dia ${format(nextAnniv, "dd/MM/yyyy")} (${diffDays} dias).`,
+          message: `O reajuste anual de honorários para ${type === "client" ? "o paciente" : "a empresa"} ${entity.name || entity.tradeName} é no dia ${format(nextAnniv, "dd/MM/yyyy")} (${diffDays} dias).`,
           createdAt: new Date().toISOString(),
           isRead: false,
           isAlert: true,
-          client: entity
+          client: entity,
         });
       }
     };
 
-    clients.forEach(c => checkAlert(c, 'client'));
-    companies.forEach(c => checkAlert(c, 'company'));
+    clients.forEach((c) => checkAlert(c, "client"));
+    companies.forEach((c) => checkAlert(c, "company"));
 
     return alerts;
   }, [clients, companies]);
@@ -2832,8 +2866,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       {/* Sidebar */}
       <aside className="w-full md:w-64 flex-shrink-0 print:hidden">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2 mb-6">
-          <button onClick={() => setHideFinance(!hideFinance)} className="flex items-center justify-center gap-2 p-3 text-sm font-bold text-slate-600 hover:text-slate-800 transition rounded-2xl hover:bg-slate-50">
-            {hideFinance ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+          <button
+            onClick={() => setHideFinance(!hideFinance)}
+            className="flex items-center justify-center gap-2 p-3 text-sm font-bold text-slate-600 hover:text-slate-800 transition rounded-2xl hover:bg-slate-50"
+          >
+            {hideFinance ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
             {hideFinance ? "Mostrar Valores" : "Ocultar Valores"}
           </button>
         </div>
@@ -2984,7 +3025,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <Zap className="w-5 h-5 flex-shrink-0" />
             <span>Automações</span>
           </button>
-          
+
           <button
             onClick={() => setActiveTab("assinatura")}
             className={cn(
@@ -2997,9 +3038,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <CreditCard className="w-5 h-5 flex-shrink-0" />
             <span>Minha Assinatura</span>
           </button>
-          
+
           <div className="h-px bg-slate-100 my-2"></div>
-          
+
           <button
             onClick={() => setActiveTab("suporte")}
             className={cn(
@@ -3017,11 +3058,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       {/* Main Content */}
       <div className="flex-1">
-        {[
-          "visao_geral",
-          "pacientes",
-          "empresas",
-        ].includes(activeTab) && (
+        {["visao_geral", "pacientes", "empresas"].includes(activeTab) && (
           <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-slate-100 flex flex-col gap-4 mb-6 z-20">
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
@@ -3083,26 +3120,56 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         )}
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-in fade-in">
-            <TabHeader icon={LayoutDashboard} title="Visão Geral" description="Apresenta o painel resumo onde o profissional consegue visualizar rapidamente seu faturamento (pago vs. pendente) e os principais indicadores do momento." />
+            <TabHeader
+              icon={LayoutDashboard}
+              title="Visão Geral"
+              description="Apresenta o painel resumo onde o profissional consegue visualizar rapidamente seu faturamento (pago vs. pendente) e os principais indicadores do momento."
+            />
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
-
               {(() => {
                 let outrasReceitasTotal = 0;
                 try {
-                  const income = JSON.parse(profileData?.generalIncomesStr || "[]");
+                  const income = JSON.parse(
+                    profileData?.generalIncomesStr || "[]",
+                  );
                   const stringMonths = filterMonths.map(
-                    (i) => ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i]
+                    (i) =>
+                      [
+                        "Jan",
+                        "Fev",
+                        "Mar",
+                        "Abr",
+                        "Mai",
+                        "Jun",
+                        "Jul",
+                        "Ago",
+                        "Set",
+                        "Out",
+                        "Nov",
+                        "Dez",
+                      ][i],
                   );
                   const filtered = income.filter((c: any) => {
                     if (!c.month) return true;
                     if (stringMonths.length > 0)
-                      return stringMonths.includes(c.month) && c.year === filterYear.toString();
+                      return (
+                        stringMonths.includes(c.month) &&
+                        c.year === filterYear.toString()
+                      );
                     return true;
                   });
-                  outrasReceitasTotal = filtered.reduce((a: any, b: any) => a + b.amount, 0);
+                  outrasReceitasTotal = filtered.reduce(
+                    (a: any, b: any) => a + b.amount,
+                    0,
+                  );
                 } catch {}
-                
-                const globalFaturado = totalPaidInPeriod + totalPendingInPeriod + totalCompanyPaidInPeriod + totalCompanyPendingInPeriod + outrasReceitasTotal;
+
+                const globalFaturado =
+                  totalPaidInPeriod +
+                  totalPendingInPeriod +
+                  totalCompanyPaidInPeriod +
+                  totalCompanyPendingInPeriod +
+                  outrasReceitasTotal;
 
                 return (
                   <div className="bg-white border text-center border-slate-200 rounded-xl p-6 mb-6 shadow-sm flex flex-col items-center justify-center">
@@ -3124,17 +3191,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Pacientes (Recebido)
                   </h3>
                   <p className="text-2xl font-bold text-blue-900">
-                    {formatMoneyUI(appointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "paid")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
+                    {formatMoneyUI(
+                      appointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "paid",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                   <p className="text-xs text-red-500 font-medium mt-2">
-                    + {formatMoneyUI(appointmentsInPeriod
-                      .filter(
-                        (a) => (a.paymentStatus || "pending") === "pending",
-                      )
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}{" "}
+                    +{" "}
+                    {formatMoneyUI(
+                      appointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "pending",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}{" "}
                     pendente
                   </p>
                 </div>
@@ -3143,18 +3218,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Empresas (Recebido)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    {formatMoneyUI(companyAppointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "paid")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}
+                    {formatMoneyUI(
+                      companyAppointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "paid",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                   <p className="text-xs text-red-500 font-medium mt-2">
-                    + {formatMoneyUI(companyAppointmentsInPeriod
-                      .filter(
-                        (a) => (a.paymentStatus || "pending") === "pending",
-                      )
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}{" "}
+                    +{" "}
+                    {formatMoneyUI(
+                      companyAppointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "pending",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}{" "}
                     pendente
                   </p>
                 </div>
@@ -3163,74 +3245,30 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Outras Receitas
                   </h3>
                   <p className="text-2xl font-bold text-purple-900">
-                    {formatMoneyUI((() => {
-                      try {
-                        const income = JSON.parse(
-                          profileData?.generalIncomesStr || "[]",
-                        );
-                        const stringMonths = filterMonths.map(
-                          (i) =>
-                            [
-                              "Jan",
-                              "Fev",
-                              "Mar",
-                              "Abr",
-                              "Mai",
-                              "Jun",
-                              "Jul",
-                              "Ago",
-                              "Set",
-                              "Out",
-                              "Nov",
-                              "Dez",
-                            ][i],
-                        );
-                        const filtered = income.filter((c: any) => {
-                          if (!c.month) return true;
-                          if (stringMonths.length > 0)
-                            return (
-                              stringMonths.includes(c.month) &&
-                              c.year === filterYear.toString()
-                            );
-                          return true;
-                        });
-                        return filtered
-                          .reduce((a: any, b: any) => a + b.amount, 0)
-                          ;
-                      } catch {
-                        return "0,00";
-                      }
-                    })(), hideFinance)}
-                  </p>
-                </div>
-                <div className="bg-red-50 border border-red-100 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-red-800 mb-1">
-                    Todos os Custos e Despesas
-                  </h3>
-                  <p className="text-2xl font-bold text-red-900">
-                    {formatMoneyUI((() => {
-                      try {
-                        const stringMonths = filterMonths.map(
-                          (i) =>
-                            [
-                              "Jan",
-                              "Fev",
-                              "Mar",
-                              "Abr",
-                              "Mai",
-                              "Jun",
-                              "Jul",
-                              "Ago",
-                              "Set",
-                              "Out",
-                              "Nov",
-                              "Dez",
-                            ][i],
-                        );
-                        
-                        const getCosts = (str?: string) => {
-                          const items = JSON.parse(str || "[]");
-                          return items.filter((c: any) => {
+                    {formatMoneyUI(
+                      (() => {
+                        try {
+                          const income = JSON.parse(
+                            profileData?.generalIncomesStr || "[]",
+                          );
+                          const stringMonths = filterMonths.map(
+                            (i) =>
+                              [
+                                "Jan",
+                                "Fev",
+                                "Mar",
+                                "Abr",
+                                "Mai",
+                                "Jun",
+                                "Jul",
+                                "Ago",
+                                "Set",
+                                "Out",
+                                "Nov",
+                                "Dez",
+                              ][i],
+                          );
+                          const filtered = income.filter((c: any) => {
                             if (!c.month) return true;
                             if (stringMonths.length > 0)
                               return (
@@ -3238,19 +3276,71 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 c.year === filterYear.toString()
                               );
                             return true;
-                          }).reduce((a: any, b: any) => a + b.amount, 0);
-                        };
+                          });
+                          return filtered.reduce(
+                            (a: any, b: any) => a + b.amount,
+                            0,
+                          );
+                        } catch {
+                          return "0,00";
+                        }
+                      })(),
+                      hideFinance,
+                    )}
+                  </p>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-red-800 mb-1">
+                    Todos os Custos e Despesas
+                  </h3>
+                  <p className="text-2xl font-bold text-red-900">
+                    {formatMoneyUI(
+                      (() => {
+                        try {
+                          const stringMonths = filterMonths.map(
+                            (i) =>
+                              [
+                                "Jan",
+                                "Fev",
+                                "Mar",
+                                "Abr",
+                                "Mai",
+                                "Jun",
+                                "Jul",
+                                "Ago",
+                                "Set",
+                                "Out",
+                                "Nov",
+                                "Dez",
+                              ][i],
+                          );
 
-                        const c1 = getCosts(profileData?.generalCostsStr);
-                        const c2 = getCosts(profileData?.patientCostsStr);
-                        const c3 = getCosts(profileData?.companyCostsStr);
+                          const getCosts = (str?: string) => {
+                            const items = JSON.parse(str || "[]");
+                            return items
+                              .filter((c: any) => {
+                                if (!c.month) return true;
+                                if (stringMonths.length > 0)
+                                  return (
+                                    stringMonths.includes(c.month) &&
+                                    c.year === filterYear.toString()
+                                  );
+                                return true;
+                              })
+                              .reduce((a: any, b: any) => a + b.amount, 0);
+                          };
 
-                        return (c1 + c2 + c3)
-                          ;
-                      } catch {
-                        return "0,00";
-                      }
-                    })(), hideFinance)}
+                          const c1 = getCosts(profileData?.generalCostsStr);
+                          const c2 = getCosts(profileData?.patientCostsStr);
+                          const c3 = getCosts(profileData?.companyCostsStr);
+
+                          return c1 + c2 + c3;
+                        } catch {
+                          return "0,00";
+                        }
+                      })(),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
               </div>
@@ -3265,7 +3355,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       Total de Pacientes Ativos
                     </h3>
                     <p className="text-2xl font-bold text-slate-800">
-                      {clientsInPeriod.filter((c) => c.isActive !== false).length}
+                      {
+                        clientsInPeriod.filter((c) => c.isActive !== false)
+                          .length
+                      }
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -3278,7 +3371,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       Média de Valor de Serviços
                     </h3>
                     <p className="text-2xl font-bold text-slate-800">
-                      {formatMoneyUI(appointmentsInPeriod.length > 0 ? (totalPaidInPeriod + totalPendingInPeriod) / appointmentsInPeriod.length : 0, hideFinance)}
+                      {formatMoneyUI(
+                        appointmentsInPeriod.length > 0
+                          ? (totalPaidInPeriod + totalPendingInPeriod) /
+                              appointmentsInPeriod.length
+                          : 0,
+                        hideFinance,
+                      )}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -3409,7 +3508,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             {/* Quadro com os totais gerais por Conta / local de faturamento */}
             {(() => {
               try {
-                const incomes = JSON.parse(profileData?.generalIncomesStr || "[]");
+                const incomes = JSON.parse(
+                  profileData?.generalIncomesStr || "[]",
+                );
                 const stringMonths = filterMonths.map(
                   (i) =>
                     [
@@ -3427,7 +3528,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       "Dez",
                     ][i],
                 );
-                
+
                 // Group by Account / billing location
                 interface BillingGroup {
                   totalPaid: number;
@@ -3533,10 +3634,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </div>
                         <div>
                           <h3 className="font-bold text-slate-800 text-sm md:text-base">
-                            Receitas Consolidadas por Conta / Local de Faturamento
+                            Receitas Consolidadas por Conta / Local de
+                            Faturamento
                           </h3>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Valores unificados de todas as receitas do sistema (Pacientes, Empresas e Gerais) para os meses selecionados.
+                            Valores unificados de todas as receitas do sistema
+                            (Pacientes, Empresas e Gerais) para os meses
+                            selecionados.
                           </p>
                         </div>
                       </div>
@@ -3562,7 +3666,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             <th scope="col" className="px-5 py-3 text-right">
                               Pendente
                             </th>
-                            <th scope="col" className="px-5 py-3 text-right font-bold text-slate-800 bg-slate-50/45">
+                            <th
+                              scope="col"
+                              className="px-5 py-3 text-right font-bold text-slate-800 bg-slate-50/45"
+                            >
                               Total Acumulado
                             </th>
                           </tr>
@@ -3571,7 +3678,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           {groupKeys.map((key) => {
                             const gp = groups[key];
                             return (
-                              <tr key={key} className="hover:bg-slate-50/50 transition">
+                              <tr
+                                key={key}
+                                className="hover:bg-slate-50/50 transition"
+                              >
                                 <td className="px-5 py-4 font-semibold text-slate-700 flex items-center gap-2 min-h-[44px]">
                                   <span className="w-2.5 h-2.5 rounded-full bg-amber-450 block flex-shrink-0"></span>
                                   <span className="truncate">{key}</span>
@@ -3594,10 +3704,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               TOTAIS DO PERÍODO
                             </td>
                             <td className="px-5 py-4 text-right text-emerald-700 font-bold">
-                              {formatMoneyUI(grandTotals.totalPaid, hideFinance)}
+                              {formatMoneyUI(
+                                grandTotals.totalPaid,
+                                hideFinance,
+                              )}
                             </td>
                             <td className="px-5 py-4 text-right text-amber-700 font-bold">
-                              {formatMoneyUI(grandTotals.totalPending, hideFinance)}
+                              {formatMoneyUI(
+                                grandTotals.totalPending,
+                                hideFinance,
+                              )}
                             </td>
                             <td className="px-5 py-4 text-right text-slate-900 font-extrabold bg-slate-150/40 text-sm">
                               {formatMoneyUI(grandTotals.total, hideFinance)}
@@ -3614,7 +3730,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               }
             })()}
 
-            <CostManager hideFinance={hideFinance}
+            <CostManager
+              hideFinance={hideFinance}
               costsStr={profileData?.generalIncomesStr}
               type="generalIncomesStr"
               userId={userId}
@@ -3628,24 +3745,51 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               onManageAccounts={() => setIsManageAccountsOpen(true)}
             />
 
-            {(()=>{
+            {(() => {
               // Auto-merge legacy costs if they exist
               let mergedCosts: any[] = [];
-              try { if (profileData?.generalCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.generalCostsStr)]; } catch(e){}
-              try { if (profileData?.patientCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.patientCostsStr)]; } catch(e){}
-              try { if (profileData?.companyCostsStr) mergedCosts = [...mergedCosts, ...JSON.parse(profileData.companyCostsStr)]; } catch(e){}
-              
+              try {
+                if (profileData?.generalCostsStr)
+                  mergedCosts = [
+                    ...mergedCosts,
+                    ...JSON.parse(profileData.generalCostsStr),
+                  ];
+              } catch (e) {}
+              try {
+                if (profileData?.patientCostsStr)
+                  mergedCosts = [
+                    ...mergedCosts,
+                    ...JSON.parse(profileData.patientCostsStr),
+                  ];
+              } catch (e) {}
+              try {
+                if (profileData?.companyCostsStr)
+                  mergedCosts = [
+                    ...mergedCosts,
+                    ...JSON.parse(profileData.companyCostsStr),
+                  ];
+              } catch (e) {}
+
               const mergedCostsStr = JSON.stringify(mergedCosts);
-              
+
               return (
-                <CostManager hideFinance={hideFinance}
+                <CostManager
+                  hideFinance={hideFinance}
                   costsStr={mergedCostsStr}
                   type="generalCostsStr"
                   userId={userId}
                   onUpdates={(val) => {
                     const toUpdate: any = { generalCostsStr: val };
-                    if (profileData?.patientCostsStr && profileData.patientCostsStr !== '[]') toUpdate.patientCostsStr = '[]';
-                    if (profileData?.companyCostsStr && profileData.companyCostsStr !== '[]') toUpdate.companyCostsStr = '[]';
+                    if (
+                      profileData?.patientCostsStr &&
+                      profileData.patientCostsStr !== "[]"
+                    )
+                      toUpdate.patientCostsStr = "[]";
+                    if (
+                      profileData?.companyCostsStr &&
+                      profileData.companyCostsStr !== "[]"
+                    )
+                      toUpdate.companyCostsStr = "[]";
                     onUpdateProfile({ ...profileData, ...toUpdate });
                   }}
                   filterMonths={filterMonths}
@@ -3732,7 +3876,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       <input
                         type="file"
                         accept="image/*"
-                        className="hidden"
+                        className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                         disabled={!!uploadingImage}
                         onChange={(e) => handleImageUpload(e, "coverPhoto")}
                       />
@@ -3766,7 +3910,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           type="file"
                           accept="image/*"
-                          className="hidden"
+                          className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                           disabled={!!uploadingImage}
                           onChange={(e) => handleImageUpload(e, "profilePhoto")}
                         />
@@ -3838,7 +3982,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.name || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, name: e.target.value })
@@ -3852,7 +3996,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.title || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, title: e.target.value })
@@ -3868,7 +4012,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </label>
                 <input
                   type="text"
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                   value={editForm.bio || ""}
                   onChange={(e) =>
                     setEditForm({ ...editForm, bio: e.target.value })
@@ -3884,7 +4028,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.cpf || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, cpf: e.target.value })
@@ -3898,7 +4042,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.crp || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, crp: e.target.value })
@@ -3912,7 +4056,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="email"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.email || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, email: e.target.value })
@@ -3926,7 +4070,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.city || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, city: e.target.value })
@@ -3942,7 +4086,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </label>
                 <textarea
                   rows={4}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                   value={editForm.about || ""}
                   onChange={(e) =>
                     setEditForm({ ...editForm, about: e.target.value })
@@ -3951,8 +4095,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 ></textarea>
               </div>
 
-              
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -3960,7 +4102,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="tel"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.whatsapp || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, whatsapp: e.target.value })
@@ -3974,7 +4116,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.publicDomain || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, publicDomain: e.target.value })
@@ -3995,7 +4137,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={specialtiesText}
                     onChange={(e) => setSpecialtiesText(e.target.value)}
                     placeholder="Ex: Ansiedade, Depressão, Terapia de Casal"
@@ -4007,7 +4149,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={approachesText}
                     onChange={(e) => setApproachesText(e.target.value)}
                     placeholder="Ex: TCC, Psicanálise, Humanista"
@@ -4027,7 +4169,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="text"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.pixKey || ""}
                       onChange={(e) =>
                         setEditForm({ ...editForm, pixKey: e.target.value })
@@ -4062,7 +4204,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           type="file"
                           accept="image/*"
-                          className="hidden"
+                          className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                           disabled={!!uploadingImage}
                           onChange={(e) => handleImageUpload(e, "pixQrCode")}
                         />
@@ -4094,7 +4236,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="url"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.instagramUrl || ""}
                       onChange={(e) =>
                         setEditForm({
@@ -4111,7 +4253,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="url"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.facebookUrl || ""}
                       onChange={(e) =>
                         setEditForm({
@@ -4128,7 +4270,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="url"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.linkedinUrl || ""}
                       onChange={(e) =>
                         setEditForm({
@@ -4145,7 +4287,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="url"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.youtubeUrl || ""}
                       onChange={(e) =>
                         setEditForm({ ...editForm, youtubeUrl: e.target.value })
@@ -4183,7 +4325,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </label>
                       <input
                         type="text"
-                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={editForm.address || ""}
                         onChange={(e) =>
                           setEditForm({ ...editForm, address: e.target.value })
@@ -4197,7 +4339,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </label>
                       <textarea
                         rows={3}
-                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={editForm.howToGetThere || ""}
                         onChange={(e) =>
                           setEditForm({
@@ -4214,7 +4356,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </label>
                       <input
                         type="url"
-                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={editForm.googleMapsUrl || ""}
                         onChange={(e) =>
                           setEditForm({
@@ -4231,7 +4373,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </label>
                       <textarea
                         rows={3}
-                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={editForm.googleMapsEmbed || ""}
                         onChange={(e) =>
                           setEditForm({
@@ -4248,7 +4390,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </label>
                       <input
                         type="url"
-                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                        className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={editForm.googleReviewsUrl || ""}
                         onChange={(e) =>
                           setEditForm({
@@ -4278,7 +4420,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="text"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.companyName || ""}
                       onChange={(e) =>
                         setEditForm({
@@ -4295,7 +4437,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </label>
                     <input
                       type="text"
-                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.cnpj || ""}
                       onChange={(e) =>
                         setEditForm({ ...editForm, cnpj: e.target.value })
@@ -4328,7 +4470,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           type="file"
                           accept="image/*"
-                          className="hidden"
+                          className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                           onChange={(e) => handleImageUpload(e, "companyLogo")}
                         />
                       </label>
@@ -4495,19 +4637,22 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                 <div className="space-y-4">
                   {(() => {
-                    const filteredServices = (editForm.services || []).filter((svc: any) => {
-                      const actualCategory = svc.category || "voce";
-                      const normalizedCategory =
-                        actualCategory === "psicologo"
-                          ? "psicologos"
-                          : actualCategory;
-                      return normalizedCategory === activeServiceTab;
-                    });
+                    const filteredServices = (editForm.services || []).filter(
+                      (svc: any) => {
+                        const actualCategory = svc.category || "voce";
+                        const normalizedCategory =
+                          actualCategory === "psicologo"
+                            ? "psicologos"
+                            : actualCategory;
+                        return normalizedCategory === activeServiceTab;
+                      },
+                    );
 
                     if (filteredServices.length === 0) {
                       return (
                         <div className="text-center p-8 border border-dashed border-slate-200 rounded-2xl text-slate-500 text-sm bg-slate-50">
-                          Nenhum serviço cadastrado nesta área. Clique em <strong>Novo Serviço</strong> para começar!
+                          Nenhum serviço cadastrado nesta área. Clique em{" "}
+                          <strong>Novo Serviço</strong> para começar!
                         </div>
                       );
                     }
@@ -4515,13 +4660,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     return filteredServices.map((svc: any, idx: number) => {
                       const actualCategory = svc.category || "voce";
                       const normalizedCategory =
-                        actualCategory === "psicologo" ? "psicologos" : actualCategory;
+                        actualCategory === "psicologo"
+                          ? "psicologos"
+                          : actualCategory;
 
                       return (
                         <div
                           key={svc.id || idx}
                           onClick={() => setEditingServiceId(svc.id)}
-                          className="p-5 border border-slate-200 dark:border-slate-700/60 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-sm transition duration-200 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-6 group"
+                          className="p-5 border border-slate-200 dark:border-slate-700/60 rounded-2xl bg-white dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-sm transition duration-200 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-6 group"
                         >
                           {/* Left Column: Info, badges, duration */}
                           <div className="flex-1 space-y-2">
@@ -4531,12 +4678,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               </h3>
                               {svc.duration && (
                                 <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                                  <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-400" /> {svc.duration}
+                                  <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-400" />{" "}
+                                  {svc.duration}
                                 </span>
                               )}
                             </div>
                             <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                              {svc.description || "Nenhuma descrição fornecida."}
+                              {svc.description ||
+                                "Nenhuma descrição fornecida."}
                             </p>
 
                             <div className="flex items-center gap-2 pt-2 flex-wrap">
@@ -4560,22 +4709,39 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           {/* Right Column: Price and quick actions */}
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between lg:justify-end gap-6 shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-700/60">
                             <div className="text-left lg:text-right">
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider leading-none">Preço cobrado</span>
-                                <p className="text-base sm:text-lg font-black text-slate-700 dark:text-slate-200 mt-1">
-                                  {svc.price === 0 ? "A combinar" : formatMoneyUI(svc.price, hideFinance)}
-                                </p>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider leading-none">
+                                Preço cobrado
+                              </span>
+                              <p className="text-base sm:text-lg font-black text-slate-700 dark:text-slate-200 mt-1">
+                                {svc.price === 0
+                                  ? "A combinar"
+                                  : formatMoneyUI(svc.price, hideFinance)}
+                              </p>
                             </div>
 
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className="flex items-center gap-1.5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <button
                                 type="button"
                                 onClick={() => {
                                   if (idx === 0) return;
                                   const arr = [...editForm.services];
-                                  const realIdx = arr.findIndex((s: any) => s.id === svc.id);
-                                  const prevRealIdx = arr.findIndex((s: any, i: number) => i < realIdx && (s.category || "voce") === normalizedCategory);
+                                  const realIdx = arr.findIndex(
+                                    (s: any) => s.id === svc.id,
+                                  );
+                                  const prevRealIdx = arr.findIndex(
+                                    (s: any, i: number) =>
+                                      i < realIdx &&
+                                      (s.category || "voce") ===
+                                        normalizedCategory,
+                                  );
                                   if (realIdx !== -1 && prevRealIdx !== -1) {
-                                    [arr[realIdx], arr[prevRealIdx]] = [arr[prevRealIdx], arr[realIdx]];
+                                    [arr[realIdx], arr[prevRealIdx]] = [
+                                      arr[prevRealIdx],
+                                      arr[realIdx],
+                                    ];
                                     setEditForm({ ...editForm, services: arr });
                                   }
                                 }}
@@ -4590,10 +4756,20 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 type="button"
                                 onClick={() => {
                                   const arr = [...editForm.services];
-                                  const realIdx = arr.findIndex((s: any) => s.id === svc.id);
-                                  const nextRealIdx = arr.findIndex((s: any, i: number) => i > realIdx && (s.category || "voce") === normalizedCategory);
+                                  const realIdx = arr.findIndex(
+                                    (s: any) => s.id === svc.id,
+                                  );
+                                  const nextRealIdx = arr.findIndex(
+                                    (s: any, i: number) =>
+                                      i > realIdx &&
+                                      (s.category || "voce") ===
+                                        normalizedCategory,
+                                  );
                                   if (realIdx !== -1 && nextRealIdx !== -1) {
-                                    [arr[realIdx], arr[nextRealIdx]] = [arr[nextRealIdx], arr[realIdx]];
+                                    [arr[realIdx], arr[nextRealIdx]] = [
+                                      arr[nextRealIdx],
+                                      arr[realIdx],
+                                    ];
                                     setEditForm({ ...editForm, services: arr });
                                   }
                                 }}
@@ -4607,7 +4783,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const url = window.location.origin + `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
+                                  const url =
+                                    window.location.origin +
+                                    `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
                                   navigator.clipboard.writeText(url);
                                   alert("Link do serviço copiado!");
                                 }}
@@ -4629,9 +4807,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (confirm("Confirmar a exclusão permanente deste serviço?")) {
-                                    const newSvc = (editForm.services || []).filter((s: any) => s.id !== svc.id);
-                                    setEditForm({ ...editForm, services: newSvc });
+                                  if (
+                                    confirm(
+                                      "Confirmar a exclusão permanente deste serviço?",
+                                    )
+                                  ) {
+                                    const newSvc = (
+                                      editForm.services || []
+                                    ).filter((s: any) => s.id !== svc.id);
+                                    setEditForm({
+                                      ...editForm,
+                                      services: newSvc,
+                                    });
                                   }
                                 }}
                                 className="w-9 h-9 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition cursor-pointer"
@@ -4650,7 +4837,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
               <div className="flex flex-col sm:flex-row justify-between items-center pt-5 border-t border-slate-200 mt-6 gap-4">
                 <span className="text-xs text-slate-400 font-bold text-center sm:text-left">
-                  * Clique em qualquer card de serviço acima para configurá-lo no painel de edição popup.
+                  * Clique em qualquer card de serviço acima para configurá-lo
+                  no painel de edição popup.
                 </span>
                 <button
                   type="submit"
@@ -4663,251 +4851,293 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </form>
 
             {/* Edit Service Modal Popup Overlay */}
-            {editingServiceId && (() => {
-              const svcIdx = (editForm.services || []).findIndex((s: any) => s.id === editingServiceId);
-              if (svcIdx === -1) return null;
-              const svc = editForm.services[svcIdx];
+            {editingServiceId &&
+              (() => {
+                const svcIdx = (editForm.services || []).findIndex(
+                  (s: any) => s.id === editingServiceId,
+                );
+                if (svcIdx === -1) return null;
+                const svc = editForm.services[svcIdx];
 
-              return (
-                <div 
-                  className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
-                  onClick={() => setEditingServiceId(null)}
-                >
-                  <div 
-                    className="bg-white rounded-[2rem] border border-slate-105 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 animate-in zoom-in-95 duration-200 text-left flex flex-col justify-between"
-                    onClick={(e) => e.stopPropagation()}
+                return (
+                  <div
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                    onClick={() => setEditingServiceId(null)}
                   >
-                    {/* Modal Header */}
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-                      <div>
-                        <span className="bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-200/50">
-                          {activeServiceTab === "voce" 
-                            ? "Para Você (Atendimento Individual)" 
-                            : activeServiceTab === "empresa" 
-                              ? "Para Empresas (Corporativo)" 
-                              : activeServiceTab === "psicologos" 
-                                ? "Para Psicólogos (Mentoria/Supervisão)" 
-                                : "Para Igrejas (Institucional)"}
-                        </span>
-                        <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-1.5">
-                          {svc.title ? `Editar: ${svc.title}` : "Novo Serviço"}
-                        </h3>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setEditingServiceId(null)}
-                        className="w-8 h-8 rounded-full hover:bg-slate-100 transition flex items-center justify-center text-slate-400 hover:text-slate-700"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    {/* Modal Body */}
-                    <div className="space-y-5 flex-1 pr-1 overflow-y-auto max-h-[55vh]">
-                      {/* Name */}
-                      <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Título do Serviço</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-bold text-slate-800"
-                          value={svc.title}
-                          onChange={(e) => {
-                            const arr = [...editForm.services];
-                            arr[svcIdx].title = e.target.value;
-                            setEditForm({ ...editForm, services: arr });
-                          }}
-                          placeholder="Ex: Terapia Cognitivo-Comportamental Individual"
-                        />
-                      </div>
-
-                      {/* Price & Plan Range */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div
+                      className="bg-white rounded-[2rem] border border-slate-105 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 animate-in zoom-in-95 duration-200 text-left flex flex-col justify-between"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Modal Header */}
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
                         <div>
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Regime de Cobrança</label>
-                          <select
-                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-bold"
-                            value={svc.price === 0 ? "combinar" : "fixo"}
-                            onChange={(e) => {
-                              const arr = [...(editForm.services || [])];
-                              if (e.target.value === "combinar") {
-                                arr[svcIdx].price = 0;
-                              } else {
-                                arr[svcIdx].price = svc.price || 150;
-                              }
-                              setEditForm({ ...editForm, services: arr });
-                            }}
-                          >
-                            <option value="fixo">Preço Fixo (R$)</option>
-                            <option value="combinar">Sob Consulta / A combinar</option>
-                          </select>
+                          <span className="bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-200/50">
+                            {activeServiceTab === "voce"
+                              ? "Para Você (Atendimento Individual)"
+                              : activeServiceTab === "empresa"
+                                ? "Para Empresas (Corporativo)"
+                                : activeServiceTab === "psicologos"
+                                  ? "Para Psicólogos (Mentoria/Supervisão)"
+                                  : "Para Igrejas (Institucional)"}
+                          </span>
+                          <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-1.5">
+                            {svc.title
+                              ? `Editar: ${svc.title}`
+                              : "Novo Serviço"}
+                          </h3>
                         </div>
-
-                        {svc.price !== 0 && (
-                          <div>
-                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Preço do Serviço</label>
-                            <div className="relative">
-                              <span className="absolute left-3.5 top-3 text-slate-400 text-sm font-bold">R$</span>
-                              <input
-                                type="number"
-                                min="1"
-                                step="0.01"
-                                className="w-full pl-9 pr-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-black text-slate-800"
-                                value={svc.price}
-                                placeholder="150"
-                                onChange={(e) => {
-                                  const arr = [...(editForm.services || [])];
-                                  arr[svcIdx].price = Number(e.target.value);
-                                  setEditForm({ ...editForm, services: arr });
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Duration */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Tempo de Duração</label>
-                          <input
-                            type="text"
-                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-700 font-bold"
-                            value={svc.duration || ""}
-                            onChange={(e) => {
-                              const arr = [...editForm.services];
-                              arr[svcIdx].duration = e.target.value;
-                              setEditForm({ ...editForm, services: arr });
-                            }}
-                            placeholder="Ex: 50 minutos"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Atalho do Serviço</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const url = window.location.origin + `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
-                              navigator.clipboard.writeText(url);
-                              alert("Link do serviço copiado!");
-                            }}
-                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-xs bg-slate-50 hover:bg-slate-100 font-bold text-slate-600 transition flex items-center justify-center gap-2"
-                          >
-                            <Link className="w-4 h-4 text-slate-400" /> Copiar Link do Serviço
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Brief description */}
-                      <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Descrição Resumida (Para o Card)</label>
-                        <textarea
-                          rows={2}
-                          className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 leading-relaxed font-semibold"
-                          value={svc.description}
-                          onChange={(e) => {
-                            const arr = [...editForm.services];
-                            arr[svcIdx].description = e.target.value;
-                            setEditForm({ ...editForm, services: arr });
-                          }}
-                          placeholder="Digite um resumo sobre este atendimento..."
-                        />
-                      </div>
-
-                      {/* Detailed description */}
-                      <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Descrição Completa e Metodologia</label>
-                        <textarea
-                          rows={3}
-                          className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 text-justify leading-relaxed font-semibold"
-                          value={svc.detailedDescription || ""}
-                          onChange={(e) => {
-                            const arr = [...editForm.services];
-                            arr[svcIdx].detailedDescription = e.target.value;
-                            setEditForm({ ...editForm, services: arr });
-                          }}
-                          placeholder="Fale detalhadamente sobre a metodologia, para quem se destina, de que forma é feito..."
-                        />
-                      </div>
-
-                      {/* Feature options */}
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2.5">
-                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-wide mb-1">Opções do Fluxo de Atendimento</h4>
-                        
-                        <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
-                          <input
-                            type="checkbox"
-                            checked={svc.allowScheduling !== false}
-                            onChange={(e) => {
-                              const arr = [...editForm.services];
-                              arr[svcIdx].allowScheduling = e.target.checked;
-                              setEditForm({ ...editForm, services: arr });
-                            }}
-                            className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
-                          />
-                          <span>Permitir agendamento online de dia e horário diretamente pela plataforma</span>
-                        </label>
-
-                        <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
-                          <input
-                            type="checkbox"
-                            checked={svc.allowPayment !== false}
-                            onChange={(e) => {
-                              const arr = [...editForm.services];
-                              arr[svcIdx].allowPayment = e.target.checked;
-                              setEditForm({ ...editForm, services: arr });
-                            }}
-                            className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
-                          />
-                          <span>Exibir faturamento guiado com simulação/PIX no checkout</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Modal Footer */}
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-5 mt-6 gap-3 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("Deseja realmente deletar permanentemente este serviço do seu perfil?")) {
-                            const newSvc = (editForm.services || []).filter((s: any) => s.id !== editingServiceId);
-                            setEditForm({ ...editForm, services: newSvc });
-                            setEditingServiceId(null);
-                          }
-                        }}
-                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Excluir
-                      </button>
-
-                      <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setEditingServiceId(null)}
-                          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition cursor-pointer"
+                          className="w-8 h-8 rounded-full hover:bg-slate-100 transition flex items-center justify-center text-slate-400 hover:text-slate-700"
                         >
-                          Voltar
+                          <X className="w-5 h-5" />
                         </button>
+                      </div>
+
+                      {/* Modal Body */}
+                      <div className="space-y-5 flex-1 pr-1 overflow-y-auto max-h-[55vh]">
+                        {/* Name */}
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                            Título do Serviço
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-bold text-slate-800 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                            value={svc.title}
+                            onChange={(e) => {
+                              const arr = [...editForm.services];
+                              arr[svcIdx].title = e.target.value;
+                              setEditForm({ ...editForm, services: arr });
+                            }}
+                            placeholder="Ex: Terapia Cognitivo-Comportamental Individual"
+                          />
+                        </div>
+
+                        {/* Price & Plan Range */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                              Regime de Cobrança
+                            </label>
+                            <select
+                              className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-bold dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={svc.price === 0 ? "combinar" : "fixo"}
+                              onChange={(e) => {
+                                const arr = [...(editForm.services || [])];
+                                if (e.target.value === "combinar") {
+                                  arr[svcIdx].price = 0;
+                                } else {
+                                  arr[svcIdx].price = svc.price || 150;
+                                }
+                                setEditForm({ ...editForm, services: arr });
+                              }}
+                            >
+                              <option value="fixo">Preço Fixo (R$)</option>
+                              <option value="combinar">
+                                Sob Consulta / A combinar
+                              </option>
+                            </select>
+                          </div>
+
+                          {svc.price !== 0 && (
+                            <div>
+                              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                Preço do Serviço
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3.5 top-3 text-slate-400 text-sm font-bold">
+                                  R$
+                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="0.01"
+                                  className="w-full pl-9 pr-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white font-black text-slate-800 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                                  value={svc.price}
+                                  placeholder="150"
+                                  onChange={(e) => {
+                                    const arr = [...(editForm.services || [])];
+                                    arr[svcIdx].price = Number(e.target.value);
+                                    setEditForm({ ...editForm, services: arr });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Duration */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                              Tempo de Duração
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-700 font-bold dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={svc.duration || ""}
+                              onChange={(e) => {
+                                const arr = [...editForm.services];
+                                arr[svcIdx].duration = e.target.value;
+                                setEditForm({ ...editForm, services: arr });
+                              }}
+                              placeholder="Ex: 50 minutos"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                              Atalho do Serviço
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url =
+                                  window.location.origin +
+                                  `/?t=${auth.currentUser?.uid}&service=${svc.id}`;
+                                navigator.clipboard.writeText(url);
+                                alert("Link do serviço copiado!");
+                              }}
+                              className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-xs bg-slate-50 hover:bg-slate-100 font-bold text-slate-600 transition flex items-center justify-center gap-2"
+                            >
+                              <Link className="w-4 h-4 text-slate-400" /> Copiar
+                              Link do Serviço
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Brief description */}
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                            Descrição Resumida (Para o Card)
+                          </label>
+                          <textarea
+                            rows={2}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 leading-relaxed font-semibold dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                            value={svc.description}
+                            onChange={(e) => {
+                              const arr = [...editForm.services];
+                              arr[svcIdx].description = e.target.value;
+                              setEditForm({ ...editForm, services: arr });
+                            }}
+                            placeholder="Digite um resumo sobre este atendimento..."
+                          />
+                        </div>
+
+                        {/* Detailed description */}
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                            Descrição Completa e Metodologia
+                          </label>
+                          <textarea
+                            rows={3}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none bg-white text-slate-600 text-justify leading-relaxed font-semibold dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                            value={svc.detailedDescription || ""}
+                            onChange={(e) => {
+                              const arr = [...editForm.services];
+                              arr[svcIdx].detailedDescription = e.target.value;
+                              setEditForm({ ...editForm, services: arr });
+                            }}
+                            placeholder="Fale detalhadamente sobre a metodologia, para quem se destina, de que forma é feito..."
+                          />
+                        </div>
+
+                        {/* Feature options */}
+                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2.5">
+                          <h4 className="text-xs font-black text-slate-500 uppercase tracking-wide mb-1">
+                            Opções do Fluxo de Atendimento
+                          </h4>
+
+                          <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
+                            <input
+                              type="checkbox"
+                              checked={svc.allowScheduling !== false}
+                              onChange={(e) => {
+                                const arr = [...editForm.services];
+                                arr[svcIdx].allowScheduling = e.target.checked;
+                                setEditForm({ ...editForm, services: arr });
+                              }}
+                              className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                            />
+                            <span>
+                              Permitir agendamento online de dia e horário
+                              diretamente pela plataforma
+                            </span>
+                          </label>
+
+                          <label className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer select-none leading-relaxed font-semibold">
+                            <input
+                              type="checkbox"
+                              checked={svc.allowPayment !== false}
+                              onChange={(e) => {
+                                const arr = [...editForm.services];
+                                arr[svcIdx].allowPayment = e.target.checked;
+                                setEditForm({ ...editForm, services: arr });
+                              }}
+                              className="mt-0.5 rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                            />
+                            <span>
+                              Exibir faturamento guiado com simulação/PIX no
+                              checkout
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Modal Footer */}
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-5 mt-6 gap-3 shrink-0">
                         <button
                           type="button"
                           onClick={() => {
-                            if (!svc.title.trim()) {
-                              alert("Por favor, preencha o Título do serviço.");
-                              return;
+                            if (
+                              confirm(
+                                "Deseja realmente deletar permanentemente este serviço do seu perfil?",
+                              )
+                            ) {
+                              const newSvc = (editForm.services || []).filter(
+                                (s: any) => s.id !== editingServiceId,
+                              );
+                              setEditForm({ ...editForm, services: newSvc });
+                              setEditingServiceId(null);
                             }
-                            setEditingServiceId(null);
                           }}
-                          className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition cursor-pointer"
+                          className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                         >
-                          Concluir
+                          <Trash2 className="w-3.5 h-3.5" /> Excluir
                         </button>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingServiceId(null)}
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition cursor-pointer"
+                          >
+                            Voltar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!svc.title.trim()) {
+                                alert(
+                                  "Por favor, preencha o Título do serviço.",
+                                );
+                                return;
+                              }
+                              setEditingServiceId(null);
+                            }}
+                            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition cursor-pointer"
+                          >
+                            Concluir
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
         )}
 
@@ -4942,7 +5172,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <div className="flex gap-2">
                           <input
                             type="url"
-                            className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white font-mono text-sm"
+                            className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white font-mono text-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                             value={url}
                             onChange={(e) => {
                               const newMaterials = [
@@ -4978,7 +5208,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </div>
                         <input
                           type="text"
-                          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-sm"
+                          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={desc}
                           onChange={(e) => {
                             const newMaterials = [
@@ -5038,7 +5268,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "documentos" && (
           <div className="animate-in fade-in h-full">
-            <DocumentManager userId={userId} profileData={profileData} clients={clients} />
+            <DocumentManager
+              userId={userId}
+              profileData={profileData}
+              clients={clients}
+            />
           </div>
         )}
 
@@ -5076,7 +5310,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="url"
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.calendarUrl || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, calendarUrl: e.target.value })
@@ -5090,7 +5324,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <textarea
                     rows={3}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                     value={editForm.calendarEmbed || ""}
                     onChange={(e) =>
                       setEditForm({
@@ -5178,14 +5412,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </div>
                   <div className="flex-1 flex flex-wrap gap-2">
                     {(editForm.schedule?.[dIdx] || []).length > 0 ? (
-                      (editForm.schedule[dIdx] as string[]).map((time, tIdx) => (
-                        <span
-                          key={`${time}-${tIdx}`}
-                          className="px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-200"
-                        >
-                          {time}
-                        </span>
-                      ))
+                      (editForm.schedule[dIdx] as string[]).map(
+                        (time, tIdx) => (
+                          <span
+                            key={`${time}-${tIdx}`}
+                            className="px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-200"
+                          >
+                            {time}
+                          </span>
+                        ),
+                      )
                     ) : (
                       <span className="text-slate-400 text-sm mt-2 italic px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">
                         Sem horários disponíveis
@@ -5256,10 +5492,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Notificações do Navegador em Tempo Real
                   </h3>
                   <p className="text-xs text-slate-600 max-w-xl mt-1 leading-relaxed">
-                    Receba alertas imediatos sobre novos agendamentos, novos cadastros e aniversariantes do dia diretamente na sua tela, mesmo que a aba do sistema esteja em segundo plano.
+                    Receba alertas imediatos sobre novos agendamentos, novos
+                    cadastros e aniversariantes do dia diretamente na sua tela,
+                    mesmo que a aba do sistema esteja em segundo plano.
                   </p>
                   <div className="flex gap-2 items-center mt-2.5">
-                    <span className="text-xs font-semibold text-slate-500">Status dos Alertas:</span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      Status dos Alertas:
+                    </span>
                     {notiPermission === "granted" ? (
                       <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                         Permitido Ativo
@@ -5285,10 +5525,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       if (perm === "granted") {
                         sendBrowserNotification(
                           "🚀 Alertas Ativados com Sucesso!",
-                          "Agora você receberá as notificações do consultório em tempo real!"
+                          "Agora você receberá as notificações do consultório em tempo real!",
                         );
                       } else if (perm === "denied") {
-                        alert("As notificações foram bloqueadas. Habilite-as clicando no ícone de cadeado na barra de endereço do seu navegador.");
+                        alert(
+                          "As notificações foram bloqueadas. Habilite-as clicando no ícone de cadeado na barra de endereço do seu navegador.",
+                        );
                       }
                     }}
                     className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-sm"
@@ -5300,7 +5542,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     onClick={() => {
                       sendBrowserNotification(
                         "🧪 Notificação de Teste",
-                        "O teste de alertas funcionou! O sistema agora enviará notificações em tempo real."
+                        "O teste de alertas funcionou! O sistema agora enviará notificações em tempo real.",
                       );
                     }}
                     className="w-full md:w-auto bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl transition"
@@ -5317,82 +5559,79 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   Nenhuma notificação recebida ainda.
                 </div>
               ) : (
-                allNotifications
-                  .map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={cn(
-                        "p-4 rounded-xl border transition",
-                        notif.isRead
-                          ? "bg-slate-50 border-slate-200"
-                          : "bg-amber-50/50 border-amber-200",
-                      )}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <h3
-                          className={cn(
-                            "font-bold",
-                            notif.isRead ? "text-slate-700" : "text-amber-900",
-                          )}
-                        >
-                          {notif.title}
-                        </h3>
-                        {notif.createdAt && (
-                          <span className="text-xs text-slate-400">
-                            {format(
-                              new Date(notif.createdAt),
-                              "dd/MM/yyyy 'às' HH:mm",
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <p
+                allNotifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={cn(
+                      "p-4 rounded-xl border transition",
+                      notif.isRead
+                        ? "bg-slate-50 border-slate-200"
+                        : "bg-amber-50/50 border-amber-200",
+                    )}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <h3
                         className={cn(
-                          "text-sm",
-                          notif.isRead ? "text-slate-600" : "text-amber-800",
+                          "font-bold",
+                          notif.isRead ? "text-slate-700" : "text-amber-900",
                         )}
                       >
-                        {notif.message}
-                      </p>
-                      {!notif.isRead && !notif.isAlert && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await updateDoc(
-                                doc(
-                                  db,
-                                  `profiles/${userId}/system_notifications/${notif.id}`,
-                                ),
-                                { isRead: true },
-                              );
-                              setSystemNotifications((prev) =>
-                                prev.map((n) =>
-                                  n.id === notif.id
-                                    ? { ...n, isRead: true }
-                                    : n,
-                                ),
-                              );
-                            } catch (e) {}
-                          }}
-                          className="mt-3 text-xs font-semibold text-amber-600 hover:text-amber-700 transition"
-                        >
-                          Marcar como lida
-                        </button>
-                      )}
-                      {notif.isAlert && (
-                        <button
-                          onClick={() => {
-                            handleOpenNotification(notif.client);
-                            setNotificationTemplate("readjustment");
-                          }}
-                          className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1"
-                        >
-                          <Send className="w-3 h-3" />
-                          Enviar Notificação de Reajuste
-                        </button>
+                        {notif.title}
+                      </h3>
+                      {notif.createdAt && (
+                        <span className="text-xs text-slate-400">
+                          {format(
+                            new Date(notif.createdAt),
+                            "dd/MM/yyyy 'às' HH:mm",
+                          )}
+                        </span>
                       )}
                     </div>
-                  ))
+                    <p
+                      className={cn(
+                        "text-sm",
+                        notif.isRead ? "text-slate-600" : "text-amber-800",
+                      )}
+                    >
+                      {notif.message}
+                    </p>
+                    {!notif.isRead && !notif.isAlert && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await updateDoc(
+                              doc(
+                                db,
+                                `profiles/${userId}/system_notifications/${notif.id}`,
+                              ),
+                              { isRead: true },
+                            );
+                            setSystemNotifications((prev) =>
+                              prev.map((n) =>
+                                n.id === notif.id ? { ...n, isRead: true } : n,
+                              ),
+                            );
+                          } catch (e) {}
+                        }}
+                        className="mt-3 text-xs font-semibold text-amber-600 hover:text-amber-700 transition"
+                      >
+                        Marcar como lida
+                      </button>
+                    )}
+                    {notif.isAlert && (
+                      <button
+                        onClick={() => {
+                          handleOpenNotification(notif.client);
+                          setNotificationTemplate("readjustment");
+                        }}
+                        className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1"
+                      >
+                        <Send className="w-3 h-3" />
+                        Enviar Notificação de Reajuste
+                      </button>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -5470,12 +5709,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   pacientesBillingFilter === "all"
                     ? "bg-white border-blue-400 ring-1 ring-blue-400"
-                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300",
                 )}
                 onClick={() => setPacientesBillingFilter("all")}
               >
@@ -5484,20 +5723,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Faturamento Total (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-slate-800">
-                    {formatMoneyUI(appointmentsInPeriod
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
+                    {formatMoneyUI(
+                      appointmentsInPeriod.reduce(
+                        (a, b) => a + Number(b.totalAmount || 0),
+                        0,
+                      ),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {pacientesBillingFilter === "all" && (
                   <Check className="w-5 h-5 text-blue-500 absolute top-4 right-4" />
                 )}
               </div>
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   pacientesBillingFilter === "paid"
                     ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
-                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300"
+                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300",
                 )}
                 onClick={() => setPacientesBillingFilter("paid")}
               >
@@ -5506,22 +5750,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Recebido (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    {formatMoneyUI(appointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "paid")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}
+                    {formatMoneyUI(
+                      appointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "paid",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {pacientesBillingFilter === "paid" && (
                   <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
                 )}
               </div>
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   pacientesBillingFilter === "pending"
                     ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
-                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300"
+                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300",
                 )}
                 onClick={() => setPacientesBillingFilter("pending")}
               >
@@ -5530,10 +5778,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     A Receber (Pacientes)
                   </h3>
                   <p className="text-2xl font-bold text-amber-900">
-                    {formatMoneyUI(appointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "pending")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}
+                    {formatMoneyUI(
+                      appointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "pending",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {pacientesBillingFilter === "pending" && (
@@ -5587,7 +5839,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.name || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5604,7 +5856,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="email"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.email || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5621,7 +5873,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="tel"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.phone || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5637,7 +5889,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.guardianName || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5654,7 +5906,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="tel"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.guardianPhone || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5671,7 +5923,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <select
                           required
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.source || "Outros"}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5702,7 +5954,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <select
                           required
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.frequency || "Avulso"}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5724,7 +5976,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.cpf || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5741,7 +5993,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="date"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.dob || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5757,7 +6009,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="date"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={clientEditForm.entryDate || ""}
                           onChange={(e) =>
                             setClientEditForm({
@@ -5776,7 +6028,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </span>
                       </label>
                       <textarea
-                        className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white"
+                        className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={clientEditForm.notes || ""}
                         onChange={(e) =>
                           setClientEditForm({
@@ -5814,7 +6066,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <input
                   type="text"
                   placeholder="Buscar por nome ou e-mail..."
-                  className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                  className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                   value={clientSearchText}
                   onChange={(e) => setClientSearchText(e.target.value)}
                 />
@@ -5828,7 +6080,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   <input
                     type="file"
                     accept=".csv"
-                    className="hidden"
+                    className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                     onChange={handleImportCSV}
                   />
                 </label>
@@ -5853,17 +6105,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </button>
                 <button
                   onClick={() => {
-                    if (clientGlobalInvoiceFilter === "all") setClientGlobalInvoiceFilter("issued")
-                    else if (clientGlobalInvoiceFilter === "issued") setClientGlobalInvoiceFilter("pending")
-                    else setClientGlobalInvoiceFilter("all")
+                    if (clientGlobalInvoiceFilter === "all")
+                      setClientGlobalInvoiceFilter("issued");
+                    else if (clientGlobalInvoiceFilter === "issued")
+                      setClientGlobalInvoiceFilter("pending");
+                    else setClientGlobalInvoiceFilter("all");
                   }}
                   className={cn(
                     "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
                     clientGlobalInvoiceFilter === "issued"
                       ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                       : clientGlobalInvoiceFilter === "pending"
-                      ? "bg-orange-100 text-orange-700 border-orange-200"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                        ? "bg-orange-100 text-orange-700 border-orange-200"
+                        : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
                   )}
                   title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
                 >
@@ -5974,7 +6228,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       required
                                       type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.name || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -5991,7 +6245,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       required
                                       type="email"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.email || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6008,7 +6262,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       required
                                       type="tel"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.phone || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6024,7 +6278,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <input
                                       type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.guardianName || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6041,7 +6295,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <input
                                       type="tel"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.guardianPhone || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6058,7 +6312,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <select
                                       required
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.source || "Outros"}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6095,7 +6349,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <select
                                       required
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                       value={
                                         clientEditForm.frequency || "Avulso"
                                       }
@@ -6121,7 +6375,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       required
                                       type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.cpf || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6138,7 +6392,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       required
                                       type="date"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       value={clientEditForm.dob || ""}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6152,7 +6406,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <input
                                       type="checkbox"
                                       id={`active-${client.id}`}
-                                      className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400"
+                                      className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                       checked={clientEditForm.isActive}
                                       onChange={(e) =>
                                         setClientEditForm({
@@ -6177,7 +6431,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </span>
                                   </label>
                                   <textarea
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px]"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                     value={clientEditForm.notes || ""}
                                     onChange={(e) =>
                                       setClientEditForm({
@@ -6339,10 +6593,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     <strong className="text-slate-600 font-semibold">
                                       {(() => {
                                         const d = client.createdAt;
-                                        if (d.toDate) return format(d.toDate(), "dd/MM/yyyy");
-                                        if (d.seconds) return format(new Date(d.seconds * 1000), "dd/MM/yyyy");
+                                        if (d.toDate)
+                                          return format(
+                                            d.toDate(),
+                                            "dd/MM/yyyy",
+                                          );
+                                        if (d.seconds)
+                                          return format(
+                                            new Date(d.seconds * 1000),
+                                            "dd/MM/yyyy",
+                                          );
                                         const dateObj = new Date(d);
-                                        if (!isNaN(dateObj.getTime())) return format(dateObj, "dd/MM/yyyy");
+                                        if (!isNaN(dateObj.getTime()))
+                                          return format(dateObj, "dd/MM/yyyy");
                                         return String(d);
                                       })()}
                                     </strong>
@@ -6428,26 +6691,38 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-bold text-slate-800 font-sans">
-                                            Primeiro Cadastro / Entrada no Sistema
+                                            Primeiro Cadastro / Entrada no
+                                            Sistema
                                           </h4>
                                           <p className="text-xs text-slate-500 mt-0.5 font-sans">
-                                            Data oficial de ingresso do paciente no sistema.
+                                            Data oficial de ingresso do paciente
+                                            no sistema.
                                           </p>
                                         </div>
                                       </div>
                                       <div className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg self-start sm:self-auto font-sans">
-                                        {client.createdAt ? (
-                                          (() => {
-                                            const d = client.createdAt;
-                                            if (d.toDate) return format(d.toDate(), "dd/MM/yyyy 'às' HH:mm");
-                                            if (d.seconds) return format(new Date(d.seconds * 1000), "dd/MM/yyyy 'às' HH:mm");
-                                            const dateObj = new Date(d);
-                                            if (!isNaN(dateObj.getTime())) return format(dateObj, "dd/MM/yyyy 'às' HH:mm");
-                                            return String(d);
-                                          })()
-                                        ) : (
-                                          "Data de cadastro não disponível"
-                                        )}
+                                        {client.createdAt
+                                          ? (() => {
+                                              const d = client.createdAt;
+                                              if (d.toDate)
+                                                return format(
+                                                  d.toDate(),
+                                                  "dd/MM/yyyy 'às' HH:mm",
+                                                );
+                                              if (d.seconds)
+                                                return format(
+                                                  new Date(d.seconds * 1000),
+                                                  "dd/MM/yyyy 'às' HH:mm",
+                                                );
+                                              const dateObj = new Date(d);
+                                              if (!isNaN(dateObj.getTime()))
+                                                return format(
+                                                  dateObj,
+                                                  "dd/MM/yyyy 'às' HH:mm",
+                                                );
+                                              return String(d);
+                                            })()
+                                          : "Data de cadastro não disponível"}
                                       </div>
                                     </div>
 
@@ -6668,7 +6943,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               <input
                                                 type="date"
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={appointmentEditForm.date}
                                                 onChange={(e) =>
                                                   setAppointmentEditForm({
@@ -6684,7 +6959,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               </label>
                                               <select
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.serviceId ||
                                                   ""
@@ -6694,7 +6969,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     profileData?.services || []
                                                   ).find(
                                                     (x: any) =>
-                                                      (x.id || x.title) === e.target.value,
+                                                      (x.id || x.title) ===
+                                                      e.target.value,
                                                   );
                                                   setAppointmentEditForm({
                                                     ...appointmentEditForm,
@@ -6718,7 +6994,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   .map((s: any) => (
                                                     <option
                                                       value={s.id || s.title}
-                                                      key={s.id || s.title || Math.random().toString()}
+                                                      key={
+                                                        s.id ||
+                                                        s.title ||
+                                                        Math.random().toString()
+                                                      }
                                                     >
                                                       {s.title}
                                                     </option>
@@ -6737,7 +7017,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 min="1"
                                                 step="1"
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.hoursQty ||
                                                   1
@@ -6761,7 +7041,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 step="0.01"
                                                 min="0"
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.totalAmount
                                                 }
@@ -6783,7 +7063,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               </label>
                                               <select
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.paymentStatus
                                                 }
@@ -6809,9 +7089,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               </label>
                                               <select
                                                 required
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
-                                                  appointmentEditForm.invoiceStatus || "pending"
+                                                  appointmentEditForm.invoiceStatus ||
+                                                  "pending"
                                                 }
                                                 onChange={(e) =>
                                                   setAppointmentEditForm({
@@ -6836,7 +7117,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 Modalidade
                                               </label>
                                               <select
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.modality ||
                                                   ""
@@ -6863,44 +7144,48 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               </select>
                                             </div>
                                             <div>
-                                               <div className="flex justify-between items-center mb-1">
-                                                 <label className="text-slate-600 font-medium">
-                                                   Local / Conta Faturamento
-                                                 </label>
-                                                 <button
-                                                   type="button"
-                                                   onClick={() => setIsManageAccountsOpen(true)}
-                                                   className="text-amber-500 hover:text-amber-600 text-xs font-semibold flex items-center gap-0.5 pointer-events-auto"
-                                                   title="Gerenciar Contas"
-                                                 >
-                                                   <Settings className="w-3.5 h-3.5 inline" />
-                                                   Gerenciar
-                                                 </button>
-                                               </div>
-                                               <select
-                                                 className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
-                                                 value={
-                                                   appointmentEditForm.billingAccount ||
-                                                   ""
-                                                 }
-                                                 onChange={(e) =>
-                                                   setAppointmentEditForm({
-                                                     ...appointmentEditForm,
-                                                     billingAccount:
-                                                       e.target.value,
-                                                   })
-                                                 }
-                                               >
-                                                 <option value="">
-                                                   Para onde foi pago...
-                                                 </option>
-                                                 {billingAccounts.map((acc) => (
-                                                   <option key={acc} value={acc}>
-                                                     {acc}
-                                                   </option>
-                                                 ))}
-                                               </select>
-                                             </div>
+                                              <div className="flex justify-between items-center mb-1">
+                                                <label className="text-slate-600 font-medium">
+                                                  Local / Conta Faturamento
+                                                </label>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setIsManageAccountsOpen(
+                                                      true,
+                                                    )
+                                                  }
+                                                  className="text-amber-500 hover:text-amber-600 text-xs font-semibold flex items-center gap-0.5 pointer-events-auto"
+                                                  title="Gerenciar Contas"
+                                                >
+                                                  <Settings className="w-3.5 h-3.5 inline" />
+                                                  Gerenciar
+                                                </button>
+                                              </div>
+                                              <select
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
+                                                value={
+                                                  appointmentEditForm.billingAccount ||
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  setAppointmentEditForm({
+                                                    ...appointmentEditForm,
+                                                    billingAccount:
+                                                      e.target.value,
+                                                  })
+                                                }
+                                              >
+                                                <option value="">
+                                                  Para onde foi pago...
+                                                </option>
+                                                {billingAccounts.map((acc) => (
+                                                  <option key={acc} value={acc}>
+                                                    {acc}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
                                             <div>
                                               <label className="block text-slate-600 mb-1">
                                                 Ajuste de Valor
@@ -6908,7 +7193,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               </label>
                                               <input
                                                 type="text"
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                 value={
                                                   appointmentEditForm.priceAdjust ||
                                                   ""
@@ -6928,7 +7213,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Anotações do Serviço
                                             </label>
                                             <textarea
-                                              className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={appointmentEditForm.notes}
                                               onChange={(e) =>
                                                 setAppointmentEditForm({
@@ -7009,7 +7294,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           <input
                                                             type="date"
                                                             required
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.date ||
                                                               ""
@@ -7026,7 +7311,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           />
                                                           <select
                                                             required
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm max-w-[200px]"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm max-w-[200px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.serviceId ||
                                                               ""
@@ -7072,8 +7357,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               )
                                                               .map((s: any) => (
                                                                 <option
-                                                                  value={s.id || s.title}
-                                                                  key={s.id || s.title || Math.random().toString()}
+                                                                  value={
+                                                                    s.id ||
+                                                                    s.title
+                                                                  }
+                                                                  key={
+                                                                    s.id ||
+                                                                    s.title ||
+                                                                    Math.random().toString()
+                                                                  }
                                                                 >
                                                                   {s.title}
                                                                 </option>
@@ -7088,7 +7380,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               step="1"
                                                               min="1"
                                                               required
-                                                              className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                              className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                               value={
                                                                 appointmentEditForm.hoursQty ||
                                                                 1
@@ -7117,7 +7409,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               step="0.01"
                                                               min="0"
                                                               required
-                                                              className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                              className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                               value={
                                                                 appointmentEditForm.totalAmount
                                                               }
@@ -7137,7 +7429,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           </div>
                                                           <select
                                                             required
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.paymentStatus
                                                             }
@@ -7161,9 +7453,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           </select>
                                                           <select
                                                             required
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
-                                                              appointmentEditForm.invoiceStatus || "pending"
+                                                              appointmentEditForm.invoiceStatus ||
+                                                              "pending"
                                                             }
                                                             onChange={(e) =>
                                                               setAppointmentEditForm(
@@ -7186,7 +7479,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         </div>
                                                         <div className="flex flex-wrap gap-3 items-center">
                                                           <select
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px]"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.modality ||
                                                               ""
@@ -7216,7 +7509,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             </option>
                                                           </select>
                                                           <select
-                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]"
+                                                            className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.billingAccount ||
                                                               ""
@@ -7253,7 +7546,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           </select>
                                                           <input
                                                             type="text"
-                                                            className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.priceAdjust ||
                                                               ""
@@ -7275,7 +7568,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           <input
                                                             type="text"
                                                             placeholder="Anotações curtas..."
-                                                            className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               appointmentEditForm.notes ||
                                                               ""
@@ -7363,10 +7656,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                     <td className="p-3 border-r border-slate-100">
                                                       <div className="flex flex-col gap-1">
                                                         <span className="text-sm font-medium">
-                                                          {formatMoneyUI(Number(
-                                                            ap.totalAmount || 0,
-                                                          )
-                                                            , hideFinance)}
+                                                          {formatMoneyUI(
+                                                            Number(
+                                                              ap.totalAmount ||
+                                                                0,
+                                                            ),
+                                                            hideFinance,
+                                                          )}
                                                         </span>
                                                         <div className="flex flex-wrap items-center gap-1">
                                                           {ap.priceAdjust && (
@@ -7377,12 +7673,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           <select
                                                             className={cn(
                                                               "text-[10px] p-0.5 border-slate-200 rounded outline-none w-20 font-bold",
-                                                              (ap.paymentStatus || "pending") === "paid" 
-                                                                ? "bg-emerald-100 text-emerald-700" 
-                                                                : "bg-orange-100 text-orange-700"
+                                                              (ap.paymentStatus ||
+                                                                "pending") ===
+                                                                "paid"
+                                                                ? "bg-emerald-100 text-emerald-700"
+                                                                : "bg-orange-100 text-orange-700",
                                                             )}
                                                             value={
-                                                              ap.paymentStatus || "pending"
+                                                              ap.paymentStatus ||
+                                                              "pending"
                                                             }
                                                             onChange={(e) =>
                                                               handleClientPaymentStatusChange(
@@ -7401,9 +7700,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           <select
                                                             className={cn(
                                                               "text-[10px] p-0.5 border-slate-200 rounded outline-none font-bold",
-                                                              (ap.invoiceStatus || "pending") === "issued" 
-                                                                ? "bg-emerald-100 text-emerald-700" 
-                                                                : "bg-orange-100 text-orange-700"
+                                                              (ap.invoiceStatus ||
+                                                                "pending") ===
+                                                                "issued"
+                                                                ? "bg-emerald-100 text-emerald-700"
+                                                                : "bg-orange-100 text-orange-700",
                                                             )}
                                                             value={
                                                               ap.invoiceStatus ||
@@ -7471,7 +7772,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           )}
                                                           <input
                                                             type="file"
-                                                            className="hidden"
+                                                            className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                                                             onChange={(e) =>
                                                               handleFileUpload(
                                                                 e,
@@ -7533,21 +7834,24 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Total Pendente:
                                             </span>
                                             <span className="font-bold text-amber-900 text-xl">
-                                              {formatMoneyUI(filteredClientAppts
-                                                .filter(
-                                                  (a: any) =>
-                                                    (a.paymentStatus ||
-                                                      "pending") === "pending",
-                                                )
-                                                .reduce(
-                                                  (acc: number, curr: any) =>
-                                                    acc +
-                                                    Number(
-                                                      curr.totalAmount || 0,
-                                                    ),
-                                                  0,
-                                                )
-                                                , hideFinance)}
+                                              {formatMoneyUI(
+                                                filteredClientAppts
+                                                  .filter(
+                                                    (a: any) =>
+                                                      (a.paymentStatus ||
+                                                        "pending") ===
+                                                      "pending",
+                                                  )
+                                                  .reduce(
+                                                    (acc: number, curr: any) =>
+                                                      acc +
+                                                      Number(
+                                                        curr.totalAmount || 0,
+                                                      ),
+                                                    0,
+                                                  ),
+                                                hideFinance,
+                                              )}
                                             </span>
                                           </div>
                                         )}
@@ -7558,21 +7862,23 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Total Pago (Período/Histórico):
                                             </span>
                                             <span className="font-bold text-emerald-900 text-xl">
-                                              {formatMoneyUI(filteredClientAppts
-                                                .filter(
-                                                  (a: any) =>
-                                                    (a.paymentStatus ||
-                                                      "pending") === "paid",
-                                                )
-                                                .reduce(
-                                                  (acc: number, curr: any) =>
-                                                    acc +
-                                                    Number(
-                                                      curr.totalAmount || 0,
-                                                    ),
-                                                  0,
-                                                )
-                                                , hideFinance)}
+                                              {formatMoneyUI(
+                                                filteredClientAppts
+                                                  .filter(
+                                                    (a: any) =>
+                                                      (a.paymentStatus ||
+                                                        "pending") === "paid",
+                                                  )
+                                                  .reduce(
+                                                    (acc: number, curr: any) =>
+                                                      acc +
+                                                      Number(
+                                                        curr.totalAmount || 0,
+                                                      ),
+                                                    0,
+                                                  ),
+                                                hideFinance,
+                                              )}
                                             </span>
                                           </div>
                                         )}
@@ -7663,12 +7969,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   empresasBillingFilter === "all"
                     ? "bg-white border-blue-400 ring-1 ring-blue-400"
-                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300",
                 )}
                 onClick={() => setEmpresasBillingFilter("all")}
               >
@@ -7677,20 +7983,25 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Faturamento Total (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-slate-800">
-                    {formatMoneyUI(companyAppointmentsInPeriod
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0), hideFinance)}
+                    {formatMoneyUI(
+                      companyAppointmentsInPeriod.reduce(
+                        (a, b) => a + Number(b.totalAmount || 0),
+                        0,
+                      ),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {empresasBillingFilter === "all" && (
                   <Check className="w-5 h-5 text-blue-500 absolute top-4 right-4" />
                 )}
               </div>
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   empresasBillingFilter === "paid"
                     ? "bg-emerald-50 border-emerald-400 ring-1 ring-emerald-400"
-                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300"
+                    : "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300",
                 )}
                 onClick={() => setEmpresasBillingFilter("paid")}
               >
@@ -7699,22 +8010,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Recebido (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-emerald-900">
-                    {formatMoneyUI(companyAppointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "paid")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}
+                    {formatMoneyUI(
+                      companyAppointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "paid",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {empresasBillingFilter === "paid" && (
                   <Check className="w-5 h-5 text-emerald-600 absolute top-4 right-4" />
                 )}
               </div>
-              <div 
+              <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col justify-center cursor-pointer transition relative overflow-hidden",
                   empresasBillingFilter === "pending"
                     ? "bg-amber-50 border-amber-400 ring-1 ring-amber-400"
-                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300"
+                    : "bg-amber-50/50 border-amber-100 hover:border-amber-300",
                 )}
                 onClick={() => setEmpresasBillingFilter("pending")}
               >
@@ -7723,10 +8038,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     A Receber (Empresas)
                   </h3>
                   <p className="text-2xl font-bold text-amber-900">
-                    {formatMoneyUI(companyAppointmentsInPeriod
-                      .filter((a) => (a.paymentStatus || "pending") === "pending")
-                      .reduce((a, b) => a + Number(b.totalAmount || 0), 0)
-                      , hideFinance)}
+                    {formatMoneyUI(
+                      companyAppointmentsInPeriod
+                        .filter(
+                          (a) => (a.paymentStatus || "pending") === "pending",
+                        )
+                        .reduce((a, b) => a + Number(b.totalAmount || 0), 0),
+                      hideFinance,
+                    )}
                   </p>
                 </div>
                 {empresasBillingFilter === "pending" && (
@@ -7753,7 +8072,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <input
                   type="text"
                   placeholder="Buscar por nome ou e-mail..."
-                  className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm"
+                  className="w-full pl-10 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm shadow-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                   value={companySearchText}
                   onChange={(e) => setCompanySearchText(e.target.value)}
                 />
@@ -7761,24 +8080,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => {
-                    if (companyGlobalInvoiceFilter === "all") setCompanyGlobalInvoiceFilter("issued")
-                    else if (companyGlobalInvoiceFilter === "issued") setCompanyGlobalInvoiceFilter("pending")
-                    else setCompanyGlobalInvoiceFilter("all")
+                    if (companyGlobalInvoiceFilter === "all")
+                      setCompanyGlobalInvoiceFilter("issued");
+                    else if (companyGlobalInvoiceFilter === "issued")
+                      setCompanyGlobalInvoiceFilter("pending");
+                    else setCompanyGlobalInvoiceFilter("all");
                   }}
                   className={cn(
                     "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
                     companyGlobalInvoiceFilter === "issued"
                       ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                       : companyGlobalInvoiceFilter === "pending"
-                      ? "bg-orange-100 text-orange-700 border-orange-200"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
+                        ? "bg-orange-100 text-orange-700 border-orange-200"
+                        : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
                   )}
                   title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
                 >
                   <ReceiptText className="w-5 h-5" />
                 </button>
                 <button
-                  onClick={() => setShowInactiveCompanies(!showInactiveCompanies)}
+                  onClick={() =>
+                    setShowInactiveCompanies(!showInactiveCompanies)
+                  }
                   className={cn(
                     "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
                     showInactiveCompanies
@@ -7835,7 +8158,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.name || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7851,7 +8174,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.tradeName || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7868,7 +8191,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.cnpj || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7884,7 +8207,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="date"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.entryDate || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7901,7 +8224,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </label>
                           <input
                             type="text"
-                            className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                            className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                             value={companyEditForm.addressStreet || ""}
                             onChange={(e) =>
                               setCompanyEditForm({
@@ -7917,7 +8240,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           </label>
                           <input
                             type="text"
-                            className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                            className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                             value={companyEditForm.addressNumber || ""}
                             onChange={(e) =>
                               setCompanyEditForm({
@@ -7934,7 +8257,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.addressZipcode || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7950,7 +8273,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.addressCity || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7968,7 +8291,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.contactPerson || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -7984,7 +8307,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <input
                           type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.department || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -8001,7 +8324,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="tel"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.phone || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -8018,7 +8341,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         <input
                           required
                           type="email"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.email || ""}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -8034,7 +8357,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </label>
                         <select
                           required
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                           value={companyEditForm.source || "Outros"}
                           onChange={(e) =>
                             setCompanyEditForm({
@@ -8068,7 +8391,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         </span>
                       </label>
                       <textarea
-                        className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white"
+                        className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                         value={companyEditForm.notes || ""}
                         onChange={(e) =>
                           setCompanyEditForm({
@@ -8101,7 +8424,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             )}
 
             {companies.length === 0 ? (
-              <p className="text-slate-500">Nenhuma empresa cadastrada ainda.</p>
+              <p className="text-slate-500">
+                Nenhuma empresa cadastrada ainda.
+              </p>
             ) : filteredCompanies.length === 0 ? (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-slate-500 shadow-sm mt-4">
                 Nenhuma empresa encontrada. Verifique a busca ou os filtros de
@@ -8180,7 +8505,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     required
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.name || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8196,7 +8521,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </label>
                                   <input
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.tradeName || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8213,7 +8538,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     required
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.cnpj || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8230,7 +8555,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <input
                                       type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                       value={
                                         companyEditForm.addressStreet || ""
                                       }
@@ -8248,7 +8573,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     </label>
                                     <input
                                       type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                       value={
                                         companyEditForm.addressNumber || ""
                                       }
@@ -8267,7 +8592,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </label>
                                   <input
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.addressZipcode || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8283,7 +8608,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </label>
                                   <input
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.addressCity || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8301,7 +8626,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     required
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.contactPerson || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8317,7 +8642,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </label>
                                   <input
                                     type="text"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.department || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8334,7 +8659,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     required
                                     type="tel"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.phone || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8351,7 +8676,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     required
                                     type="email"
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.email || ""}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8367,7 +8692,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </label>
                                   <select
                                     required
-                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                                     value={companyEditForm.source || "Outros"}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8412,7 +8737,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <input
                                     type="checkbox"
                                     id={`active-${company.id}`}
-                                    className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400"
+                                    className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                     checked={companyEditForm.isActive}
                                     onChange={(e) =>
                                       setCompanyEditForm({
@@ -8437,7 +8762,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   </span>
                                 </label>
                                 <textarea
-                                  className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px]"
+                                  className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm min-h-[100px] text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                   value={companyEditForm.notes || ""}
                                   onChange={(e) =>
                                     setCompanyEditForm({
@@ -8585,10 +8910,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                   <strong className="text-slate-600 font-semibold">
                                     {(() => {
                                       const d = company.createdAt;
-                                      if (d.toDate) return format(d.toDate(), "dd/MM/yyyy");
-                                      if (d.seconds) return format(new Date(d.seconds * 1000), "dd/MM/yyyy");
+                                      if (d.toDate)
+                                        return format(d.toDate(), "dd/MM/yyyy");
+                                      if (d.seconds)
+                                        return format(
+                                          new Date(d.seconds * 1000),
+                                          "dd/MM/yyyy",
+                                        );
                                       const dateObj = new Date(d);
-                                      if (!isNaN(dateObj.getTime())) return format(dateObj, "dd/MM/yyyy");
+                                      if (!isNaN(dateObj.getTime()))
+                                        return format(dateObj, "dd/MM/yyyy");
                                       return String(d);
                                     })()}
                                   </strong>
@@ -8661,23 +8992,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                           Primeiro Cadastro / Entrada no Sistema
                                         </h4>
                                         <p className="text-xs text-slate-500 mt-0.5">
-                                          Data oficial de ingresso da empresa no sistema.
+                                          Data oficial de ingresso da empresa no
+                                          sistema.
                                         </p>
                                       </div>
                                     </div>
                                     <div className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg self-start sm:self-auto">
-                                      {company.createdAt ? (
-                                        (() => {
-                                          const d = company.createdAt;
-                                          if (d.toDate) return format(d.toDate(), "dd/MM/yyyy 'às' HH:mm");
-                                          if (d.seconds) return format(new Date(d.seconds * 1000), "dd/MM/yyyy 'às' HH:mm");
-                                          const dateObj = new Date(d);
-                                          if (!isNaN(dateObj.getTime())) return format(dateObj, "dd/MM/yyyy 'às' HH:mm");
-                                          return String(d);
-                                        })()
-                                      ) : (
-                                        "Data de cadastro não disponível"
-                                      )}
+                                      {company.createdAt
+                                        ? (() => {
+                                            const d = company.createdAt;
+                                            if (d.toDate)
+                                              return format(
+                                                d.toDate(),
+                                                "dd/MM/yyyy 'às' HH:mm",
+                                              );
+                                            if (d.seconds)
+                                              return format(
+                                                new Date(d.seconds * 1000),
+                                                "dd/MM/yyyy 'às' HH:mm",
+                                              );
+                                            const dateObj = new Date(d);
+                                            if (!isNaN(dateObj.getTime()))
+                                              return format(
+                                                dateObj,
+                                                "dd/MM/yyyy 'às' HH:mm",
+                                              );
+                                            return String(d);
+                                          })()
+                                        : "Data de cadastro não disponível"}
                                     </div>
                                   </div>
 
@@ -8901,7 +9243,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             <input
                                               type="date"
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.date
                                               }
@@ -8919,7 +9261,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             </label>
                                             <select
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.serviceId ||
                                                 ""
@@ -8929,7 +9271,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   profileData?.services || []
                                                 ).find(
                                                   (x: any) =>
-                                                    (x.id || x.title) === e.target.value,
+                                                    (x.id || x.title) ===
+                                                    e.target.value,
                                                 );
                                                 setCompanyAppointmentEditForm({
                                                   ...companyAppointmentEditForm,
@@ -8956,12 +9299,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               {(profileData?.services || [])
                                                 .filter(
                                                   (s: any) =>
-                                                    s.category === "empresa",
+                                                    s.category === "empresa" ||
+                                                    s.category === "igrejas",
                                                 )
                                                 .map((s: any) => (
                                                   <option
                                                     value={s.id || s.title}
-                                                    key={s.id || s.title || Math.random().toString()}
+                                                    key={
+                                                      s.id ||
+                                                      s.title ||
+                                                      Math.random().toString()
+                                                    }
                                                   >
                                                     {s.title}
                                                   </option>
@@ -8980,7 +9328,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               min="1"
                                               step="1"
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.hoursQty ||
                                                 1
@@ -9004,7 +9352,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               step="0.01"
                                               min="0"
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.totalAmount
                                               }
@@ -9026,7 +9374,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             </label>
                                             <select
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.paymentStatus
                                               }
@@ -9049,7 +9397,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             </label>
                                             <select
                                               required
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.invoiceStatus ||
                                                 "pending"
@@ -9076,7 +9424,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               Modalidade
                                             </label>
                                             <select
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.modality ||
                                                 ""
@@ -9103,51 +9451,53 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             </select>
                                           </div>
                                           <div>
-                                             <div className="flex justify-between items-center mb-1">
-                                               <label className="text-slate-600 font-medium">
-                                                 Local / Conta Faturamento
-                                               </label>
-                                               <button
-                                                 type="button"
-                                                 onClick={() => setIsManageAccountsOpen(true)}
-                                                 className="text-amber-500 hover:text-amber-600 text-xs font-semibold flex items-center gap-0.5 pointer-events-auto"
-                                                 title="Gerenciar Contas"
-                                               >
-                                                 <Settings className="w-3.5 h-3.5 inline" />
-                                                 Gerenciar
-                                               </button>
-                                             </div>
-                                             <select
-                                               className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
-                                               value={
-                                                 companyAppointmentEditForm.billingAccount ||
-                                                 ""
-                                               }
-                                               onChange={(e) =>
-                                                 setCompanyAppointmentEditForm({
-                                                   ...companyAppointmentEditForm,
-                                                   billingAccount:
-                                                     e.target.value,
-                                                 })
-                                               }
-                                             >
-                                               <option value="">
-                                                 Para onde foi pago...
-                                               </option>
-                                               {billingAccounts.map((acc) => (
-                                                 <option key={acc} value={acc}>
-                                                   {acc}
-                                                 </option>
-                                               ))}
-                                             </select>
-                                           </div>
+                                            <div className="flex justify-between items-center mb-1">
+                                              <label className="text-slate-600 font-medium">
+                                                Local / Conta Faturamento
+                                              </label>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setIsManageAccountsOpen(true)
+                                                }
+                                                className="text-amber-500 hover:text-amber-600 text-xs font-semibold flex items-center gap-0.5 pointer-events-auto"
+                                                title="Gerenciar Contas"
+                                              >
+                                                <Settings className="w-3.5 h-3.5 inline" />
+                                                Gerenciar
+                                              </button>
+                                            </div>
+                                            <select
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
+                                              value={
+                                                companyAppointmentEditForm.billingAccount ||
+                                                ""
+                                              }
+                                              onChange={(e) =>
+                                                setCompanyAppointmentEditForm({
+                                                  ...companyAppointmentEditForm,
+                                                  billingAccount:
+                                                    e.target.value,
+                                                })
+                                              }
+                                            >
+                                              <option value="">
+                                                Para onde foi pago...
+                                              </option>
+                                              {billingAccounts.map((acc) => (
+                                                <option key={acc} value={acc}>
+                                                  {acc}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
                                           <div>
                                             <label className="block text-slate-600 mb-1">
                                               Ajuste de Valor (Índice/Alíquota)
                                             </label>
                                             <input
                                               type="text"
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white"
+                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                               value={
                                                 companyAppointmentEditForm.priceAdjust ||
                                                 ""
@@ -9167,7 +9517,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             Anotações do Serviço
                                           </label>
                                           <textarea
-                                            className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white"
+                                            className="w-full p-2 border rounded focus:ring-amber-400 min-h-[60px] bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                             value={
                                               companyAppointmentEditForm.notes
                                             }
@@ -9251,7 +9601,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                       <div className="flex flex-wrap gap-3 items-center">
                                                         <select
                                                           required
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-grow min-w-[200px]"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-grow min-w-[200px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.serviceId ||
                                                             ""
@@ -9302,12 +9652,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             .filter(
                                                               (s: any) =>
                                                                 s.category ===
-                                                                "empresa",
+                                                                  "empresa" ||
+                                                                s.category ===
+                                                                  "igrejas",
                                                             )
                                                             .map((s: any) => (
                                                               <option
-                                                                value={s.id || s.title}
-                                                                key={s.id || s.title || Math.random().toString()}
+                                                                value={
+                                                                  s.id ||
+                                                                  s.title
+                                                                }
+                                                                key={
+                                                                  s.id ||
+                                                                  s.title ||
+                                                                  Math.random().toString()
+                                                                }
                                                               >
                                                                 {s.title}
                                                               </option>
@@ -9316,7 +9675,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         <input
                                                           type="date"
                                                           required
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.date ||
                                                             ""
@@ -9340,7 +9699,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             step="1"
                                                             min="1"
                                                             required
-                                                            className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border w-16 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               companyAppointmentEditForm.hoursQty ||
                                                               1
@@ -9369,7 +9728,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             step="0.01"
                                                             min="0"
                                                             required
-                                                            className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                            className="p-1.5 border w-24 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                             value={
                                                               companyAppointmentEditForm.totalAmount
                                                             }
@@ -9389,7 +9748,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         </div>
                                                         <select
                                                           required
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.paymentStatus
                                                           }
@@ -9413,7 +9772,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         </select>
                                                         <select
                                                           required
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.invoiceStatus ||
                                                             "pending"
@@ -9439,7 +9798,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                       </div>
                                                       <div className="flex flex-wrap gap-3 items-center">
                                                         <select
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px]"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm w-[120px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.modality ||
                                                             ""
@@ -9469,7 +9828,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                           </option>
                                                         </select>
                                                         <select
-                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px]"
+                                                          className="p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm flex-1 min-w-[150px] text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.billingAccount ||
                                                             ""
@@ -9506,7 +9865,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         </select>
                                                         <input
                                                           type="text"
-                                                          className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                          className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.priceAdjust ||
                                                             ""
@@ -9528,7 +9887,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         <input
                                                           type="text"
                                                           placeholder="Anotações curtas..."
-                                                          className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm"
+                                                          className="w-full p-1.5 border rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
                                                           value={
                                                             companyAppointmentEditForm.notes ||
                                                             ""
@@ -9613,9 +9972,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                   <td className="p-3 border-r border-slate-100">
                                                     <div className="flex flex-col gap-2">
                                                       <span className="font-medium">
-                                                        {formatMoneyUI(Number(
-                                                          ap.totalAmount || 0,
-                                                        ), hideFinance)}
+                                                        {formatMoneyUI(
+                                                          Number(
+                                                            ap.totalAmount || 0,
+                                                          ),
+                                                          hideFinance,
+                                                        )}
                                                       </span>
                                                       <div className="flex flex-wrap items-center gap-2">
                                                         {ap.priceAdjust && (
@@ -9626,12 +9988,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         <select
                                                           className={cn(
                                                             "text-[10px] p-0.5 border-slate-200 rounded outline-none w-20 font-bold",
-                                                            (ap.paymentStatus || "pending") === "paid" 
-                                                              ? "bg-emerald-100 text-emerald-700" 
-                                                              : "bg-orange-100 text-orange-700"
+                                                            (ap.paymentStatus ||
+                                                              "pending") ===
+                                                              "paid"
+                                                              ? "bg-emerald-100 text-emerald-700"
+                                                              : "bg-orange-100 text-orange-700",
                                                           )}
                                                           value={
-                                                            ap.paymentStatus || "pending"
+                                                            ap.paymentStatus ||
+                                                            "pending"
                                                           }
                                                           onChange={(e) =>
                                                             handleCompanyPaymentStatusChange(
@@ -9650,9 +10015,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         <select
                                                           className={cn(
                                                             "text-[10px] p-0.5 border-slate-200 rounded outline-none font-bold",
-                                                            (ap.invoiceStatus || "pending") === "issued" 
-                                                              ? "bg-emerald-100 text-emerald-700" 
-                                                              : "bg-orange-100 text-orange-700"
+                                                            (ap.invoiceStatus ||
+                                                              "pending") ===
+                                                              "issued"
+                                                              ? "bg-emerald-100 text-emerald-700"
+                                                              : "bg-orange-100 text-orange-700",
                                                           )}
                                                           value={
                                                             ap.invoiceStatus ||
@@ -9720,7 +10087,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         )}
                                                         <input
                                                           type="file"
-                                                          className="hidden"
+                                                          className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
                                                           onChange={(e) =>
                                                             handleCompanyFileUpload(
                                                               e,
@@ -9783,19 +10150,23 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             Total Pendente:
                                           </span>
                                           <span className="font-bold text-amber-900 text-xl">
-                                            {formatMoneyUI(filteredCompanyAppts
-                                              .filter(
-                                                (a: any) =>
-                                                  (a.paymentStatus ||
-                                                    "pending") === "pending",
-                                              )
-                                              .reduce(
-                                                (acc: number, curr: any) =>
-                                                  acc +
-                                                  Number(curr.totalAmount || 0),
-                                                0,
-                                              )
-                                              , hideFinance)}
+                                            {formatMoneyUI(
+                                              filteredCompanyAppts
+                                                .filter(
+                                                  (a: any) =>
+                                                    (a.paymentStatus ||
+                                                      "pending") === "pending",
+                                                )
+                                                .reduce(
+                                                  (acc: number, curr: any) =>
+                                                    acc +
+                                                    Number(
+                                                      curr.totalAmount || 0,
+                                                    ),
+                                                  0,
+                                                ),
+                                              hideFinance,
+                                            )}
                                           </span>
                                         </div>
                                       )}
@@ -9806,19 +10177,23 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             Total Pago (Período/Histórico):
                                           </span>
                                           <span className="font-bold text-emerald-900 text-xl">
-                                            {formatMoneyUI(filteredCompanyAppts
-                                              .filter(
-                                                (a: any) =>
-                                                  (a.paymentStatus ||
-                                                    "pending") === "paid",
-                                              )
-                                              .reduce(
-                                                (acc: number, curr: any) =>
-                                                  acc +
-                                                  Number(curr.totalAmount || 0),
-                                                0,
-                                              )
-                                              , hideFinance)}
+                                            {formatMoneyUI(
+                                              filteredCompanyAppts
+                                                .filter(
+                                                  (a: any) =>
+                                                    (a.paymentStatus ||
+                                                      "pending") === "paid",
+                                                )
+                                                .reduce(
+                                                  (acc: number, curr: any) =>
+                                                    acc +
+                                                    Number(
+                                                      curr.totalAmount || 0,
+                                                    ),
+                                                  0,
+                                                ),
+                                              hideFinance,
+                                            )}
                                           </span>
                                         </div>
                                       )}
@@ -9915,7 +10290,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             Código de Incorporação (HTML/Iframe)
                           </label>
                           <textarea
-                            className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                            className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none text-slate-900 dark:text-slate-100 dark:border-slate-700"
                             rows={4}
                             placeholder='Ex: <iframe src="https://apps.elfsight.com/widget/..."></iframe>'
                             value={editForm.googleReviewsWidgetCode || ""}
@@ -10119,7 +10494,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </label>
                 <input
                   type="url"
-                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white"
+                  className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                   value={editForm.webhookUrl || ""}
                   onChange={(e) =>
                     setEditForm({ ...editForm, webhookUrl: e.target.value })
@@ -10169,44 +10544,65 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
             <div className="mt-10 border-t border-slate-100 pt-8">
               <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 font-sans">
-                <MessageCircle className="w-5 h-5 text-emerald-600" /> Modelos de Mensagem para WhatsApp
+                <MessageCircle className="w-5 h-5 text-emerald-600" /> Modelos
+                de Mensagem para WhatsApp
               </h2>
               <p className="text-sm text-slate-600 mb-6 font-sans">
-                Configure os textos padrões das mensagens de lembretes de sessões, fechamento de pendências financeiras, votos de aniversários e outras notificações. Você pode utilizar marcações dinâmicas que serão substituídas automaticamente com os dados do paciente ou da sessão antes de enviar.
+                Configure os textos padrões das mensagens de lembretes de
+                sessões, fechamento de pendências financeiras, votos de
+                aniversários e outras notificações. Você pode utilizar marcações
+                dinâmicas que serão substituídas automaticamente com os dados do
+                paciente ou da sessão antes de enviar.
               </p>
 
               <div className="bg-amber-50/80 border border-amber-100 p-4 rounded-xl mb-6">
                 <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-1.5 font-sans">
-                  <span className="font-semibold text-xs bg-amber-250 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-wide">Tags Dinâmicas Disponíveis</span>
+                  <span className="font-semibold text-xs bg-amber-250 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                    Tags Dinâmicas Disponíveis
+                  </span>
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-slate-700">
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{nome}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Primeiro nome</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Primeiro nome
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{nome_completo}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans font-medium text-[10px]">Nome completo</span>
+                    <span className="block text-slate-500 mt-1 font-sans font-medium text-[10px]">
+                      Nome completo
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{data}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Data da sessão</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Data da sessão
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs font-sans">
                     <code className="text-amber-600 font-bold font-mono">{`{hora}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Hora da sessão</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Hora da sessão
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{valor}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Valor pendente</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Valor pendente
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{pix}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Sua chave Pix</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Sua chave Pix
+                    </span>
                   </div>
                   <div className="bg-white p-2.5 rounded border border-slate-200 shadow-xs">
                     <code className="text-amber-600 font-bold font-mono">{`{meunome}`}</code>
-                    <span className="block text-slate-500 mt-1 font-sans">Seu nome prof.</span>
+                    <span className="block text-slate-500 mt-1 font-sans">
+                      Seu nome prof.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -10215,14 +10611,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col">
                     <label className="block text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1.5 font-sans">
-                      <CalendarIcon className="w-4 h-4 text-emerald-600" /> Lembrete de Sessão
+                      <CalendarIcon className="w-4 h-4 text-emerald-600" />{" "}
+                      Lembrete de Sessão
                     </label>
                     <textarea
                       rows={5}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.whatsappReminderTemplate || ""}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, whatsappReminderTemplate: e.target.value })
+                        setEditForm({
+                          ...editForm,
+                          whatsappReminderTemplate: e.target.value,
+                        })
                       }
                       placeholder={`Ex: Olá {nome}, tudo bem? Passando para lembrar da nossa próxima sessão agendada para {data} às {hora}. Até lá!`}
                     />
@@ -10230,14 +10630,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col">
                     <label className="block text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1.5 font-sans">
-                      <DollarSign className="w-4 h-4 text-emerald-600" /> Pendências Financeiras
+                      <DollarSign className="w-4 h-4 text-emerald-600" />{" "}
+                      Pendências Financeiras
                     </label>
                     <textarea
                       rows={5}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.whatsappFinancialTemplate || ""}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, whatsappFinancialTemplate: e.target.value })
+                        setEditForm({
+                          ...editForm,
+                          whatsappFinancialTemplate: e.target.value,
+                        })
                       }
                       placeholder={`Ex: Olá {nome}. Segue fechamento das nossas sessões realizadas. O valor pendente é de {valor}. Pix de pagamento: {pix}. Abraço.`}
                     />
@@ -10245,14 +10649,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col">
                     <label className="block text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1.5 font-sans">
-                      <Gift className="w-4 h-4 text-rose-500" /> Mensagem de Aniversário
+                      <Gift className="w-4 h-4 text-rose-500" /> Mensagem de
+                      Aniversário
                     </label>
                     <textarea
                       rows={5}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.whatsappBirthdayTemplate || ""}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, whatsappBirthdayTemplate: e.target.value })
+                        setEditForm({
+                          ...editForm,
+                          whatsappBirthdayTemplate: e.target.value,
+                        })
                       }
                       placeholder={`Ex: Olá {nome}! Parabéns pelo seu aniversário! Desejo muita saúde, paz, alegria e realizações na sua jornada. Um grande abraço!`}
                     />
@@ -10260,14 +10668,18 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col">
                     <label className="block text-sm font-semibold text-slate-800 mb-2 flex items-center gap-1.5 font-sans">
-                      <AlertCircle className="w-4 h-4 text-indigo-500" /> Outras Mensagens / Geral
+                      <AlertCircle className="w-4 h-4 text-indigo-500" /> Outras
+                      Mensagens / Geral
                     </label>
                     <textarea
                       rows={5}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-amber-400 focus:bg-white outline-none font-sans bg-white shadow-xs resize-none text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                       value={editForm.whatsappOtherTemplate || ""}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, whatsappOtherTemplate: e.target.value })
+                        setEditForm({
+                          ...editForm,
+                          whatsappOtherTemplate: e.target.value,
+                        })
                       }
                       placeholder={`Ex: Olá {nome}, tudo bem? Espero que sim.`}
                     />
@@ -10300,44 +10712,66 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </h2>
             <div className="max-w-2xl">
               <p className="text-slate-600 mb-8 leading-relaxed">
-                Precisa de ajuda com a plataforma? Entre em contato através dos nossos canais de atendimento oficiais. Estaremos prontos para te atender.
+                Precisa de ajuda com a plataforma? Entre em contato através dos
+                nossos canais de atendimento oficiais. Estaremos prontos para te
+                atender.
               </p>
-              
+
               <div className="grid gap-6">
-                <a 
-                  href={supportSettings?.phone ? `https://wa.me/${formatWa(supportSettings.phone)}?text=${encodeURIComponent(supportSettings.message || 'Olá, preciso de ajuda com a plataforma.')}` : '#'}
+                <a
+                  href={
+                    supportSettings?.phone
+                      ? `https://wa.me/${formatWa(supportSettings.phone)}?text=${encodeURIComponent(supportSettings.message || "Olá, preciso de ajuda com a plataforma.")}`
+                      : "#"
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
                     "flex items-center p-6 border rounded-2xl transition group",
-                    supportSettings?.phone ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer" : "border-slate-200 opacity-50 cursor-not-allowed"
+                    supportSettings?.phone
+                      ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer"
+                      : "border-slate-200 opacity-50 cursor-not-allowed",
                   )}
                 >
                   <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mr-6 group-hover:scale-110 transition shrink-0">
                     <MessageCircle className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">Atendimento via WhatsApp</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">
+                      Atendimento via WhatsApp
+                    </h3>
                     <p className="text-slate-500 text-sm">
-                      {supportSettings?.phone ? `Suporte direto no número ${supportSettings.phone}` : 'Em breve'}
+                      {supportSettings?.phone
+                        ? `Suporte direto no número ${supportSettings.phone}`
+                        : "Em breve"}
                     </p>
                   </div>
                 </a>
 
-                <a 
-                  href={supportSettings?.email ? `mailto:${supportSettings.email}?subject=Suporte Plataforma` : '#'}
+                <a
+                  href={
+                    supportSettings?.email
+                      ? `mailto:${supportSettings.email}?subject=Suporte Plataforma`
+                      : "#"
+                  }
                   className={cn(
                     "flex items-center p-6 border rounded-2xl transition group",
-                    supportSettings?.email ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer" : "border-slate-200 opacity-50 cursor-not-allowed"
+                    supportSettings?.email
+                      ? "border-amber-200 hover:border-amber-400 hover:bg-amber-50 cursor-pointer"
+                      : "border-slate-200 opacity-50 cursor-not-allowed",
                   )}
                 >
                   <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mr-6 group-hover:scale-110 transition shrink-0">
                     <Mail className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">Atendimento via E-mail</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">
+                      Atendimento via E-mail
+                    </h3>
                     <p className="text-slate-500 text-sm">
-                      {supportSettings?.email ? `Envie um e-mail para ${supportSettings.email}` : 'Em breve'}
+                      {supportSettings?.email
+                        ? `Envie um e-mail para ${supportSettings.email}`
+                        : "Em breve"}
                     </p>
                   </div>
                 </a>
@@ -10348,11 +10782,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "assinatura" && (
           <div className="animate-in fade-in">
-            <TabHeader icon={CreditCard} title="Assinatura" description="Área onde o próprio psicólogo gerencia sua assinatura do SaaS da ELO (planos, atualizações e pagamentos)." />
-            <SubscriptionManager 
-              userId={userId} 
-              profileData={profileData} 
-              onUpdateProfile={onUpdateProfile} 
+            <TabHeader
+              icon={CreditCard}
+              title="Assinatura"
+              description="Área onde o próprio psicólogo gerencia sua assinatura do SaaS da ELO (planos, atualizações e pagamentos)."
+            />
+            <SubscriptionManager
+              userId={userId}
+              profileData={profileData}
+              onUpdateProfile={onUpdateProfile}
             />
           </div>
         )}
@@ -10531,7 +10969,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </button>
                   <button
                     onClick={() =>
-                      handleTemplateChange("readjustment", notificationModalClient)
+                      handleTemplateChange(
+                        "readjustment",
+                        notificationModalClient,
+                      )
                     }
                     className={cn(
                       "px-4 py-2 border rounded-full text-sm font-medium transition",
@@ -10565,7 +11006,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                    className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={notificationSubject}
                     onChange={(e) => setNotificationSubject(e.target.value)}
                   />
@@ -10591,7 +11032,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           >
                             <input
                               type="checkbox"
-                              className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                              className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                               checked={selectedMaterialIndices.includes(idx)}
                               onChange={(e) => {
                                 let newIndices = [...selectedMaterialIndices];
@@ -10658,7 +11099,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           const serviceName =
                             appt.serviceName || "Sessão Padrão";
                           const amount = Number(appt.totalAmount || 0);
-                          const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace('.', ',')}`;
+                          const appendText = `${dateStr} - ${serviceName} - R$ ${amount.toFixed(2).replace(".", ",")}`;
                           const isChecked = receiptSessionIds.includes(appt.id);
 
                           return (
@@ -10668,7 +11109,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             >
                               <input
                                 type="checkbox"
-                                className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300"
+                                className="rounded text-amber-500 w-4 h-4 cursor-pointer focus:ring-amber-500 border-slate-300 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                                 checked={isChecked}
                                 onChange={(e) => {
                                   let newIds = [...receiptSessionIds];
@@ -10707,7 +11148,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                                   currentMsg = currentMsg.replace(
                                     /Total: R\$ \d*(?:\.\d+)?(?:,\d{2})?/,
-                                    `Total: R$ ${newTotal.toFixed(2).replace('.', ',')}`,
+                                    `Total: R$ ${newTotal.toFixed(2).replace(".", ",")}`,
                                   );
 
                                   setNotificationMessage(currentMsg);
@@ -10749,7 +11190,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     Edite a mensagem abaixo conforme necessário antes de enviar.
                   </p>
                   <textarea
-                    className="w-full p-4 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none min-h-[250px] leading-relaxed resize-y"
+                    className="w-full p-4 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none min-h-[250px] leading-relaxed resize-y text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                     value={notificationMessage}
                     onChange={(e) => setNotificationMessage(e.target.value)}
                   />
@@ -10824,7 +11265,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <div className="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
               <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-500" />
-                Editar Termos de Contrato ({showContractEditor === "paciente" ? "Pacientes" : "Empresas"})
+                Editar Termos de Contrato (
+                {showContractEditor === "paciente" ? "Pacientes" : "Empresas"})
               </h3>
               <button
                 onClick={() => setShowContractEditor(null)}
@@ -10835,12 +11277,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             </div>
             <div className="p-6 overflow-y-auto">
               <p className="text-sm text-slate-500 mb-4">
-                Este texto será exibido aos {showContractEditor === "paciente" ? "pacientes" : "empresas"} quando você enviar o
-                link de termos para assinatura online.
+                Este texto será exibido aos{" "}
+                {showContractEditor === "paciente" ? "pacientes" : "empresas"}{" "}
+                quando você enviar o link de termos para assinatura online.
               </p>
               <textarea
                 rows={15}
-                className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none placeholder-slate-400 font-mono text-sm leading-relaxed"
+                className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none placeholder-slate-400 font-mono text-sm leading-relaxed text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
                 value={
                   showContractEditor === "paciente"
                     ? profileData?.contractTerms || ""
@@ -10849,7 +11292,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 onChange={(e) => {
                   onUpdateProfile({
                     ...profileData,
-                    [showContractEditor === "paciente" ? "contractTerms" : "companyContractTerms"]: e.target.value
+                    [showContractEditor === "paciente"
+                      ? "contractTerms"
+                      : "companyContractTerms"]: e.target.value,
                   });
                 }}
                 placeholder="Insira as cláusulas do contrato aqui..."
@@ -10866,14 +11311,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 onClick={async () => {
                   setSaving(true);
                   try {
-                    const field = showContractEditor === "paciente" ? "contractTerms" : "companyContractTerms";
+                    const field =
+                      showContractEditor === "paciente"
+                        ? "contractTerms"
+                        : "companyContractTerms";
                     await updateDoc(doc(db, "profiles", userId), {
-                       [field]: profileData?.[field] || "",
-                       updatedAt: serverTimestamp(),
+                      [field]: profileData?.[field] || "",
+                      updatedAt: serverTimestamp(),
                     });
                     alert("Contrato salvo com sucesso!");
                     setShowContractEditor(null);
-                  } catch(e) {
+                  } catch (e) {
                     alert("Erro ao salvar");
                   }
                   setSaving(false);
@@ -10909,7 +11357,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
             <div className="p-6 flex-1 overflow-y-auto space-y-4">
               <p className="text-xs text-slate-500">
-                Adicione novas contas ou remova contas existentes. A lista configurada será exibida em todas as áreas de agendamento de consultas (pacientes e empresas) e no gerente de faturamento.
+                Adicione novas contas ou remova contas existentes. A lista
+                configurada será exibida em todas as áreas de agendamento de
+                consultas (pacientes e empresas) e no gerente de faturamento.
               </p>
 
               {/* Add form */}
@@ -10917,7 +11367,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <input
                   type="text"
                   placeholder="Nome da Conta (Ex: Banco Inter, Pix, etc)"
-                  className="flex-1 p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-400"
+                  className="flex-1 p-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-amber-400 text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
                   onKeyDown={(e) => {
@@ -10944,8 +11394,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </div>
                 ) : (
                   billingAccounts.map((acc: string) => (
-                    <div key={acc} className="flex justify-between items-center p-3 px-4 bg-white text-sm hover:bg-slate-50 transition">
-                      <span className="font-semibold text-slate-700">{acc}</span>
+                    <div
+                      key={acc}
+                      className="flex justify-between items-center p-3 px-4 bg-white text-sm hover:bg-slate-50 transition"
+                    >
+                      <span className="font-semibold text-slate-700">
+                        {acc}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleDeleteBillingAccount(acc)}

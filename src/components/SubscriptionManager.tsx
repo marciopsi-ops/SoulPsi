@@ -1,9 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { Sparkles, CreditCard, QrCode, Lock, CheckCircle2, AlertCircle, Calendar, ShieldCheck, ArrowRight, FileText, ChevronRight, Coins, Bell, RefreshCw } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { format, addMonths, addYears } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import { db, handleFirestoreError, OperationType } from "../firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import {
+  Sparkles,
+  CreditCard,
+  QrCode,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  ShieldCheck,
+  ArrowRight,
+  FileText,
+  ChevronRight,
+  Coins,
+  Bell,
+  RefreshCw,
+} from "lucide-react";
+import { cn } from "../lib/utils";
+import { format, addMonths, addYears } from "date-fns";
 
 interface SubscriptionManagerProps {
   userId: string;
@@ -12,32 +27,49 @@ interface SubscriptionManagerProps {
   onClose?: () => void;
 }
 
-export function SubscriptionManager({ userId, profileData, onUpdateProfile, onClose }: SubscriptionManagerProps) {
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | null>(null);
-  const [step, setStep] = useState<'plans' | 'checkout' | 'processing' | 'success'>('plans');
+export function SubscriptionManager({
+  userId,
+  profileData,
+  onUpdateProfile,
+  onClose,
+}: SubscriptionManagerProps) {
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "pix" | null>(
+    null,
+  );
+  const [step, setStep] = useState<
+    "plans" | "checkout" | "processing" | "success"
+  >("plans");
   const [loading, setLoading] = useState(false);
 
   // Form states
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [pixCopied, setPixCopied] = useState(false);
   const [pixCountdown, setPixCountdown] = useState(600); // 10 minutes
 
-  const isTrial = profileData?.subscriptionStatus === 'trial';
-  const isTrialValid = isTrial && profileData?.trialEndsAt && new Date(profileData.trialEndsAt) > new Date();
-  const isActive = profileData?.subscriptionStatus === 'active';
+  const isTrial = profileData?.subscriptionStatus === "trial";
+  const isTrialValid =
+    isTrial &&
+    profileData?.trialEndsAt &&
+    new Date(profileData.trialEndsAt) > new Date();
+  const isActive = profileData?.subscriptionStatus === "active";
 
-  const planPrice = selectedPlan === 'monthly' ? 59.90 : 499.90;
-  const planName = selectedPlan === 'monthly' ? 'Plano Mensal Profissional' : 'Plano Anual Premium (30% OFF)';
+  const planPrice = selectedPlan === "monthly" ? 59.9 : 499.9;
+  const planName =
+    selectedPlan === "monthly"
+      ? "Plano Mensal Profissional"
+      : "Plano Anual Premium (30% OFF)";
 
   // Countdown for Pix QR Code
   useEffect(() => {
-    if (step === 'checkout' && paymentMethod === 'pix' && pixCountdown > 0) {
+    if (step === "checkout" && paymentMethod === "pix" && pixCountdown > 0) {
       const timer = setInterval(() => {
-        setPixCountdown(prev => prev - 1);
+        setPixCountdown((prev) => prev - 1);
       }, 1000);
       return () => clearInterval(timer);
     }
@@ -46,14 +78,14 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
   // Safe credit card formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').substring(0, 16);
+    const val = e.target.value.replace(/\D/g, "").substring(0, 16);
     const matches = val.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
+    const match = (matches && matches[0]) || "";
     const parts = [];
 
     for (let i = 0, len = match.length; i < len; i += 4) {
@@ -61,27 +93,27 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
     }
 
     if (parts.length > 0) {
-      setCardNumber(parts.join(' '));
+      setCardNumber(parts.join(" "));
     } else {
       setCardNumber(val);
     }
   };
 
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, '').substring(0, 4);
+    let val = e.target.value.replace(/\D/g, "").substring(0, 4);
     if (val.length >= 2) {
-      val = val.substring(0, 2) + '/' + val.substring(2);
+      val = val.substring(0, 2) + "/" + val.substring(2);
     }
     setCardExpiry(val);
   };
 
   const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').substring(0, 4);
+    const val = e.target.value.replace(/\D/g, "").substring(0, 4);
     setCardCvv(val);
   };
 
   const handleCopyPix = () => {
-    const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${selectedPlan === 'monthly' ? '59.90' : '499.90'}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
+    const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${selectedPlan === "monthly" ? "59.90" : "499.90"}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
     navigator.clipboard.writeText(pixCode);
     setPixCopied(true);
     setTimeout(() => setPixCopied(false), 2500);
@@ -89,43 +121,57 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
   // Execute actual database update
   const handleProcessPayment = async () => {
-    if (paymentMethod === 'card') {
-      if (!cardName.trim() || cardNumber.length < 19 || cardExpiry.length < 5 || cardCvv.length < 3) {
-        alert('Por favor, preencha todos os dados do cartão de crédito corretamente.');
+    if (paymentMethod === "card") {
+      if (
+        !cardName.trim() ||
+        cardNumber.length < 19 ||
+        cardExpiry.length < 5 ||
+        cardCvv.length < 3
+      ) {
+        alert(
+          "Por favor, preencha todos os dados do cartão de crédito corretamente.",
+        );
         return;
       }
     }
 
-    setStep('processing');
+    setStep("processing");
     setLoading(true);
 
     try {
       // Direct Firestore sync
-      const userRef = doc(db, 'profiles', userId);
-      const endsAt = selectedPlan === 'monthly' ? addMonths(new Date(), 1) : addYears(new Date(), 1);
-      
+      const userRef = doc(db, "profiles", userId);
+      const endsAt =
+        selectedPlan === "monthly"
+          ? addMonths(new Date(), 1)
+          : addYears(new Date(), 1);
+
       const newSubscriptionData = {
-        subscriptionStatus: 'active',
+        subscriptionStatus: "active",
         activePlan: selectedPlan,
         trialEndsAt: null,
         subscriptionStartedAt: new Date().toISOString(),
         subscriptionExpiresAt: endsAt.toISOString(),
         subscriptionPrice: planPrice,
-        paymentMethod: paymentMethod === 'card' ? 'credit_card' : 'pix',
+        paymentMethod: paymentMethod === "card" ? "credit_card" : "pix",
         lastPaymentDate: new Date().toISOString(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
       await updateDoc(userRef, newSubscriptionData);
 
       // Trigger automatic receipt system notification for professional area
       try {
-        const notifRef = doc(db, `profiles/${userId}/system_notifications`, `billing_${Date.now()}`);
+        const notifRef = doc(
+          db,
+          `profiles/${userId}/system_notifications`,
+          `billing_${Date.now()}`,
+        );
         await updateDoc(notifRef, {
-          title: 'Assinatura Ativada! 🎉',
+          title: "Assinatura Ativada! 🎉",
           message: `Obrigado! Seu pagamento para o ${planName} foi processado e aprovado com sucesso via Stripe. Todas as funcionalidades já estão totalmente liberadas.`,
           isRead: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
       } catch (e) {
         // Safe check in case write fails
@@ -133,12 +179,12 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
       onUpdateProfile({
         ...profileData,
-        ...newSubscriptionData
+        ...newSubscriptionData,
       });
 
-      setStep('success');
+      setStep("success");
     } catch (e: any) {
-      setStep('checkout');
+      setStep("checkout");
       handleFirestoreError(e, OperationType.UPDATE, `profiles/${userId}`);
     } finally {
       setLoading(false);
@@ -146,13 +192,39 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
   };
 
   if (isActive) {
-    const nextDate = profileData?.subscriptionExpiresAt 
-      ? new Date(profileData.subscriptionExpiresAt) 
-      : addMonths(new Date(profileData?.subscriptionStartedAt || Date.now()), 1);
+    const nextDate = profileData?.subscriptionExpiresAt
+      ? new Date(profileData.subscriptionExpiresAt)
+      : addMonths(
+          new Date(profileData?.subscriptionStartedAt || Date.now()),
+          1,
+        );
 
     const invoices = [
-      { id: 'INV-0229', date: profileData?.lastPaymentDate ? new Date(profileData.lastPaymentDate) : new Date(), amount: profileData?.subscriptionPrice || 59.90, method: profileData?.paymentMethod === 'pix' ? 'Pix' : 'Cartão de Crédito (Visa •••• 4242)', status: 'paid' },
-      { id: 'INV-0182', date: addMonths(profileData?.lastPaymentDate ? new Date(profileData.lastPaymentDate) : new Date(), -1), amount: profileData?.subscriptionPrice || 59.90, method: 'Pix', status: 'paid', dummy: true }
+      {
+        id: "INV-0229",
+        date: profileData?.lastPaymentDate
+          ? new Date(profileData.lastPaymentDate)
+          : new Date(),
+        amount: profileData?.subscriptionPrice || 59.9,
+        method:
+          profileData?.paymentMethod === "pix"
+            ? "Pix"
+            : "Cartão de Crédito (Visa •••• 4242)",
+        status: "paid",
+      },
+      {
+        id: "INV-0182",
+        date: addMonths(
+          profileData?.lastPaymentDate
+            ? new Date(profileData.lastPaymentDate)
+            : new Date(),
+          -1,
+        ),
+        amount: profileData?.subscriptionPrice || 59.9,
+        method: "Pix",
+        status: "paid",
+        dummy: true,
+      },
     ];
 
     return (
@@ -167,8 +239,12 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
                 Stripe Billing
               </span>
             </div>
-            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Sua Assinatura ELO</h2>
-            <p className="text-slate-500 mt-1">Gerencie os detalhes do seu plano, faturas e métodos de cobrança.</p>
+            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+              Sua Assinatura ELO
+            </h2>
+            <p className="text-slate-500 mt-1">
+              Gerencie os detalhes do seu plano, faturas e métodos de cobrança.
+            </p>
           </div>
 
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex items-center gap-4">
@@ -176,43 +252,72 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-slate-450 uppercase font-black tracking-wider leading-none mb-1">Próxima Cobrança Auto</p>
-              <p className="text-lg font-black text-slate-800">{format(nextDate, 'dd/MM/yyyy')}</p>
-              <p className="text-xs text-slate-500 font-bold">R$ {(profileData?.subscriptionPrice || 59.90).toFixed(2).replace('.', ',')}/{profileData?.activePlan === 'yearly' ? 'ano' : 'mês'}</p>
+              <p className="text-xs text-slate-450 uppercase font-black tracking-wider leading-none mb-1">
+                Próxima Cobrança Auto
+              </p>
+              <p className="text-lg font-black text-slate-800">
+                {format(nextDate, "dd/MM/yyyy")}
+              </p>
+              <p className="text-xs text-slate-500 font-bold">
+                R${" "}
+                {(profileData?.subscriptionPrice || 59.9)
+                  .toFixed(2)
+                  .replace(".", ",")}
+                /{profileData?.activePlan === "yearly" ? "ano" : "mês"}
+              </p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="border border-slate-100 rounded-2xl p-5 bg-slate-50/50">
-            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">Plano Atual</h3>
+            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">
+              Plano Atual
+            </h3>
             <p className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-              {profileData?.activePlan === 'yearly' ? 'Plano Anual Premium' : 'Plano Mensal Profissional'}
+              {profileData?.activePlan === "yearly"
+                ? "Plano Anual Premium"
+                : "Plano Mensal Profissional"}
             </p>
-            <p className="text-xs text-slate-450 mt-1">Acesso ilimitado a todas as ferramentas.</p>
+            <p className="text-xs text-slate-450 mt-1">
+              Acesso ilimitado a todas as ferramentas.
+            </p>
           </div>
 
           <div className="border border-slate-100 rounded-2xl p-5 bg-slate-50/50">
-            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">Forma de Pagamento</h3>
+            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">
+              Forma de Pagamento
+            </h3>
             <p className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
               <CreditCard className="w-4 h-4 text-emerald-600 shrink-0" />
-              {profileData?.paymentMethod === 'credit_card' ? 'Cartão Mastercard •••• 4242' : 'Link Direto Pix'}
+              {profileData?.paymentMethod === "credit_card"
+                ? "Cartão Mastercard •••• 4242"
+                : "Link Direto Pix"}
             </p>
-            <p className="text-xs text-slate-450 mt-1">Cobrança automática ativa via gateway Stripe.</p>
+            <p className="text-xs text-slate-450 mt-1">
+              Cobrança automática ativa via gateway Stripe.
+            </p>
           </div>
 
           <div className="border border-slate-100 rounded-2xl p-5 bg-slate-50/50">
-            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">Suporte Prioritário</h3>
-            <p className="text-sm font-extrabold text-slate-800">Liberado & Ativo</p>
-            <p className="text-xs text-slate-450 mt-1">Seu plano possui acesso direto aos canais de apoio do comercial.</p>
+            <h3 className="text-xs uppercase font-black text-slate-400 tracking-wider mb-2">
+              Suporte Prioritário
+            </h3>
+            <p className="text-sm font-extrabold text-slate-800">
+              Liberado & Ativo
+            </p>
+            <p className="text-xs text-slate-450 mt-1">
+              Seu plano possui acesso direto aos canais de apoio do comercial.
+            </p>
           </div>
         </div>
 
         {/* Invoice List */}
         <div>
           <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-slate-400" /> Histórico de Transações e Faturas
+            <FileText className="w-5 h-5 text-slate-400" /> Histórico de
+            Transações e Faturas
           </h3>
           <div className="border border-slate-100 rounded-2xl overflow-hidden">
             <table className="w-full text-left text-sm border-collapse">
@@ -232,10 +337,10 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
                       {inv.id}
                     </td>
                     <td className="p-4 text-slate-600">
-                      {format(inv.date, 'dd/MM/yyyy')}
+                      {format(inv.date, "dd/MM/yyyy")}
                     </td>
                     <td className="p-4 font-extrabold text-slate-700">
-                      R$ {inv.amount.toFixed(2).replace('.', ',')}
+                      R$ {inv.amount.toFixed(2).replace(".", ",")}
                     </td>
                     <td className="p-4 text-slate-550 text-xs font-semibold">
                       {inv.method}
@@ -252,10 +357,16 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
           </div>
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-50/40 p-4 rounded-xl border border-amber-100/50 text-xs">
             <span className="text-amber-800 font-bold flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Gerenciamento seguro tokenizado sob os rígidos padrões PCI-DSS do Stripe.
+              <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />{" "}
+              Gerenciamento seguro tokenizado sob os rígidos padrões PCI-DSS do
+              Stripe.
             </span>
-            <button 
-              onClick={() => alert('O Portal de Cliente Stripe permite que você mude formas de pagamento, visualize faturas ou cancele sua assinatura em produção real.')}
+            <button
+              onClick={() =>
+                alert(
+                  "O Portal de Cliente Stripe permite que você mude formas de pagamento, visualize faturas ou cancele sua assinatura em produção real.",
+                )
+              }
               className="px-3.5 py-1.5 bg-white border border-amber-200 text-amber-800 font-bold rounded-lg hover:bg-amber-100/50 transition-colors"
             >
               Acessar Portal do Stripe
@@ -268,73 +379,92 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
   return (
     <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-slate-100 max-w-4xl mx-auto shadow-sm font-sans relative overflow-hidden">
-      
-      {step === 'plans' && (
+      {step === "plans" && (
         <>
           <div className="text-center max-w-xl mx-auto mb-10">
             <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-black px-3.5 py-1.5 rounded-full mb-4 border border-amber-200/50 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Acesso Profissional Completo
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Acesso
+              Profissional Completo
             </div>
-            <h2 className="text-4xl font-extrabold text-slate-800 tracking-tight">Escolha o seu plano ELO</h2>
+            <h2 className="text-4xl font-extrabold text-slate-800 tracking-tight">
+              Escolha o seu plano ELO
+            </h2>
             <p className="text-slate-600 mt-2 text-md">
-              Desbloqueie registros de pacientes, formulários, acompanhamento financeiro, automação de alertas e muito mais.
+              Desbloqueie registros de pacientes, formulários, acompanhamento
+              financeiro, automação de alertas e muito mais.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto mb-10">
             {/* Plan 1 */}
-            <div 
-              onClick={() => setSelectedPlan('monthly')}
+            <div
+              onClick={() => setSelectedPlan("monthly")}
               className={cn(
                 "p-8 rounded-[2rem] border-2 text-left cursor-pointer transition-all flex flex-col justify-between relative",
-                selectedPlan === 'monthly'
+                selectedPlan === "monthly"
                   ? "border-amber-400 bg-amber-50/20 shadow-md shadow-amber-100/50"
-                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
               )}
             >
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-extrabold text-xl text-slate-800">Mensal</h3>
-                    <p className="text-xs text-slate-400 font-medium">Flexibilidade sem fidelidade</p>
+                    <h3 className="font-extrabold text-xl text-slate-800">
+                      Mensal
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Flexibilidade sem fidelidade
+                    </p>
                   </div>
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    selectedPlan === 'monthly' ? "border-amber-500 bg-amber-500" : "border-slate-300"
-                  )}>
-                    {selectedPlan === 'monthly' && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+                  <div
+                    className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                      selectedPlan === "monthly"
+                        ? "border-amber-500 bg-amber-500"
+                        : "border-slate-300",
+                    )}
+                  >
+                    {selectedPlan === "monthly" && (
+                      <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
-                  <span className="text-4xl font-black text-slate-800">59,90</span>
+                  <span className="text-4xl font-black text-slate-800">
+                    59,90
+                  </span>
                   <span className="text-slate-450 font-bold">/mês</span>
                 </div>
                 <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-4 border-t border-slate-100">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Infinitos agendamentos e prontuários
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Infinitos agendamentos e prontuários
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Envio automático de mensagens (Pix/Vencimentos)
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Envio automático de mensagens (Pix/Vencimentos)
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Gerenciador de materiais e termos de uso
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Gerenciador de materiais e termos de uso
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Suporte técnico integral
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Suporte técnico integral
                   </li>
                 </ul>
               </div>
             </div>
 
             {/* Plan 2 */}
-            <div 
-              onClick={() => setSelectedPlan('yearly')}
+            <div
+              onClick={() => setSelectedPlan("yearly")}
               className={cn(
                 "p-8 rounded-[2rem] border-2 text-left cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden",
-                selectedPlan === 'yearly'
+                selectedPlan === "yearly"
                   ? "border-amber-500 bg-amber-50/20 shadow-md shadow-amber-100/50"
-                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
               )}
             >
               <div className="absolute top-3.5 right-[-35px] bg-amber-500 text-white text-[9px] font-black uppercase py-1 px-10 rotate-45 tracking-wider">
@@ -343,33 +473,49 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-extrabold text-xl text-slate-800">Anual Premiado</h3>
-                    <p className="text-xs text-slate-400 font-medium">Melhor custo-benefício</p>
+                    <h3 className="font-extrabold text-xl text-slate-800">
+                      Anual Premiado
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Melhor custo-benefício
+                    </p>
                   </div>
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    selectedPlan === 'yearly' ? "border-amber-500 bg-amber-500" : "border-slate-300"
-                  )}>
-                    {selectedPlan === 'yearly' && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+                  <div
+                    className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                      selectedPlan === "yearly"
+                        ? "border-amber-500 bg-amber-500"
+                        : "border-slate-300",
+                    )}
+                  >
+                    {selectedPlan === "yearly" && (
+                      <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
-                  <span className="text-4xl font-black text-slate-800">499,90</span>
+                  <span className="text-4xl font-black text-slate-800">
+                    499,90
+                  </span>
                   <span className="text-slate-450 font-bold">/ano</span>
                 </div>
                 <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-4 border-t border-slate-100">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Economize R$ 218,90 em relação ao mensal
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Economize R$ 218,90 em relação ao mensal
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Infinitos atendimentos e prontuários
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Infinitos atendimentos e prontuários
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Alertas automatizados completos via WhatsApp
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Alertas automatizados completos via WhatsApp
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" /> Acesso prioritário a atualizações
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Acesso prioritário a atualizações
                   </li>
                 </ul>
               </div>
@@ -378,7 +524,7 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
           <div className="flex items-center justify-center gap-4 border-t border-slate-100 pt-8 max-w-md mx-auto">
             {onClose && (
-              <button 
+              <button
                 onClick={onClose}
                 className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition"
               >
@@ -387,8 +533,8 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
             )}
             <button
               onClick={() => {
-                setPaymentMethod('card');
-                setStep('checkout');
+                setPaymentMethod("card");
+                setStep("checkout");
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 px-6 rounded-xl transition shadow flex items-center justify-center gap-2 font-semibold text-sm"
             >
@@ -398,17 +544,25 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
         </>
       )}
 
-      {step === 'checkout' && (
+      {step === "checkout" && (
         <div className="max-w-2xl mx-auto">
           {/* Header checkout */}
           <div className="flex items-center justify-between border-b border-slate-150 pb-5 mb-6">
             <div>
-              <h2 className="text-lg font-black text-slate-800">Checkout Seguro Stripe</h2>
-              <p className="text-xs text-slate-500 font-medium">Assinando: <span className="font-bold text-amber-600">{planName}</span> • R$ {planPrice.toFixed(2).replace('.', ',')}</p>
+              <h2 className="text-lg font-black text-slate-800">
+                Checkout Seguro Stripe
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Assinando:{" "}
+                <span className="font-bold text-amber-600">{planName}</span> •
+                R$ {planPrice.toFixed(2).replace(".", ",")}
+              </p>
             </div>
             <div className="flex items-center gap-1.5 text-slate-450">
               <Lock className="w-4 h-4 text-amber-550" />
-              <span className="text-xs font-bold font-sans uppercase">PCI SECURE</span>
+              <span className="text-xs font-bold font-sans uppercase">
+                PCI SECURE
+              </span>
             </div>
           </div>
 
@@ -416,46 +570,50 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               type="button"
-              onClick={() => setPaymentMethod('card')}
+              onClick={() => setPaymentMethod("card")}
               className={cn(
                 "p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition",
-                paymentMethod === 'card'
+                paymentMethod === "card"
                   ? "bg-slate-900 border-slate-900 text-white shadow-sm"
-                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
               )}
             >
               <CreditCard className="w-4 h-4" /> Cartão de Crédito
             </button>
             <button
               type="button"
-              onClick={() => setPaymentMethod('pix')}
+              onClick={() => setPaymentMethod("pix")}
               className={cn(
                 "p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition",
-                paymentMethod === 'pix'
+                paymentMethod === "pix"
                   ? "bg-slate-900 border-slate-900 text-white shadow-sm"
-                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100",
               )}
             >
               <QrCode className="w-4 h-4" /> Pix Instantâneo
             </button>
           </div>
 
-          {paymentMethod === 'card' ? (
+          {paymentMethod === "card" ? (
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">Nome Impresso no Cartão</label>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">
+                  Nome Impresso no Cartão
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="EX: DR ROGERIO SILVA"
                   value={cardName}
-                  onChange={e => setCardName(e.target.value.toUpperCase())}
+                  onChange={(e) => setCardName(e.target.value.toUpperCase())}
                   className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none focus:border-amber-400 text-slate-800 font-bold uppercase"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">Número do Cartão de Crédito</label>
+                <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">
+                  Número do Cartão de Crédito
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -473,7 +631,9 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">Validade (MM/AA)</label>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">
+                    Validade (MM/AA)
+                  </label>
                   <input
                     type="text"
                     required
@@ -484,7 +644,9 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">CVC / CVV</label>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wide mb-1">
+                    CVC / CVV
+                  </label>
                   <input
                     type="text"
                     required
@@ -499,25 +661,40 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex items-start gap-2.5 text-xs text-slate-500">
                 <AlertCircle className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  Para testes rápidos na plataforma de demonstração Sandbox, sinta-se à vontade para preencher com dados fictícios ou usar o número padrão de testes Stripe: <span className="font-bold text-slate-700">4000 1234 5678 9010</span>.
+                  Para testes rápidos na plataforma de demonstração Sandbox,
+                  sinta-se à vontade para preencher com dados fictícios ou usar
+                  o número padrão de testes Stripe:{" "}
+                  <span className="font-bold text-slate-700">
+                    4000 1234 5678 9010
+                  </span>
+                  .
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center py-4 bg-emerald-50/20 border border-emerald-100/60 rounded-3xl p-6">
-              <h4 className="text-sm font-bold text-emerald-800 mb-1">Código Pix para Assinatura Gerado</h4>
-              <p className="text-xs text-slate-500 text-center mb-5">Escaneie o QR Code ou cole o código Copia e Cola para ativar instantaneamente.</p>
+              <h4 className="text-sm font-bold text-emerald-800 mb-1">
+                Código Pix para Assinatura Gerado
+              </h4>
+              <p className="text-xs text-slate-500 text-center mb-5">
+                Escaneie o QR Code ou cole o código Copia e Cola para ativar
+                instantaneamente.
+              </p>
 
               <div className="bg-white p-3.5 rounded-2xl border border-emerald-100 shadow-sm mb-4">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://elo.psi/checkout-stripe-simulation')}`} 
-                  alt="QR Code Assinatura" 
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent("https://elo.psi/checkout-stripe-simulation")}`}
+                  alt="QR Code Assinatura"
                   className="w-40 h-40 object-contain"
                 />
               </div>
 
               <div className="bg-emerald-50 text-emerald-700 text-xs font-black px-3.5 py-1.5 rounded-full mb-5 flex items-center gap-1.5 border border-emerald-200/50">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Aguardando aprovação bancária... Expira em: <span className="font-bold">{formatCountdown(pixCountdown)}</span>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Aguardando
+                aprovação bancária... Expira em:{" "}
+                <span className="font-bold">
+                  {formatCountdown(pixCountdown)}
+                </span>
               </div>
 
               <div className="w-full flex gap-2 items-center bg-white p-2 border border-slate-200 rounded-xl">
@@ -532,7 +709,7 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
                   onClick={handleCopyPix}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
                 >
-                  {pixCopied ? 'Copiado! ✓' : 'Copiar Código'}
+                  {pixCopied ? "Copiado! ✓" : "Copiar Código"}
                 </button>
               </div>
             </div>
@@ -540,7 +717,7 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
 
           <div className="mt-8 flex gap-3 border-t border-slate-100 pt-6">
             <button
-              onClick={() => setStep('plans')}
+              onClick={() => setStep("plans")}
               className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition"
             >
               Voltar
@@ -549,48 +726,71 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
               onClick={handleProcessPayment}
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 px-6 rounded-xl transition shadow flex items-center justify-center gap-2 font-semibold text-sm"
             >
-              <Lock className="w-4 h-4" /> {paymentMethod === 'card' ? 'Concluir Assinatura Segura' : 'Verificamos o Pix Já Realizado'}
+              <Lock className="w-4 h-4" />{" "}
+              {paymentMethod === "card"
+                ? "Concluir Assinatura Segura"
+                : "Verificamos o Pix Já Realizado"}
             </button>
           </div>
         </div>
       )}
 
-      {step === 'processing' && (
+      {step === "processing" && (
         <div className="py-20 text-center flex flex-col items-center">
           <div className="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center border border-amber-100/50 text-amber-500 mb-6 shadow-inner">
             <RefreshCw className="w-8 h-8 animate-spin" />
           </div>
-          <h3 className="text-2xl font-black text-slate-800 tracking-tight">Processando Transação via Stripe</h3>
-          <p className="text-slate-500 mt-2 text-sm max-w-sm">Por favor, não feche esta janela nem recarregue a página. Estamos autenticando e registrando a liberação do seu plano com segurança.</p>
+          <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+            Processando Transação via Stripe
+          </h3>
+          <p className="text-slate-500 mt-2 text-sm max-w-sm">
+            Por favor, não feche esta janela nem recarregue a página. Estamos
+            autenticando e registrando a liberação do seu plano com segurança.
+          </p>
         </div>
       )}
 
-      {step === 'success' && (
+      {step === "success" && (
         <div className="py-14 text-center flex flex-col items-center max-w-md mx-auto">
           <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 border border-emerald-200">
             <CheckCircle2 className="w-10 h-10 animate-bounce" />
           </div>
-          <h3 className="text-3xl font-black text-slate-800 tracking-tight">Assinatura Ativada com Sucesso!</h3>
+          <h3 className="text-3xl font-black text-slate-800 tracking-tight">
+            Assinatura Ativada com Sucesso!
+          </h3>
           <p className="text-slate-600 mt-3 text-sm leading-relaxed">
-            Parabéns! O seu perfil foi atualizado para o status <span className="font-bold text-emerald-600">Assinante Ativo</span> no banco de dados da ELO. Todas as ferramentas profissionais já foram liberadas!
+            Parabéns! O seu perfil foi atualizado para o status{" "}
+            <span className="font-bold text-emerald-600">Assinante Ativo</span>{" "}
+            no banco de dados da ELO. Todas as ferramentas profissionais já
+            foram liberadas!
           </p>
 
           <div className="bg-slate-50 p-4 border border-slate-100 rounded-2xl mt-6 text-left w-full">
             <div className="flex items-center gap-2.5 mb-2">
               <Calendar className="w-4 h-4 text-amber-500shrink-0" />
-              <span className="text-xs font-bold text-slate-700">Resumo da Assinatura</span>
+              <span className="text-xs font-bold text-slate-700">
+                Resumo da Assinatura
+              </span>
             </div>
             <ul className="text-xs text-slate-550 space-y-1.5 font-semibold">
-              <li>• Plano: <span className="text-slate-700">{planName}</span></li>
-              <li>• Gateway de Cobrança: <span className="text-slate-700">Stripe Secure (Simulado)</span></li>
-              <li>• Status no Firestore: <span className="text-emerald-700">active</span></li>
+              <li>
+                • Plano: <span className="text-slate-700">{planName}</span>
+              </li>
+              <li>
+                • Gateway de Cobrança:{" "}
+                <span className="text-slate-700">Stripe Secure (Simulado)</span>
+              </li>
+              <li>
+                • Status no Firestore:{" "}
+                <span className="text-emerald-700">active</span>
+              </li>
             </ul>
           </div>
 
           <button
             onClick={() => {
               if (onClose) onClose();
-              setStep('plans');
+              setStep("plans");
             }}
             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition shadow mt-8"
           >
@@ -598,7 +798,6 @@ export function SubscriptionManager({ userId, profileData, onUpdateProfile, onCl
           </button>
         </div>
       )}
-
     </div>
   );
 }
