@@ -8,6 +8,8 @@ import {
   GraduationCap,
   Calendar,
   Church,
+  ChevronRight,
+  Home,
 } from "lucide-react";
 import { ReviewSection } from "./ReviewSection";
 
@@ -87,11 +89,34 @@ export function ServiceDetail({
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto">
+        {/* Breadcrumbs Navigation Trail */}
+        <nav className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-medium text-slate-500 mb-6 bg-white dark:bg-slate-800 p-3 px-4 rounded-xl border border-slate-100 dark:border-slate-700/60 shadow-sm transition-all animate-in fade-in duration-300">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-400 font-semibold transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            <span>Início</span>
+          </button>
+          <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+          <span className="text-slate-400 dark:text-slate-500">
+            {service.category === "empresa" && "Para sua Empresa"}
+            {service.category === "psicologos" && "Para Psicólogos"}
+            {service.category === "psicologo" && "Para Psicólogos"}
+            {service.category === "igrejas" && "Para Igrejas"}
+            {!["empresa", "psicologos", "psicologo", "igrejas"].includes(service.category) && "Para Você"}
+          </span>
+          <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600 sm:inline hidden" />
+          <span className="text-slate-800 dark:text-slate-200 truncate font-bold sm:inline hidden">
+            {service.title}
+          </span>
+        </nav>
+
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors mb-8"
+          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors mb-8"
         >
-          <ArrowLeft className="w-4 h-4" /> Voltar
+          <ArrowLeft className="w-4 h-4" /> Voltar para Início
         </button>
 
         {profileData && (

@@ -80,6 +80,7 @@ export function AdminDashboard() {
     phone: "",
     email: "",
     message: "",
+    saas_enabled: true,
   });
   const [savingSupport, setSavingSupport] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
@@ -276,6 +277,7 @@ export function AdminDashboard() {
           phone: "",
           email: "",
           message: "",
+          saas_enabled: true,
           ...docSnap.data(),
         });
       }
@@ -520,7 +522,7 @@ export function AdminDashboard() {
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
               <Settings className="w-5 h-5 text-slate-500" />
               <h2 className="font-semibold text-slate-800">
-                Dados de Suporte (Plataforma)
+                Configurações & Suporte da Plataforma
               </h2>
             </div>
             <div className="p-4">
@@ -528,6 +530,40 @@ export function AdminDashboard() {
                 onSubmit={handleSaveSupportSettings}
                 className="flex flex-col gap-4"
               >
+                {/* Ativação/Desativação de Vendas/SaaS */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-150 dark:border-slate-700 flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Fluxo de Vendas e Testes (SaaS)
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      Ative ou desative o acesso à página comercial, checkout e fluxo de testes para novos psicólogos.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSupportSettings({
+                        ...supportSettings,
+                        saas_enabled: !supportSettings.saas_enabled,
+                      })
+                    }
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500",
+                      supportSettings.saas_enabled ? "bg-amber-500" : "bg-slate-200 dark:bg-slate-700"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                        supportSettings.saas_enabled ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <hr className="border-slate-100 dark:border-slate-700 my-1" />
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     WhatsApp / Telefone

@@ -10,7 +10,7 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, ChevronRight, Home } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export function CompanyRegistration({
@@ -154,16 +154,32 @@ export function CompanyRegistration({
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 flex flex-col items-center">
-      <div className="flex items-center gap-2 mb-8">
+      <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={onSuccess}>
         <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-2 rounded-xl shadow-sm">
           <span className="font-black text-white text-sm tracking-wider leading-none flex items-center justify-center w-6 h-6">
             ELO
           </span>
         </div>
-        <span className="font-bold text-xl sm:text-2xl tracking-tight text-slate-600">
+        <span className="font-bold text-xl sm:text-2xl tracking-tight text-slate-600 dark:text-slate-300">
           Soluções Humanas
         </span>
       </div>
+
+      {/* Breadcrumbs Navigation Trail */}
+      <nav className="w-full max-w-2xl flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-500 mb-6 bg-white dark:bg-slate-800 p-3 px-4 rounded-xl border border-slate-100 dark:border-slate-700/60 shadow-sm animate-in fade-in duration-300">
+        <button
+          type="button"
+          onClick={onSuccess}
+          className="flex items-center gap-1.5 text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-400 font-semibold transition-colors"
+        >
+          <Home className="w-4 h-4" />
+          <span>Início</span>
+        </button>
+        <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+        <span className="text-slate-800 dark:text-slate-200 font-bold">
+          Ficha de Cadastro da Empresa
+        </span>
+      </nav>
 
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-in slide-in-from-bottom-8 duration-500 fade-in">
         <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-8 text-white">

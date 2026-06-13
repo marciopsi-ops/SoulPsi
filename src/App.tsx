@@ -13,7 +13,7 @@ import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
 import { AuthModal } from './components/AuthModal';
 import { FloatingActions } from './components/FloatingActions';
-import { LogIn, Loader2, CheckCircle2, CreditCard, Moon, Sun } from 'lucide-react';
+import { LogIn, Loader2, CheckCircle2, CreditCard, Moon, Sun, Shield, AlertCircle, X, Mail, MessageSquare } from 'lucide-react';
 import { SaasProductLaunch } from './components/SaasProductLaunch';
 import { useTheme } from './contexts/ThemeContext';
 
@@ -27,6 +27,13 @@ export default function App() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [unblockingCheckout, setUnblockingCheckout] = useState(false);
+  const [saasEnabled, setSaasEnabled] = useState<boolean>(true);
+  const [firstAccessBlocked, setFirstAccessBlocked] = useState<boolean>(false);
+  const [supportInfo, setSupportInfo] = useState<{ phone: string; email: string; message: string }>({
+    phone: '',
+    email: '',
+    message: ''
+  });
 
   // Profile data of the currently viewed or logged-in therapist
   const [profileData, setProfileData] = useState<any>(null);
@@ -37,6 +44,28 @@ export default function App() {
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
+    // Fetch global platform settings on mount
+    const fetchPlatformSettings = async () => {
+      try {
+        const docRef = doc(db, 'admin_settings', 'support');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.saas_enabled !== undefined) {
+            setSaasEnabled(data.saas_enabled);
+          }
+          setSupportInfo({
+            phone: data.phone || '',
+            email: data.email || '',
+            message: data.message || ''
+          });
+        }
+      } catch (e) {
+        console.error("Erro ao carregar configurações da plataforma:", e);
+      }
+    };
+    fetchPlatformSettings();
+
     const params = new URLSearchParams(window.location.search);
     const paramTherapistId = params.get('t');
     const paramRegisterId = params.get('register');
@@ -100,11 +129,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currUser) => {
       setUser(currUser);
       let adminStatus = false;
-      
-      if (paramSaas) {
-         setLoading(false);
-         return; 
-      }
       
       if (currUser) {
         // Check if admin
@@ -222,6 +246,16 @@ export default function App() {
       trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
       if (!docSnap || !docSnap.exists()) {
+        // Bloquear primeiro acesso se o fluxo SaaS/vendas estiver desativado
+        if (!saasEnabled && email !== 'marciopsi@elosolucoeshumanas.com') {
+          setFirstAccessBlocked(true);
+          await signOut(auth);
+          setUser(null);
+          setProfileData(null);
+          setLoading(false);
+          return;
+        }
+
         const newProfile = {
           userId: uid,
           name: name || 'Dr. Therapist',
@@ -477,7 +511,49 @@ export default function App() {
           );
         })()}
         {view === 'saas' && (
-          <SaasProductLaunch user={user} onLogin={() => setAuthModalOpen(true)} />
+          (!saasEnabled && !isAdminUser) ? (
+            <div className="min-h-[80vh] flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 shadow-2xl p-8 sm:p-10 rounded-[2rem] max-w-lg w-full text-center relative overflow-hidden animate-in fade-in-50 slide-in-from-bottom-5">
+                <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-400 to-amber-650"></div>
+                <div className="w-20 h-20 bg-amber-55 dark:bg-amber-900/20 text-amber-500 rounded-3xl flex items-center justify-center mb-8 mx-auto shadow-inner border border-amber-100/50 dark:border-amber-900/30">
+                  <Shield className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-extrabold mb-4 text-slate-800 dark:text-slate-100 tracking-tight">
+                  Página em Manutenção
+                </h3>
+                <p className="text-slate-650 dark:text-slate-300 mb-8 text-base leading-relaxed px-2">
+                  A página comercial e o fluxo de vendas da plataforma estão temporariamente pausados pelo gestor para melhorias e manutenção.
+                </p>
+                
+                <div className="bg-amber-50/60 dark:bg-amber-900/10 p-5 rounded-2xl border border-amber-200/50 dark:border-amber-950/30 mb-8 text-left flex gap-3.5 items-start">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 dark:text-amber-350 leading-normal font-medium">
+                    Se você é profissional cadastrado, ainda pode acessar seu painel clicando em <strong>Acesso Profissional</strong> no topo da página.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button 
+                    onClick={() => {
+                      if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
+                      setView('landing');
+                    }}
+                    className="flex-1 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-semibold py-3.5 px-6 rounded-xl transition-all shadow-sm hover:shadow"
+                  >
+                    Voltar para Início
+                  </button>
+                  <button 
+                    onClick={() => setAuthModalOpen(true)}
+                    className="flex-1 bg-white dark:bg-slate-750 hover:bg-slate-50 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold py-3.5 px-6 rounded-xl transition-all shadow-sm"
+                  >
+                    Acesso Profissional
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <SaasProductLaunch user={user} onLogin={() => setAuthModalOpen(true)} />
+          )
         )}
         {view === 'admin' && user && isAdminUser && (
           <AdminDashboard />
@@ -547,7 +623,82 @@ export default function App() {
       )}
 
       {authModalOpen && (
-        <AuthModal onClose={() => setAuthModalOpen(false)} />
+        <AuthModal 
+          onClose={() => setAuthModalOpen(false)} 
+          saasEnabled={saasEnabled}
+          supportInfo={supportInfo}
+        />
+      )}
+
+      {firstAccessBlocked && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-500 animate-pulse" />
+                Cadastro Desativado
+              </h2>
+              <button
+                onClick={() => setFirstAccessBlocked(false)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 text-center space-y-6">
+              <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/20 text-amber-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner border border-amber-100/50 dark:border-amber-900/30">
+                <Shield className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                  Novos Acessos não Disponíveis
+                </h3>
+                <p className="text-slate-650 dark:text-slate-400 text-sm leading-relaxed px-1">
+                  O fluxo de cadastros para novos profissionais está pausado temporariamente pelo administrador. Para obter o seu primeiro acesso, entre em contato com a nossa empresa:
+                </p>
+              </div>
+
+              {supportInfo.message && (
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl text-xs text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 italic leading-relaxed">
+                  "{supportInfo.message}"
+                </div>
+              )}
+
+              <div className="space-y-2 pt-2">
+                {supportInfo.phone && (
+                  <button
+                    onClick={() => window.open(`https://wa.me/${supportInfo.phone.replace(/\D/g, '')}`, '_blank')}
+                    className="w-full flex items-center justify-center gap-3 bg-emerald-550 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors shadow-sm"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Falar via WhatsApp
+                  </button>
+                )}
+
+                {supportInfo.email && (
+                  <a
+                    href={`mailto:${supportInfo.email}`}
+                    className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl transition-colors shadow-sm"
+                  >
+                    <Mail className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                    Enviar E-mail para Suporte
+                  </a>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => setFirstAccessBlocked(false)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 font-semibold py-3 rounded-xl transition shadow-sm text-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
