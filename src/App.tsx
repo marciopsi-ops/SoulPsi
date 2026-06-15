@@ -361,13 +361,6 @@ export default function App() {
             <span className="font-bold text-sm tracking-tight text-slate-600 whitespace-nowrap min-[360px]:hidden">Soluções</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-slate-500 hover:text-amber-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-full transition-colors"
-              title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
             <nav>
               {user ? (
                 <div className="flex items-center gap-4">

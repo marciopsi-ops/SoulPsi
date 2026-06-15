@@ -1532,8 +1532,11 @@ export function LandingPage({
             </p>
             <p className="text-slate-500">
               Em caso de crise suicida, ligue para o{" "}
-              <strong>CVV - Centro de Valorização da Vida (188)</strong>, com
-              atendimento gratuito e sigiloso 24 horas por dia. Se houver
+              <strong>CVV - Centro de Valorização da Vida (188)</strong> ou acesse{" "}
+              <a href="https://www.cvv.org.br" target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-700 font-semibold underline">
+                www.cvv.org.br
+              </a>
+              . O atendimento é gratuito e sigiloso, 24 horas por dia. Se houver
               emergência, dirija-se ao hospital mais próximo.
             </p>
           </div>
