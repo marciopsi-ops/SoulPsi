@@ -13,7 +13,7 @@ import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
 import { AuthModal } from './components/AuthModal';
 import { FloatingActions } from './components/FloatingActions';
-import { LogIn, Loader2, CheckCircle2, CreditCard, Moon, Sun, Shield, AlertCircle, X, Mail, MessageSquare } from 'lucide-react';
+import { LogIn, Loader2, CheckCircle2, CreditCard, Moon, Sun, Shield, AlertCircle, X, Mail, MessageSquare, Menu } from 'lucide-react';
 import { SaasProductLaunch } from './components/SaasProductLaunch';
 import { useTheme } from './contexts/ThemeContext';
 
@@ -40,8 +40,14 @@ export default function App() {
   // Default to a fake profileId for MVP public view if no one is logged in, 
   // or use the auth.id when logged in as therapist.
   const [therapistId, setTherapistId] = useState<string>('demo-therapist-id');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const { theme, toggleTheme } = useTheme();
+
+  // Close menu when view changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [view]);
 
   useEffect(() => {
     // Fetch global platform settings on mount
@@ -354,46 +360,141 @@ export default function App() {
             }
             setView('landing');
           }}>
-            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-1.5 sm:p-2 rounded-xl shadow-sm">
-              <span className="font-black text-white text-[9px] sm:text-sm tracking-wider leading-none flex items-center justify-center w-4 h-4 sm:w-6 sm:h-6">ELO</span>
+            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-1.5 sm:p-2 rounded-xl shadow-sm shrink-0">
+              <span className="font-black text-white text-[10px] sm:text-sm tracking-wider leading-none flex items-center justify-center w-4 h-4 sm:w-6 sm:h-6">ELO</span>
             </div>
-            <span className="font-bold text-sm sm:text-2xl tracking-tight text-slate-600 whitespace-nowrap hidden min-[360px]:inline">Soluções Humanas</span>
-            <span className="font-bold text-sm tracking-tight text-slate-600 whitespace-nowrap min-[360px]:hidden">Soluções</span>
+            <div className="flex flex-col sm:flex-row sm:items-center leading-tight sm:leading-none">
+              <div>
+                <span className="font-bold text-base sm:text-2xl tracking-tight text-slate-700 whitespace-nowrap hidden min-[360px]:inline">Soluções Humanas</span>
+                <span className="font-bold text-base tracking-tight text-slate-700 whitespace-nowrap min-[360px]:hidden">Soluções</span>
+              </div>
+              
+              {profileData?.name && view === 'landing' && (
+                 <>
+                   <span className="text-slate-300 text-xl font-light mx-2 hidden sm:inline">|</span>
+                   <span className="font-semibold text-xs sm:text-lg tracking-tight text-slate-500 whitespace-nowrap truncate max-w-[180px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]">
+                     {profileData.name}
+                   </span>
+                 </>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <nav>
+          <div className="flex items-center gap-2 sm:gap-4 relative">
+            <nav className="flex items-center">
               {user ? (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   {isAdminUser && (
                     <button 
                       onClick={() => setView('admin')}
-                      className={`text-sm font-medium transition-colors ${view === 'admin' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                      className={`text-sm font-medium transition-colors hidden md:block ${view === 'admin' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}`}
                     >
                       Painel Admin
                     </button>
                   )}
                   <button 
                     onClick={() => setView('dashboard')}
-                    className={`text-sm font-medium transition-colors ${view === 'dashboard' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                    className={`text-sm font-medium transition-colors hidden md:block ${view === 'dashboard' ? 'text-amber-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}`}
                   >
                     Dashboard
                   </button>
-                  <button 
-                    onClick={() => signOut(auth)}
-                    className="text-sm font-medium text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
-                  >
-                    Sair
-                  </button>
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsMenuOpen(!isMenuOpen)}
+                      className="p-1 sm:p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50 rounded-lg transition"
+                    >
+                      <Menu className="w-6 h-6 sm:w-6 sm:h-6" />
+                    </button>
+                    {isMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                        <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                          <button
+                            onClick={() => { setIsMenuOpen(false); setView('dashboard'); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-600 md:hidden dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          >
+                            Dashboard
+                          </button>
+                          {isAdminUser && (
+                            <button
+                              onClick={() => { setIsMenuOpen(false); setView('admin'); }}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-600 md:hidden dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                            >
+                              Painel Admin
+                            </button>
+                          )}
+                          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 md:hidden"></div>
+                          
+                          <button
+                            onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'voce' })), 50); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          >
+                            Para Você
+                          </button>
+                          <button
+                            onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'empresa' })), 50); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          >
+                            Para sua Empresa
+                          </button>
+                          <button
+                            onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'psicologos' })), 50); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          >
+                            Para Psicólogos
+                          </button>
+                          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                          <button 
+                            onClick={() => { setIsMenuOpen(false); signOut(auth); }}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            Sair
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <button 
-                  onClick={() => setAuthModalOpen(true)}
-                  className="flex items-center gap-2 sm:gap-2 text-sm font-medium text-amber-500 bg-amber-50 px-3 py-2 sm:px-4 sm:py-2 rounded-full hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 transition-colors whitespace-nowrap"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:inline">Acesso Profissional</span>
-                  <span className="sm:hidden">Acesso</span>
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-1 sm:p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50 rounded-lg transition"
+                  >
+                    <Menu className="w-6 h-6 sm:w-6 sm:h-6" />
+                  </button>
+                  {isMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                        <button
+                          onClick={() => { setIsMenuOpen(false); setAuthModalOpen(true); }}
+                          className="w-full text-left px-4 py-2 text-sm text-amber-600 font-medium hover:bg-amber-50 dark:hover:bg-slate-700/50"
+                        >
+                          Acesso Profissional
+                        </button>
+                        <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                        <button
+                          onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'voce' })), 50); }}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        >
+                          Para Você
+                        </button>
+                        <button
+                          onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'empresa' })), 50); }}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        >
+                          Para sua Empresa
+                        </button>
+                        <button
+                          onClick={() => { setIsMenuOpen(false); setView('landing'); setTimeout(() => window.dispatchEvent(new CustomEvent('changeTab', { detail: 'psicologos' })), 50); }}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        >
+                          Para Psicólogos
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </nav>
           </div>

@@ -138,6 +138,15 @@ export function LandingPage({
         setActiveTab("igrejas");
       }
     }
+
+    const handleChangeTab = (e: any) => {
+      const targetTab = e.detail;
+      setActiveTab(targetTab);
+      window.scrollTo({ top: 500, behavior: "smooth" });
+    };
+
+    window.addEventListener("changeTab", handleChangeTab);
+    return () => window.removeEventListener("changeTab", handleChangeTab);
   }, []);
 
   const handleShare = () => {
@@ -1394,7 +1403,7 @@ export function LandingPage({
 
           {/* Linha 2: Descrição e Redes Sociais */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-            <p className="text-sm leading-relaxed text-slate-500 max-w-3xl">
+            <p className="text-sm leading-relaxed text-slate-500 max-w-3xl text-justify">
               Conectando pessoas e organizações através da psicologia aplicada e
               tecnologia para o desenvolvimento humano.
             </p>

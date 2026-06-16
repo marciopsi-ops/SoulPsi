@@ -58,6 +58,8 @@ import {
   Wallet,
   UserMinus,
   MessagesSquare,
+  Video,
+  ExternalLink,
   ReceiptText,
   FileText,
   LifeBuoy,
@@ -69,6 +71,7 @@ import {
 import { DocumentManager } from "./DocumentManager";
 import { SubscriptionManager } from "./SubscriptionManager";
 import { cn, formatWa } from "../lib/utils";
+import { createMeetSpace } from "../services/meetService";
 import { format } from "date-fns";
 import { FastAverageColor } from "fast-average-color";
 import { THEMES } from "../lib/themes";
@@ -510,6 +513,14 @@ const TabHeader = ({ icon: Icon, title, description, badge }: any) => (
   </div>
 );
 
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const fireWebhook = (event: string, data: any) => {
     if (profileData && profileData.webhookUrl) {
@@ -758,6 +769,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [saving, setSaving] = useState(false);
   const [widgetSaved, setWidgetSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isConnectingDrive, setIsConnectingDrive] = useState(false);
+
+  const handleDriveConnect = async () => {
+    setIsConnectingDrive(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope("https://www.googleapis.com/auth/drive.file");
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setEditForm((prev: any) => ({ ...prev, driveSync: true }));
+        alert("Google Drive conectado com sucesso! Lembre-se de salvar suas alterações de perfil.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      if (e.code === "auth/popup-blocked") {
+        alert("O seu navegador bloqueou o popup de login do Google. Por favor, permita popups para este site e tente novamente.");
+      } else if (
+        e.code !== "auth/popup-closed-by-user" &&
+        e.code !== "auth/cancelled-popup-request" &&
+        e.message !== "Login process cancelled by user."
+      ) {
+        alert("Erro ao conectar Google Drive: " + e.message);
+      }
+    } finally {
+      setIsConnectingDrive(false);
+    }
+  };
 
   const handleCalendarSync = () => {
     setIsSyncing(true);
@@ -1407,9 +1446,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const filteredClients = clients.filter((client) => {
     if (!showInactiveClients && client.isActive === false) return false;
 
-    const matchesSearch =
-      client.name?.toLowerCase().includes(clientSearchText.toLowerCase()) ||
-      client.email?.toLowerCase().includes(clientSearchText.toLowerCase());
+    const searchLower = clientSearchText.toLowerCase();
+    const matchesSearch = !searchLower ||
+      (client.name || "").toLowerCase().includes(searchLower) ||
+      (client.email || "").toLowerCase().includes(searchLower);
 
     if (!matchesSearch) return false;
 
@@ -1421,14 +1461,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       if (clientMonth !== currentMonth) return false;
     }
 
-    // Apply Global Period Filter (Must have appointment in period OR be registered in period)
-    const hasApptInPeriod = appointmentsInPeriod.some(
-      (a) => a.clientId === client.id,
-    );
-    const isRegisteredInPeriod = clientsInPeriod.some(
-      (c) => c.id === client.id,
-    );
-    if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
+    // Se houver busca, ignoramos o filtro de período para permitir encontrar o paciente de qualquer época
+    if (!searchLower) {
+      // Apply Global Period Filter (Must have appointment in period OR be registered in period)
+      const hasApptInPeriod = appointmentsInPeriod.some(
+        (a) => a.clientId === client.id,
+      );
+      const isRegisteredInPeriod = clientsInPeriod.some(
+        (c) => c.id === client.id,
+      );
+      if (!hasApptInPeriod && !isRegisteredInPeriod) return false;
+    }
 
     if (globalBillingFilter !== "all") {
       if (!clientIdsWithBillingFilter.has(client.id)) return false;
@@ -1448,9 +1491,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const filteredCompanies = companies.filter((company) => {
     if (!showInactiveCompanies && company.isActive === false) return false;
 
-    const matchesSearch =
-      company.name?.toLowerCase().includes(companySearchText.toLowerCase()) ||
-      company.email?.toLowerCase().includes(companySearchText.toLowerCase());
+    const searchLower = companySearchText.toLowerCase();
+    const matchesSearch = !searchLower ||
+      (company.name || "").toLowerCase().includes(searchLower) ||
+      (company.email || "").toLowerCase().includes(searchLower);
 
     if (!matchesSearch) return false;
 
@@ -1514,6 +1558,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [uploadingAppointmentId, setUploadingAppointmentId] = useState<
     string | null
   >(null);
+  const [uploadingClientId, setUploadingClientId] = useState<string | null>(null);
 
   const [notificationModalClient, setNotificationModalClient] = useState<
     any | null
@@ -1961,22 +2006,88 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     e: React.ChangeEvent<HTMLInputElement>,
     appointmentId: string,
   ) => {
-    const file = e.target.files && e.target.files[0];
+    const target = e.target;
+    const file = target.files && target.files[0];
     if (!file) return;
 
     try {
       setUploadingAppointmentId(appointmentId);
-      const fileRef = ref(
-        storage,
-        `profiles/${userId}/companyAppointments/${appointmentId}/${file.name}`,
-      );
-      await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(fileRef);
+      let downloadURL = "";
+      let useFirebaseFallback = true;
+      let driveToken = "";
+
+      if (profileData?.driveSync) {
+        try {
+          const provider = new GoogleAuthProvider();
+          provider.addScope("https://www.googleapis.com/auth/drive.file");
+          const result = await signInWithPopup(auth, provider);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            driveToken = credential.accessToken;
+            useFirebaseFallback = false;
+          }
+        } catch (authError: any) {
+          if (authError.code === "auth/popup-blocked") {
+            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
+          } else if (
+            authError.code !== "auth/popup-closed-by-user" &&
+            authError.code !== "auth/cancelled-popup-request" &&
+            authError.message !== "Login process cancelled by user."
+          ) {
+            console.error("Erro auth Drive:", authError);
+            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
+          } else {
+            throw new Error("Login process cancelled by user.");
+          }
+        }
+      }
+
+      if (!useFirebaseFallback && driveToken) {
+        // Upload to Google Drive
+        const metadata = {
+          name: file.name,
+          mimeType: file.type,
+        };
+
+        const form = new FormData();
+        form.append(
+          "metadata",
+          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        );
+        form.append("file", file);
+
+        const res = await withTimeout(fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${driveToken}`,
+            },
+            body: form,
+          }
+        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
+
+        if (!res.ok) throw new Error("Falha no upload para o Drive.");
+        const data = await res.json();
+        downloadURL = data.webViewLink;
+      } 
+      
+      if (useFirebaseFallback || !downloadURL) {
+        if (file.size > 800 * 1024) {
+          throw new Error("Arquivo muito grande para o armazenamento padrão. Conecte o Google Drive na aba Integrações (Perfil) para enviar arquivos maiores que 800KB.");
+        }
+        downloadURL = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Erro ao ler o arquivo para base64."));
+        });
+      }
 
       const appointment = companyAppointments.find(
         (a) => a.id === appointmentId,
       );
-      const documents = appointment?.documents || [];
+      const documents = [...(appointment?.documents || [])];
       documents.push({ name: file.name, url: downloadURL });
 
       const appointmentRef = doc(
@@ -1992,11 +2103,17 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       );
     } catch (error: any) {
       console.error(error);
-      alert(
-        "Erro ao fazer upload do arquivo. Verifique o tamanho do arquivo e permissões.",
-      );
+      if (
+        error.code !== "auth/popup-closed-by-user" &&
+        error.message !== "Login process cancelled by user."
+      ) {
+        alert(
+          "Erro ao fazer upload do arquivo da empresa. (" + (error.message || error.code || "Desconhecido") + ")"
+        );
+      }
     } finally {
       setUploadingAppointmentId(null);
+      if (target) target.value = '';
     }
   };
 
@@ -2103,42 +2220,292 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     e: React.ChangeEvent<HTMLInputElement>,
     appointmentId: string,
   ) => {
-    const file = e.target.files && e.target.files[0];
+    const target = e.target;
+    const file = target.files && target.files[0];
     if (!file) return;
 
     try {
       setUploadingAppointmentId(appointmentId);
-      const fileRef = ref(
-        storage,
-        `profiles/${userId}/appointments/${appointmentId}/${file.name}`,
-      );
-      await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(fileRef);
+      let downloadURL = "";
+      let useFirebaseFallback = true;
+      let driveToken = "";
+
+      if (profileData?.driveSync) {
+        try {
+          const provider = new GoogleAuthProvider();
+          provider.addScope("https://www.googleapis.com/auth/drive.file");
+          const result = await signInWithPopup(auth, provider);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            driveToken = credential.accessToken;
+            useFirebaseFallback = false;
+          }
+        } catch (authError: any) {
+          if (authError.code === "auth/popup-blocked") {
+            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
+          } else if (
+            authError.code !== "auth/popup-closed-by-user" &&
+            authError.code !== "auth/cancelled-popup-request" &&
+            authError.message !== "Login process cancelled by user."
+          ) {
+            console.error("Erro auth Drive:", authError);
+            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
+          } else {
+            throw new Error("Login process cancelled by user.");
+          }
+        }
+      }
+
+      if (!useFirebaseFallback && driveToken) {
+        // Upload to Google Drive
+        const metadata = {
+          name: file.name,
+          mimeType: file.type,
+        };
+
+        const form = new FormData();
+        form.append(
+          "metadata",
+          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        );
+        form.append("file", file);
+
+        const res = await withTimeout(fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${driveToken}`,
+            },
+            body: form,
+          }
+        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
+
+        if (!res.ok) throw new Error("Falha no upload para o Drive.");
+        const data = await res.json();
+        downloadURL = data.webViewLink;
+      } 
+      
+      if (useFirebaseFallback || !downloadURL) {
+        if (file.size > 800 * 1024) {
+          throw new Error("Arquivo muito grande para o armazenamento padrão. Conecte o Google Drive na aba Integrações (Perfil) para enviar arquivos maiores que 800KB.");
+        }
+        downloadURL = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Erro ao ler o arquivo para base64."));
+        });
+      }
 
       const appointment = appointments.find((a) => a.id === appointmentId);
-      const documents = appointment?.documents || [];
+      const documents = [...(appointment?.documents || [])];
       documents.push({ name: file.name, url: downloadURL });
 
       const appointmentRef = doc(
         db,
-        `profiles/${userId}/appointments/${appointmentId}`,
+        `profiles/${userId}/appointments/${appointmentId}`
       );
-      // Only updating specific fields doesn't wipe others. We can use updateDoc.
       await updateDoc(appointmentRef, { documents });
 
       setAppointments(
         appointments.map((a) =>
-          a.id === appointmentId ? { ...a, documents } : a,
-        ),
+          a.id === appointmentId ? { ...a, documents } : a
+        )
       );
     } catch (error: any) {
       console.error(error);
-      alert(
-        "Erro ao fazer upload do arquivo. Verifique o tamanho do arquivo e permissões.",
-      );
+      if (
+        error.code !== "auth/popup-closed-by-user" &&
+        error.message !== "Login process cancelled by user."
+      ) {
+        alert(
+          "Erro ao fazer upload do arquivo. (" + (error.message || error.code || "Desconhecido") + ")"
+        );
+      }
     } finally {
       setUploadingAppointmentId(null);
+      if (target) target.value = '';
     }
+  };
+
+  const handleClientFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    clientId: string,
+  ) => {
+    const target = e.target;
+    const file = target.files && target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadingClientId(clientId);
+      let downloadURL = "";
+      let useFirebaseFallback = true;
+      let driveToken = "";
+
+      if (profileData?.driveSync) {
+        try {
+          const provider = new GoogleAuthProvider();
+          provider.addScope("https://www.googleapis.com/auth/drive.file");
+          const result = await signInWithPopup(auth, provider);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            driveToken = credential.accessToken;
+            useFirebaseFallback = false;
+          }
+        } catch (authError: any) {
+          if (authError.code === "auth/popup-blocked") {
+            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
+          } else if (
+            authError.code !== "auth/popup-closed-by-user" &&
+            authError.code !== "auth/cancelled-popup-request" &&
+            authError.message !== "Login process cancelled by user."
+          ) {
+            console.error("Erro auth Drive:", authError);
+            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
+          } else {
+            throw new Error("Login process cancelled by user.");
+          }
+        }
+      }
+
+      if (!useFirebaseFallback && driveToken) {
+        // Upload to Google Drive
+        const metadata = {
+          name: file.name,
+          mimeType: file.type,
+        };
+
+        const form = new FormData();
+        form.append(
+          "metadata",
+          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        );
+        form.append("file", file);
+
+        const res = await withTimeout(fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${driveToken}`,
+            },
+            body: form,
+          }
+        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
+
+        if (!res.ok) throw new Error("Falha no upload para o Drive.");
+        const data = await res.json();
+        downloadURL = data.webViewLink;
+      } 
+      
+      if (useFirebaseFallback || !downloadURL) {
+        if (file.size > 800 * 1024) {
+          throw new Error("Arquivo muito grande para o armazenamento padrão. Conecte o Google Drive na aba Integrações (Perfil) para enviar arquivos maiores que 800KB.");
+        }
+        downloadURL = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Erro ao ler o arquivo para base64."));
+        });
+      }
+
+      const client = clients.find((c) => c.id === clientId);
+      const documents = [...(client?.documents || [])];
+      documents.push({ name: file.name, url: downloadURL });
+
+      const clientRef = doc(db, `profiles/${userId}/clients/${clientId}`);
+      await updateDoc(clientRef, { documents });
+
+      setClients(
+        clients.map((c) =>
+          c.id === clientId ? { ...c, documents } : c
+        )
+      );
+    } catch (error: any) {
+      console.error(error);
+      if (
+        error.code !== "auth/popup-closed-by-user" &&
+        error.message !== "Login process cancelled by user."
+      ) {
+        alert(
+          "Erro ao enviar arquivo ao Google Drive ou Armazenamento. (" + (error.message || error.code || "Desconhecido") + ")"
+        );
+      }
+    } finally {
+      setUploadingClientId(null);
+      if (target) target.value = '';
+    }
+  };
+
+  const handleDeleteAppointmentDocument = async (appointmentId: string, documentIndex: number) => {
+    askConfirm(
+      "Excluir Anexo",
+      "Tem certeza que deseja excluir este anexo da sessão?",
+      async () => {
+        try {
+          const appointment = appointments.find((a) => a.id === appointmentId);
+          if (!appointment) return;
+          const documents = [...(appointment.documents || [])];
+          documents.splice(documentIndex, 1);
+
+          const appointmentRef = doc(db, `profiles/${userId}/appointments/${appointmentId}`);
+          await updateDoc(appointmentRef, { documents });
+
+          setAppointments(appointments.map((a) => (a.id === appointmentId ? { ...a, documents } : a)));
+        } catch (error) {
+          console.error("Erro ao excluir arquivo", error);
+          alert("Erro ao excluir o arquivo da sessão.");
+        }
+      }
+    );
+  };
+
+  const handleDeleteClientDocument = async (clientId: string, documentIndex: number) => {
+    askConfirm(
+      "Excluir Anexo",
+      "Tem certeza que deseja excluir este anexo do paciente?",
+      async () => {
+        try {
+          const client = clients.find((c) => c.id === clientId);
+          if (!client) return;
+          const documents = [...(client.documents || [])];
+          documents.splice(documentIndex, 1);
+
+          const clientRef = doc(db, `profiles/${userId}/clients/${clientId}`);
+          await updateDoc(clientRef, { documents });
+
+          setClients(clients.map((c) => (c.id === clientId ? { ...c, documents } : c)));
+        } catch (error) {
+          console.error("Erro ao excluir arquivo", error);
+          alert("Erro ao excluir o arquivo do paciente.");
+        }
+      }
+    );
+  };
+
+  const handleDeleteCompanyAppointmentDocument = async (appointmentId: string, documentIndex: number) => {
+    askConfirm(
+      "Excluir Anexo",
+      "Tem certeza que deseja excluir este anexo?",
+      async () => {
+        try {
+          const appointment = companyAppointments.find((a) => a.id === appointmentId);
+          if (!appointment) return;
+          const documents = [...(appointment.documents || [])];
+          documents.splice(documentIndex, 1);
+
+          const appointmentRef = doc(db, `profiles/${userId}/companyAppointments/${appointmentId}`);
+          await updateDoc(appointmentRef, { documents });
+
+          setCompanyAppointments(companyAppointments.map((a) => (a.id === appointmentId ? { ...a, documents } : a)));
+        } catch (error) {
+          console.error("Erro ao excluir arquivo", error);
+          alert("Erro ao excluir o arquivo da empresa.");
+        }
+      }
+    );
   };
 
   const handleAppointmentDelete = async (apptId: string) => {
@@ -2395,6 +2762,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const [isExportingDrive, setIsExportingDrive] = useState(false);
+  const [isGeneratingMeet, setIsGeneratingMeet] = useState(false);
+  const [generatedMeetLink, setGeneratedMeetLink] = useState<string | null>(null);
+
+  const handleCreateGeneralMeet = async () => {
+    setIsGeneratingMeet(true);
+    setGeneratedMeetLink(null);
+    try {
+      const uri = await createMeetSpace();
+      setGeneratedMeetLink(uri);
+      try {
+        await navigator.clipboard.writeText(uri);
+      } catch (err) {
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.message !== "Login process cancelled by user.") {
+        alert(`Erro ao gerar link do Meet: ${error.message}`);
+      }
+    } finally {
+      setIsGeneratingMeet(false);
+    }
+  };
 
   const executeExportToDrive = async () => {
     if (clients.length === 0) {
@@ -2456,9 +2845,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     } catch (e: any) {
       if (
         e.code === "auth/cancelled-popup-request" ||
-        e.code === "auth/popup-closed-by-user"
+        e.code === "auth/popup-closed-by-user" ||
+        e.message === "Login process cancelled by user."
       ) {
         // Ignorar
+        return;
+      }
+      if (e.code === "auth/popup-blocked") {
+        alert("O seu navegador bloqueou o popup do Google Drive. Por favor, permita popups para este site e tente novamente.");
         return;
       }
       console.error("Erro export drive:", e);
@@ -4485,40 +4879,68 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </div>
               </div>
 
-              <div className="p-4 border border-amber-100 bg-amber-50 rounded-xl mt-6">
-                <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2 mb-2">
-                  <RefreshCw className="w-4 h-4" /> Integração Google Workspace
-                  (Simulada)
+              <div className="p-5 border border-slate-200 bg-white rounded-xl mt-6 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
+                  <RefreshCw className="w-4 h-4 text-slate-500" /> Integração Google Workspace
                 </h3>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={editForm.calendarSync}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          calendarSync: e.target.checked,
-                        })
-                      }
-                      className="rounded text-amber-500"
-                    />{" "}
-                    Sincronizar Google Calendar
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={editForm.driveSync}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          driveSync: e.target.checked,
-                        })
-                      }
-                      className="rounded text-amber-500"
-                    />{" "}
-                    Conectar Google Drive
-                  </label>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2 rounded-full", editForm.calendarSync ? "bg-emerald-100/50" : "bg-slate-200/50")}>
+                        <CalendarIcon className={cn("w-5 h-5", editForm.calendarSync ? "text-emerald-600" : "text-slate-500")} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 text-sm">Google Agenda</h4>
+                        <p className="text-xs text-slate-500">
+                          {editForm.calendarSync ? "Conectado. Permissões de calendário ativas." : "Desconectado. Vincule para sincronizar agenda."}
+                        </p>
+                      </div>
+                    </div>
+                    {editForm.calendarSync ? (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                        <Check className="w-3.5 h-3.5" /> Conectado
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCalendarSync}
+                        disabled={isSyncing}
+                        className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                      >
+                        {isSyncing ? "Conectando..." : "Conectar"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2 rounded-full", editForm.driveSync ? "bg-indigo-100/50" : "bg-slate-200/50")}>
+                        <div className={cn("w-5 h-5 flex items-center justify-center font-bold text-sm", editForm.driveSync ? "text-indigo-600" : "text-slate-500")}>
+                          D
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800 text-sm">Google Drive</h4>
+                        <p className="text-xs text-slate-500">
+                          {editForm.driveSync ? "Conectado. Salvamento de dados habilitado." : "Desconectado. Permita envio de exportações."}
+                        </p>
+                      </div>
+                    </div>
+                    {editForm.driveSync ? (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                        <Check className="w-3.5 h-3.5" /> Conectado
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleDriveConnect}
+                        disabled={isConnectingDrive}
+                        className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition sm:flex-shrink-0"
+                      >
+                        {isConnectingDrive ? "Conectando..." : "Conectar"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -6072,6 +6494,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleCreateGeneralMeet}
+                  disabled={isGeneratingMeet}
+                  className="bg-indigo-600 border border-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition flex flex-shrink-0 shadow-sm gap-2 font-medium text-sm items-center disabled:opacity-70"
+                  title="Gerar sala do Google Meet para consulta"
+                >
+                  {isGeneratingMeet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Video className="w-5 h-5" />}
+                  <span className="hidden sm:inline">Gerar Meet</span>
+                </button>
                 <label
                   className="bg-white border border-slate-300 text-slate-700 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm"
                   title="Importar Pacientes de Planilha (CSV)"
@@ -6790,6 +7221,101 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                         </p>
                                       </div>
                                     )}
+
+                                    {/* Central de Documentos do Paciente */}
+                                    <div className="mb-6 bg-slate-50 p-4 pb-5 rounded-xl border border-slate-200 shadow-sm">
+                                      <div className="flex justify-between items-center mb-4">
+                                        <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                          <FileText className="w-4 h-4 text-slate-500" />{" "}
+                                          Central de Anexos e Documentos
+                                        </h4>
+                                        <label className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-75">
+                                          {uploadingClientId === client.id ? (
+                                            <>
+                                              <RefreshCw className="w-3 h-3 animate-spin" />{" "}
+                                              Enviando...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Upload className="w-3 h-3" /> Arquivo Geral
+                                            </>
+                                          )}
+                                          <input
+                                            type="file"
+                                            className="hidden"
+                                            onChange={(e) => handleClientFileUpload(e, client.id)}
+                                            disabled={uploadingClientId === client.id}
+                                          />
+                                        </label>
+                                      </div>
+                                      
+                                      <div className="grid gap-2">
+                                        {/* General Documents */}
+                                        {(client.documents || []).map((doc: any, i: number) => (
+                                          <div key={`gen-${i}`} className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg text-sm transition">
+                                            <a
+                                              href={doc.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center gap-2 flex-1 text-indigo-600 hover:text-indigo-700 min-w-0"
+                                            >
+                                              <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                                              <span className="truncate font-medium text-slate-700">{doc.name}</span>
+                                              <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase font-semibold hidden sm:inline-block">Geral/Paciente</span>
+                                            </a>
+                                            <button 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteClientDocument(client.id, i);
+                                              }}
+                                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg flex-shrink-0"
+                                              title="Excluir anexo"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        ))}
+
+                                        {/* Activity Documents */}
+                                        {clientAppts
+                                          .filter((ap) => ap.documents && ap.documents.length > 0)
+                                          .map((ap) => 
+                                            ap.documents.map((doc: any, i: number) => (
+                                              <div key={`app-${ap.id}-${i}`} className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg text-sm transition">
+                                                <a
+                                                  href={doc.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="flex items-center gap-2 flex-1 text-indigo-600 hover:text-indigo-700 min-w-0"
+                                                >
+                                                  <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                                                  <div className="flex flex-col flex-1 min-w-0 pr-2">
+                                                    <span className="truncate font-medium text-slate-700">{doc.name}</span>
+                                                    <span className="text-[10px] text-slate-400 truncate">Serviço: {ap.serviceName || "Sessão"} • Data: {format(new Date(ap.datetime), "dd/MM/yyyy")}</span>
+                                                  </div>
+                                                  <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase font-semibold hidden sm:inline-block">Sessão</span>
+                                                </a>
+                                                <button 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteAppointmentDocument(ap.id, i);
+                                                  }}
+                                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg flex-shrink-0"
+                                                  title="Excluir anexo da sessão"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            ))
+                                          )}
+                                          
+                                        {!(client.documents?.length > 0) && !clientAppts.some((ap) => ap.documents?.length > 0) && (
+                                          <div className="text-center p-4 border border-dashed border-slate-200 rounded-lg bg-white/50 text-sm text-slate-400">
+                                            Nenhum anexo ou documento encontrado para este paciente.
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
 
                                     <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end mb-4 gap-4">
                                       <div>
@@ -7742,17 +8268,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               doc: any,
                                                               i: number,
                                                             ) => (
-                                                              <a
-                                                                key={i}
-                                                                href={doc.url}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="text-amber-500 hover:underline flex items-center gap-1 truncate max-w-[200px]"
-                                                                title={doc.name}
-                                                              >
-                                                                <Upload className="w-3 h-3" />{" "}
-                                                                {doc.name}
-                                                              </a>
+                                                              <div key={i} className="flex items-center gap-1 group/doc">
+                                                                <a
+                                                                  href={doc.url}
+                                                                  target="_blank"
+                                                                  rel="noreferrer"
+                                                                  className="text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1 truncate max-w-[180px]"
+                                                                  title={doc.name}
+                                                                >
+                                                                  <Upload className="w-3 h-3 flex-shrink-0" />{" "}
+                                                                  <span className="truncate">{doc.name}</span>
+                                                                </a>
+                                                                <button 
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteAppointmentDocument(ap.id, i);
+                                                                  }}
+                                                                  className="text-rose-400 hover:text-rose-600 p-0.5 rounded-md hover:bg-rose-50 flex-shrink-0 opacity-0 group-hover/doc:opacity-100 transition-opacity"
+                                                                  title="Excluir"
+                                                                >
+                                                                  <Trash2 className="w-3 h-3" />
+                                                                </button>
+                                                              </div>
                                                             ),
                                                           )}
                                                         </div>
@@ -10057,17 +10594,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             doc: any,
                                                             i: number,
                                                           ) => (
-                                                            <a
-                                                              key={i}
-                                                              href={doc.url}
-                                                              target="_blank"
-                                                              rel="noreferrer"
-                                                              className="text-amber-500 hover:underline flex items-center gap-1 truncate max-w-[200px]"
-                                                              title={doc.name}
-                                                            >
-                                                              <Upload className="w-3 h-3" />{" "}
-                                                              {doc.name}
-                                                            </a>
+                                                            <div key={i} className="flex items-center gap-1 group/doc">
+                                                              <a
+                                                                href={doc.url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1 truncate max-w-[180px]"
+                                                                title={doc.name}
+                                                              >
+                                                                <Upload className="w-3 h-3 flex-shrink-0" />{" "}
+                                                                <span className="truncate">{doc.name}</span>
+                                                              </a>
+                                                              <button 
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleDeleteCompanyAppointmentDocument(ap.id, i);
+                                                                }}
+                                                                className="text-rose-400 hover:text-rose-600 p-0.5 rounded-md hover:bg-rose-50 flex-shrink-0 opacity-0 group-hover/doc:opacity-100 transition-opacity"
+                                                                title="Excluir"
+                                                              >
+                                                                <Trash2 className="w-3 h-3" />
+                                                              </button>
+                                                            </div>
                                                           ),
                                                         )}
                                                       </div>
@@ -10795,6 +11343,61 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           </div>
         )}
       </div>
+
+      {/* Generated Meet Modal */}
+      {generatedMeetLink && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur z-10">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Video className="w-5 h-5 text-indigo-500" />
+                Sala Gerada
+              </h2>
+              <button
+                onClick={() => setGeneratedMeetLink(null)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto bg-slate-50/50 flex flex-col gap-4">
+              <p className="text-sm text-slate-600">
+                Sua sala do Google Meet foi gerada. O link foi copiado para sua área de transferência.
+              </p>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 break-all select-all text-sm font-medium text-slate-800 font-mono text-center">
+                {generatedMeetLink}
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-end gap-3">
+              <button
+                onClick={() => setGeneratedMeetLink(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors font-medium text-sm flex-1 sm:flex-none text-center"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedMeetLink);
+                  alert("Link copiado!");
+                }}
+                className="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200 transition-colors font-medium flex items-center justify-center gap-2 text-sm flex-1 sm:flex-none"
+              >
+                <Copy className="w-4 h-4" /> Copiar Link
+              </button>
+              <a
+                href={generatedMeetLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setGeneratedMeetLink(null)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/20 text-sm flex-1 sm:flex-none"
+              >
+                Acessar Sala <ExternalLink className="w-4 h-4 text-indigo-300" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export Modal */}
       {exportModalOpen && (
