@@ -663,18 +663,18 @@ export function LandingPage({
           </div>
 
           <div className="pt-20 md:pt-28">
-            <div className="flex flex-col xl:flex-row justify-between items-start gap-4 mb-2">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+            <div className="mb-4">
+              <div className="w-32 md:w-48 text-center mb-3">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 break-words leading-tight">
                   {finalProfile.name}
                 </h1>
-                <p className="text-slate-600 font-medium text-base sm:text-lg">
-                  {finalProfile.title}
-                </p>
               </div>
+              <p className="text-slate-600 font-medium text-base sm:text-lg text-justify">
+                {finalProfile.title}
+              </p>
             </div>
             {finalProfile.bio && (
-              <p className="text-slate-700 italic mb-3">"{finalProfile.bio}"</p>
+              <p className="text-slate-700 italic mb-3 text-justify">"{finalProfile.bio}"</p>
             )}
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-4">
@@ -721,7 +721,7 @@ export function LandingPage({
             </div>
 
             {finalProfile.companyName && (
-              <div className="flex items-center gap-4 p-4 mb-2 bg-slate-50 border border-slate-100 rounded-xl max-w-sm">
+              <div className="flex items-center gap-4 p-4 mb-2 bg-slate-50 border border-slate-100 rounded-xl w-full max-w-sm">
                 {(finalProfile.companyLogo || finalProfile.profilePhoto) && (
                   <img
                     src={finalProfile.companyLogo || finalProfile.profilePhoto}
@@ -729,15 +729,15 @@ export function LandingPage({
                     className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm shrink-0"
                   />
                 )}
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800 text-justify">
                     Proprietário(a) da
                   </p>
-                  <p className="text-slate-600 font-medium">
+                  <p className="text-slate-600 font-medium text-justify break-words">
                     {finalProfile.companyName}
                   </p>
                   {finalProfile.cnpj && (
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5 font-mono text-justify">
                       CNPJ: {finalProfile.cnpj}
                     </p>
                   )}

@@ -234,6 +234,7 @@ export default function App() {
       if (email) {
         promises.push(getDoc(doc(db, 'allowed_users', email.toLowerCase())));
       }
+      promises.push(getDoc(doc(db, 'admin_settings', 'support')));
       
       const results = await Promise.all(promises.map(p => p.catch(e => {
         console.error(e);
@@ -242,9 +243,18 @@ export default function App() {
       
       const docSnap = results[0];
       const allowedSnap = email ? results[1] : null;
+      const adminConfigSnap = email ? results[2] : results[1];
 
       if (allowedSnap && (allowedSnap as any).exists && (allowedSnap as any).exists()) {
          finalStatus = (allowedSnap as any).data().status || 'active';
+      }
+
+      let currentSaasEnabled = true;
+      if (adminConfigSnap && (adminConfigSnap as any).exists && (adminConfigSnap as any).exists()) {
+        const configData = (adminConfigSnap as any).data();
+        if (configData.saas_enabled !== undefined) {
+           currentSaasEnabled = configData.saas_enabled;
+        }
       }
 
       const trialDays = 7;
@@ -252,8 +262,10 @@ export default function App() {
       trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
       if (!docSnap || !docSnap.exists()) {
-        // Bloquear primeiro acesso se o fluxo SaaS/vendas estiver desativado
-        if (!saasEnabled && email !== 'marciopsi@elosolucoeshumanas.com') {
+        // Bloquear primeiro acesso se o fluxo SaaS/vendas estiver desativado e não estiver na lista de permitidos ou não for master
+        const isMaster = email === 'marciopsi@elosolucoeshumanas.com';
+        const isAllowedUser = allowedSnap && (allowedSnap as any).exists && (allowedSnap as any).exists();
+        if (!currentSaasEnabled && !isMaster && !isAllowedUser) {
           setFirstAccessBlocked(true);
           await signOut(auth);
           setUser(null);
