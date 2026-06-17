@@ -663,8 +663,8 @@ export function LandingPage({
           </div>
 
           <div className="pt-20 md:pt-28">
-            <div className="mb-4 flex flex-col gap-1">
-              <h1 className="w-[136px] md:w-[200px] text-2xl sm:text-3xl font-bold text-slate-900 text-left leading-none tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="mb-4">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 text-left leading-tight whitespace-nowrap mb-1">
                 {finalProfile.name}
               </h1>
               <p className="text-slate-600 font-medium text-base sm:text-lg text-left leading-tight break-words">
