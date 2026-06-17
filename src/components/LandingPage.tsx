@@ -654,22 +654,20 @@ export function LandingPage({
           )}
         </div>
         <div className="px-6 pb-6 relative">
-          <div className="absolute -top-16 md:-top-24 left-6 border-4 border-white rounded-full bg-white shadow-sm overflow-hidden">
+          <div className="absolute -top-16 md:-top-24 left-6 border-4 border-white rounded-full bg-white shadow-sm z-10 box-content w-32 h-32 md:w-48 md:h-48 overflow-hidden">
             <img
               src={finalProfile.profilePhoto}
               alt={finalProfile.name}
-              className="w-32 h-32 md:w-48 md:h-48 object-cover"
+              className="w-full h-full object-cover"
             />
           </div>
 
           <div className="pt-20 md:pt-28">
-            <div className="mb-4">
-              <div className="w-32 md:w-48 text-center mb-3">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 break-words leading-tight">
-                  {finalProfile.name}
-                </h1>
-              </div>
-              <p className="text-slate-600 font-medium text-base sm:text-lg text-justify">
+            <div className="mb-4 flex flex-col gap-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 text-left leading-none tracking-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
+                {finalProfile.name}
+              </h1>
+              <p className="text-slate-600 font-medium text-base sm:text-lg text-left leading-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
                 {finalProfile.title}
               </p>
             </div>

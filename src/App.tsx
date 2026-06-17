@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut, deleteUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, limit, getDocs, updateDoc } from 'firebase/firestore';
 import { LandingPage } from './components/LandingPage';
 import { Dashboard } from './components/Dashboard';
@@ -264,9 +264,17 @@ export default function App() {
       if (!docSnap || !docSnap.exists()) {
         // Bloquear primeiro acesso se o fluxo SaaS/vendas estiver desativado e não estiver na lista de permitidos ou não for master
         const isMaster = email === 'marciopsi@elosolucoeshumanas.com';
-        const isAllowedUser = allowedSnap && (allowedSnap as any).exists && (allowedSnap as any).exists();
+        const isAllowedUser = allowedSnap ? allowedSnap.exists() : false;
         if (!currentSaasEnabled && !isMaster && !isAllowedUser) {
           setFirstAccessBlocked(true);
+          const currentUserVal = auth.currentUser;
+          if (currentUserVal) {
+             try {
+                await deleteUser(currentUserVal);
+             } catch(e) {
+                console.error("Erro ao deletar conta temporária:", e);
+             }
+          }
           await signOut(auth);
           setUser(null);
           setProfileData(null);
@@ -514,6 +522,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
+      {!firstAccessBlocked && (
       <main className="pb-20">
         {view === 'landing' && (
           <LandingPage 
@@ -723,6 +732,7 @@ export default function App() {
           />
         )}
       </main>
+      )}
 
       {['landing', 'service_detail', 'checkout', 'registration', 'company_registration', 'terms', 'terms_company'].includes(view) && (
         <FloatingActions whatsapp={profileData?.whatsapp || '5511999999999'} />
