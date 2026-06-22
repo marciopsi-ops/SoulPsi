@@ -380,16 +380,14 @@ export default function App() {
             }
             setView('landing');
           }}>
-            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-1.5 sm:p-2 rounded-xl shadow-sm shrink-0">
-              <span className="font-black text-white text-[10px] sm:text-sm tracking-wider leading-none flex items-center justify-center w-4 h-4 sm:w-6 sm:h-6">ELO</span>
-            </div>
+            <img src="/logo.png?v=2" alt="Elo Soluções Humanas" className="h-10 sm:h-12 w-auto shrink-0 object-contain rounded-lg" />
             <div className="flex flex-col sm:flex-row sm:items-center leading-tight sm:leading-none">
-              <div>
-                <span className="font-bold text-base sm:text-2xl tracking-tight text-slate-700 whitespace-nowrap hidden min-[360px]:inline">Soluções Humanas</span>
-                <span className="font-bold text-base tracking-tight text-slate-700 whitespace-nowrap min-[360px]:hidden">Soluções</span>
+              <div className="ml-2">
+                <span className="font-bold text-xs sm:text-lg tracking-tight text-slate-700 whitespace-nowrap hidden min-[360px]:inline">Soluções Humanas</span>
+                <span className="font-bold text-xs sm:text-lg tracking-tight text-slate-700 whitespace-nowrap min-[360px]:hidden">Soluções</span>
               </div>
               
-              {profileData?.name && view === 'landing' && (
+              {profileData?.name && (
                  <>
                    <span className="text-slate-300 text-xl font-light mx-2 hidden sm:inline">|</span>
                    <span className="font-semibold text-xs sm:text-lg tracking-tight text-slate-500 whitespace-nowrap truncate max-w-[180px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px]">

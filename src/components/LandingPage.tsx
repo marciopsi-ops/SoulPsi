@@ -1389,11 +1389,7 @@ export function LandingPage({
         <div className="relative z-10">
           {/* Linha 1: Logo e Nome */}
           <div className="flex items-center gap-2 mb-4">
-            <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-2 rounded-xl shadow-sm">
-              <span className="font-black text-white text-sm tracking-wider leading-none flex items-center justify-center w-6 h-6">
-                ELO
-              </span>
-            </div>
+            <img src="/logo.png?v=2" alt="Elo Soluções Humanas" className="h-10 sm:h-12 w-auto shrink-0 object-contain rounded-lg" />
             <span className="font-bold text-lg sm:text-2xl tracking-tight text-slate-600">
               Soluções Humanas
             </span>

@@ -50,6 +50,65 @@ export function DocumentManager({
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [fitToA4, setFitToA4] = useState(false);
 
+  // States for Document Header/Footer configurability
+  const [headerMode, setHeaderMode] = useState<"elo" | "profile" | "custom">("elo");
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [customCompanyName, setCustomCompanyName] = useState("");
+  const [customCompanySlogan, setCustomCompanySlogan] = useState("");
+  const [customFooterName, setCustomFooterName] = useState("");
+  const [customFooterTitle, setCustomFooterTitle] = useState("");
+  const [customFooterDoc, setCustomFooterDoc] = useState("");
+  const [customFooterCrp, setCustomFooterCrp] = useState("");
+  const [customFooterAddress, setCustomFooterAddress] = useState("");
+  const [customFooterContact, setCustomFooterContact] = useState("");
+
+  const STORAGE_KEY = `elo_doc_config_${userId}`;
+
+  useEffect(() => {
+    const savedConfig = localStorage.getItem(STORAGE_KEY);
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        setHeaderMode(config.headerMode || "elo");
+        setCustomLogo(config.customLogo || null);
+        setCustomCompanyName(config.customCompanyName || "");
+        setCustomCompanySlogan(config.customCompanySlogan || "");
+        setCustomFooterName(config.customFooterName || "");
+        setCustomFooterTitle(config.customFooterTitle || "");
+        setCustomFooterDoc(config.customFooterDoc || "");
+        setCustomFooterCrp(config.customFooterCrp || "");
+        setCustomFooterAddress(config.customFooterAddress || "");
+        setCustomFooterContact(config.customFooterContact || "");
+      } catch (err) {}
+    }
+  }, [userId]);
+
+  const saveCustomConfig = () => {
+    const config = {
+      headerMode,
+      customLogo,
+      customCompanyName,
+      customCompanySlogan,
+      customFooterName,
+      customFooterTitle,
+      customFooterDoc,
+      customFooterCrp,
+      customFooterAddress,
+      customFooterContact,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    alert("Configurações do timbrado salvas com sucesso!");
+  };
+
+  const handleCustomLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setCustomLogo(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -406,6 +465,106 @@ export function DocumentManager({
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Configuração do Timbrado (Cabeçalho/Rodapé)
+              </h4>
+              <div>
+                <select
+                  value={headerMode}
+                  onChange={(e) => setHeaderMode(e.target.value as any)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 mb-3"
+                >
+                  <option value="elo">Padrão da Plataforma (ELO)</option>
+                  <option value="profile">Puxar do Meu Perfil</option>
+                  <option value="custom">Personalizado (Upload / Editar)</option>
+                </select>
+
+                {headerMode === "custom" && (
+                  <div className="space-y-3 p-3 bg-white border border-slate-100 rounded-lg">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Logo do Timbrado (Opcional)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="cursor-pointer bg-slate-50 border border-slate-200 text-slate-600 hover:text-amber-600 hover:border-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-2 transition font-medium shadow-sm text-[10px]">
+                          <Upload className="w-3 h-3" /> Fazer Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleCustomLogoUpload}
+                          />
+                        </label>
+                        {customLogo && (
+                          <button
+                            onClick={() => setCustomLogo(null)}
+                            className="text-red-500 text-xs hover:text-red-600"
+                          >
+                            Remover
+                          </button>
+                        )}
+                      </div>
+                      {customLogo && (
+                        <div className="mt-2 text-center bg-slate-50 border border-slate-100 rounded p-2">
+                          <img
+                            src={customLogo}
+                            alt="Logo Customizada"
+                            className="max-h-12 object-contain mx-auto"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Nome Principal / Clínica</label>
+                      <input type="text" value={customCompanyName} onChange={(e) => setCustomCompanyName(e.target.value)} placeholder="Ex: Clínica Equilíbrio" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Subtítulo (Serviços)</label>
+                      <input type="text" value={customCompanySlogan} onChange={(e) => setCustomCompanySlogan(e.target.value)} placeholder="Ex: PSICOLOGIA E SAÚDE" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 mt-2">
+                      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Dados do Rodapé</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">Nome no Rodapé</label>
+                          <input type="text" value={customFooterName} onChange={(e) => setCustomFooterName(e.target.value)} placeholder="Ex: Dr. João Silva" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">Cargo / Título</label>
+                          <input type="text" value={customFooterTitle} onChange={(e) => setCustomFooterTitle(e.target.value)} placeholder="Ex: Psicólogo Clínico" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">CPF ou CNPJ (Opcional)</label>
+                          <input type="text" value={customFooterDoc} onChange={(e) => setCustomFooterDoc(e.target.value)} placeholder="Ex: 000.000.000-00" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">CRP (Opcional)</label>
+                          <input type="text" value={customFooterCrp} onChange={(e) => setCustomFooterCrp(e.target.value)} placeholder="Ex: CRP 00/00000" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">Contatos (Opcional)</label>
+                          <input type="text" value={customFooterContact} onChange={(e) => setCustomFooterContact(e.target.value)} placeholder="Ex: (11) 9999-9999 | @instagram" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-medium text-slate-600 mb-1">Endereço</label>
+                          <input type="text" value={customFooterAddress} onChange={(e) => setCustomFooterAddress(e.target.value)} placeholder="Ex: Av. Paulista, 1000, SP" className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-3 flex justify-end">
+                      <button
+                        onClick={saveCustomConfig}
+                        className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Salvar Configurações
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Assinatura
               </h4>
               <div>
@@ -466,23 +625,58 @@ export function DocumentManager({
           <div className="w-full h-1 bg-[#cda869] mb-8 absolute top-0 left-0"></div>
 
           {/* Identidade Visual */}
-          <div className="flex items-center justify-between mb-6 mt-1">
-            <div>
-              <div className="text-4xl font-extrabold text-[#1a365d] tracking-wider leading-none">
-                ELO
+          {headerMode === "elo" && (
+            <div className="flex items-center justify-between mb-6 mt-1">
+              <div>
+                <div className="text-4xl font-extrabold text-[#1a365d] tracking-wider leading-none">
+                  ELO
+                </div>
+                <div className="text-[10px] text-[#cda869] tracking-[3px] font-bold mt-1.5">
+                  SOLUÇÕES HUMANAS
+                </div>
               </div>
-              <div className="text-[10px] text-[#cda869] tracking-[3px] font-bold mt-1.5">
-                SOLUÇÕES HUMANAS
+              <div className="text-right text-[10px] text-slate-500 uppercase tracking-widest leading-relaxed font-medium">
+                PSICOLOGIA
+                <br />
+                CONSULTORIA
+                <br />
+                TREINAMENTO
               </div>
             </div>
-            <div className="text-right text-[10px] text-slate-500 uppercase tracking-widest leading-relaxed font-medium">
-              PSICOLOGIA
-              <br />
-              CONSULTORIA
-              <br />
-              TREINAMENTO
+          )}
+          {headerMode === "profile" && (
+            <div className="flex items-center justify-between mb-6 mt-1">
+              <div className="flex flex-col items-start gap-1">
+                <div className="text-2xl font-extrabold text-[#1a365d] tracking-wider leading-none">
+                  {profileData?.companyName?.toUpperCase() || profileData?.name?.toUpperCase() || "NOME DO PROFISSIONAL"}
+                </div>
+                <div className="text-[10px] text-[#cda869] tracking-[2px] font-bold mt-1">
+                  {profileData?.title?.toUpperCase() || "PSICOLOGIA"}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+          {headerMode === "custom" && (
+            <div className="flex items-center justify-between mb-6 mt-1">
+              <div className="flex items-center gap-4">
+                {customLogo && (
+                  <img src={customLogo} alt="Logo" className="max-w-[120px] max-h-16 object-contain shrink-0" />
+                )}
+                <div className="flex flex-col items-start gap-1">
+                  {customCompanyName && (
+                    <div className="text-2xl font-extrabold text-[#1a365d] tracking-wider leading-none">
+                      {customCompanyName.toUpperCase()}
+                    </div>
+                  )}
+                  {customCompanySlogan && (
+                    <div className="text-[10px] text-[#cda869] tracking-[2px] font-bold mt-1 gap-1">
+                      {customCompanySlogan.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Corpo */}
           <div className="flex-1 text-slate-800 text-[9pt] leading-relaxed font-sans">
@@ -601,34 +795,65 @@ export function DocumentManager({
                 </div>
               )}
               <div className="w-[260px] border-t border-slate-400 mb-2"></div>
-              <div className="font-bold text-slate-800 text-[10pt]">
-                {profileData?.name || "Márcio Rocha"}
-              </div>
-              <div className="text-slate-500 text-[8pt] mt-0.5">
-                {profileData?.title || "Psicólogo Clínico"}
-              </div>
-              {profileData?.cpf ? (
-                <div className="text-slate-500 text-[8pt]">
-                  CPF {profileData.cpf}
-                </div>
-              ) : (
-                profileData?.crp && (
-                  <div className="text-slate-500 text-[8pt]">
-                    CRP {profileData.crp}
+              {headerMode !== "custom" && (
+                <>
+                  <div className="font-bold text-slate-800 text-[10pt]">
+                    {profileData?.name || "Márcio Rocha"}
                   </div>
-                )
+                  <div className="text-slate-500 text-[8pt] mt-0.5">
+                    {profileData?.title || "Psicólogo Clínico"}
+                  </div>
+                  {profileData?.cpf ? (
+                    <div className="text-slate-500 text-[8pt]">
+                      CPF {profileData.cpf}
+                    </div>
+                  ) : (
+                    profileData?.crp && (
+                      <div className="text-slate-500 text-[8pt]">
+                        CRP {profileData.crp}
+                      </div>
+                    )
+                  )}
+                </>
               )}
             </div>
           </div>
 
           {/* Rodapé Fixo */}
-          <div className="mt-auto border-t border-slate-200 pt-3 text-center text-[7pt] text-slate-500 leading-snug max-w-lg mx-auto">
-            ELO SOLUÇÕES HUMANAS • CNPJ 51.363.220/0001-10
-            <br />
-            PSICOLOGIA | CONSULTORIA | TREINAMENTO
-            <br />
-            www.elosolucoeshumanas.com • 11 96108-8438
-          </div>
+          {headerMode === "elo" && (
+            <div className="mt-auto border-t border-slate-200 pt-3 text-center text-[7pt] text-slate-500 leading-snug max-w-lg mx-auto">
+              ELO SOLUÇÕES HUMANAS • CNPJ 51.363.220/0001-10
+              <br />
+              PSICOLOGIA | CONSULTORIA | TREINAMENTO
+              <br />
+              www.elosolucoeshumanas.com • 11 96108-8438
+            </div>
+          )}
+          {headerMode === "profile" && (
+            <div className="mt-auto border-t border-slate-200 pt-3 text-center text-[7pt] text-slate-500 leading-snug max-w-lg mx-auto">
+              {profileData?.name} {profileData?.cpf ? `• CPF ${profileData.cpf}` : (profileData?.cnpj ? `• CNPJ ${profileData.cnpj}` : '')}
+              {profileData?.crp && ` • CRP ${profileData.crp}`}
+              <br/>
+              {profileData?.email || "contato@profissional.com"} {profileData?.phone && `• ${profileData.phone}`}
+            </div>
+          )}
+          {headerMode === "custom" && (
+            <div className="mt-auto border-t border-slate-200 pt-3 text-center text-[7pt] text-slate-500 leading-snug max-w-lg mx-auto">
+              <div className="font-semibold text-slate-600">
+                {customFooterName || customCompanyName || " "}
+                {customFooterDoc ? ` • ${customFooterDoc}` : ""}
+                {customFooterCrp ? ` • ${customFooterCrp}` : ""}
+              </div>
+              <div className="mt-0.5">
+                {customFooterTitle || customCompanySlogan || " "}
+              </div>
+              {(customFooterContact || customFooterAddress) && (
+                <div className="mt-0.5">
+                  {customFooterAddress} {customFooterAddress && customFooterContact ? " • " : ""} {customFooterContact}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

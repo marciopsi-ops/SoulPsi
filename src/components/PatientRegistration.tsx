@@ -151,11 +151,7 @@ export function PatientRegistration({
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 flex flex-col items-center">
       <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={onSuccess}>
-        <div className="bg-gradient-to-br from-yellow-400 to-amber-400 p-2 rounded-xl shadow-sm">
-          <span className="font-black text-white text-sm tracking-wider leading-none flex items-center justify-center w-6 h-6">
-            ELO
-          </span>
-        </div>
+        <img src="/logo.png?v=2" alt="Elo Soluções Humanas" className="h-10 sm:h-12 w-auto shrink-0 object-contain rounded-lg" />
         <span className="font-bold text-xl sm:text-2xl tracking-tight text-slate-600 dark:text-slate-300">
           Soluções Humanas
         </span>
