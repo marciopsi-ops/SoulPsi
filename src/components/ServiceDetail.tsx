@@ -12,6 +12,7 @@ import {
   Home,
 } from "lucide-react";
 import { ReviewSection } from "./ReviewSection";
+import { Footer } from "./Footer";
 
 export function ServiceDetail({
   therapistId,
@@ -120,19 +121,19 @@ export function ServiceDetail({
         </button>
 
         {profileData && (
-          <div className="mb-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+          <div className="mb-8 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col items-center gap-4 text-center">
             {profileData.profilePhoto ? (
               <img
                 src={profileData.profilePhoto}
                 alt={profileData.name}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm mx-auto"
               />
             ) : (
-              <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-full mx-auto bg-[rgb(var(--theme-primary)_/_0.1)] text-[rgb(var(--theme-primary))] flex items-center justify-center text-2xl font-bold shadow-sm">
                 {profileData.name?.charAt(0) || "P"}
               </div>
             )}
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <h3 className="text-lg font-bold text-slate-800">
                 {profileData.name}
               </h3>
@@ -143,7 +144,7 @@ export function ServiceDetail({
                 {profileData.title || profileData.profession || "Psicólogo(a)"}
               </p>
               {profileData.bio && (
-                <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed">
+                <p className="text-sm text-slate-600 line-clamp-4 leading-relaxed max-w-lg mx-auto">
                   {profileData.bio}
                 </p>
               )}
@@ -172,14 +173,14 @@ export function ServiceDetail({
             </p>
           </div>
 
-          <div className="p-8 sm:p-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className="p-8 sm:p-12 text-center">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
               {(service.duration || "") && (
-                <div className="bg-slate-50 rounded-2xl p-4 flex items-start gap-4">
+                <div className="bg-slate-50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 flex-1 max-w-xs mx-auto w-full">
                   <div className="w-10 h-10 bg-white shadow-sm rounded-full flex flex-shrink-0 items-center justify-center text-slate-500">
                     <Clock className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="text-center">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                       Duração
                     </h4>
@@ -190,11 +191,11 @@ export function ServiceDetail({
                 </div>
               )}
               {service.price > 0 && (
-                <div className="bg-slate-50 rounded-2xl p-4 flex items-start gap-4">
+                <div className="bg-slate-50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 flex-1 max-w-xs mx-auto w-full">
                   <div className="w-10 h-10 bg-white shadow-sm rounded-full flex flex-shrink-0 items-center justify-center text-slate-500">
                     <span className="font-bold">R$</span>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                       Valor
                     </h4>
@@ -210,7 +211,7 @@ export function ServiceDetail({
             </div>
 
             {(service.detailedDescription || "") && (
-              <div className="mb-10 text-slate-600 leading-relaxed whitespace-pre-wrap text-justify">
+              <div className="mb-10 text-slate-600 leading-relaxed whitespace-pre-wrap text-center max-w-2xl mx-auto">
                 {service.detailedDescription}
               </div>
             )}
@@ -232,6 +233,7 @@ export function ServiceDetail({
               therapistId={therapistId || "demo-therapist-id"}
               profileData={profileData}
             />
+            <Footer profileData={profileData} />
           </>
         )}
       </div>
