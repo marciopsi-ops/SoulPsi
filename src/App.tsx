@@ -648,12 +648,11 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button 
                     onClick={() => {
-                      if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
-                      setView('landing');
+                      window.open('https://wa.me/5511961088438?text=' + encodeURIComponent('Olá, gostaria de conversar com um consultor sobre a plataforma ELO.'), '_blank');
                     }}
                     className="flex-1 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-semibold py-3.5 px-6 rounded-xl transition-all shadow-sm hover:shadow"
                   >
-                    Voltar para Início
+                    Conversar com o consultor
                   </button>
                   <button 
                     onClick={() => setAuthModalOpen(true)}
