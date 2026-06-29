@@ -771,28 +771,57 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
 
+  const getDriveToken = async (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const stored = localStorage.getItem("google_drive_token");
+      if (stored) {
+        try {
+          const { token, expiresAt } = JSON.parse(stored);
+          if (Date.now() < expiresAt) {
+            return resolve(token);
+          }
+        } catch (e) {}
+      }
+
+      if (!(window as any).google?.accounts?.oauth2) {
+        return reject(new Error("Google OAuth client not loaded"));
+      }
+
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id:
+          (import.meta as any).env.VITE_CLIENT_ID ||
+          "your-client-id.apps.googleusercontent.com",
+        scope: "https://www.googleapis.com/auth/drive.file",
+        prompt: "",
+        callback: (response: any) => {
+          if (response.access_token) {
+            const expiresAt = Date.now() + 3500 * 1000;
+            localStorage.setItem(
+              "google_drive_token",
+              JSON.stringify({ token: response.access_token, expiresAt })
+            );
+            resolve(response.access_token);
+          } else {
+            reject(new Error("Token não obtido"));
+          }
+        },
+        error_callback: (err: any) => {
+          reject(err);
+        },
+      });
+      client.requestAccessToken();
+    });
+  };
+
   const handleDriveConnect = async () => {
     setIsConnectingDrive(true);
     try {
-      const provider = new GoogleAuthProvider();
-      provider.addScope("https://www.googleapis.com/auth/drive.file");
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        setEditForm((prev: any) => ({ ...prev, driveSync: true }));
-        alert("Google Drive conectado com sucesso! Lembre-se de salvar suas alterações de perfil.");
-      }
+      await getDriveToken();
+      setEditForm((prev: any) => ({ ...prev, driveSync: true }));
+      alert("Google Drive conectado com sucesso! Lembre-se de salvar suas alterações de perfil.");
     } catch (e: any) {
       console.error(e);
-      if (e.code === "auth/popup-blocked") {
-        alert("O seu navegador bloqueou o popup de login do Google. Por favor, permita popups para este site e tente novamente.");
-      } else if (
-        e.code !== "auth/popup-closed-by-user" &&
-        e.code !== "auth/cancelled-popup-request" &&
-        e.message !== "Login process cancelled by user."
-      ) {
-        alert("Erro ao conectar Google Drive: " + e.message);
-      }
+      alert("Erro ao conectar Google Drive: " + e.message);
     } finally {
       setIsConnectingDrive(false);
     }
@@ -1568,6 +1597,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "referral"
     | "reminder"
     | "receipt"
+    | "invoice"
     | "birthday"
     | "readjustment"
     | "other"
@@ -1592,6 +1622,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       | "referral"
       | "reminder"
       | "receipt"
+      | "invoice"
       | "birthday"
       | "readjustment"
       | "other",
@@ -1664,6 +1695,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       setNotificationSubject("Recibo de Sessão");
       setNotificationMessage(
         `Olá ${firstName},\n\nSegue o recibo referente às sessões realizadas:\n\nTotal: R$ 0,00\n\nAgradeço a confiança,\n${profileData?.name || "Psicólogo(a)"}`,
+      );
+      setReceiptSessionIds([]);
+    } else if (template === "invoice") {
+      setNotificationSubject("Nota Fiscal Emitida");
+      const profName = profileData?.name || "Nome do Profissional";
+      const profTitle = profileData?.title || "Título do cargo";
+      const profCrp = profileData?.crp ? `CRP: ${profileData.crp}` : "CRP";
+      setNotificationMessage(
+        `${profName}\n` +
+        `${profTitle}\n` +
+        `${profCrp}\n\n` +
+        `Nota emitida referente às seguintes sessões de Psicoterapia realizadas na modalidade remota (online):\n\n` +
+        `Total: R$ 0,00`
       );
       setReceiptSessionIds([]);
     } else if (template === "referral") {
@@ -2018,27 +2062,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (profileData?.driveSync) {
         try {
-          const provider = new GoogleAuthProvider();
-          provider.addScope("https://www.googleapis.com/auth/drive.file");
-          const result = await signInWithPopup(auth, provider);
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            driveToken = credential.accessToken;
+          driveToken = await getDriveToken();
+          if (driveToken) {
             useFirebaseFallback = false;
           }
         } catch (authError: any) {
-          if (authError.code === "auth/popup-blocked") {
-            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
-          } else if (
-            authError.code !== "auth/popup-closed-by-user" &&
-            authError.code !== "auth/cancelled-popup-request" &&
-            authError.message !== "Login process cancelled by user."
-          ) {
-            console.error("Erro auth Drive:", authError);
-            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
-          } else {
-            throw new Error("Login process cancelled by user.");
-          }
+          console.error("Erro auth Drive:", authError);
+          alert("Sua sessão do Google Drive expirou ou falhou. O arquivo será salvo no sistema local. Por favor, reconecte o Drive na aba Perfil.");
         }
       }
 
@@ -2232,27 +2262,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (profileData?.driveSync) {
         try {
-          const provider = new GoogleAuthProvider();
-          provider.addScope("https://www.googleapis.com/auth/drive.file");
-          const result = await signInWithPopup(auth, provider);
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            driveToken = credential.accessToken;
+          driveToken = await getDriveToken();
+          if (driveToken) {
             useFirebaseFallback = false;
           }
         } catch (authError: any) {
-          if (authError.code === "auth/popup-blocked") {
-            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
-          } else if (
-            authError.code !== "auth/popup-closed-by-user" &&
-            authError.code !== "auth/cancelled-popup-request" &&
-            authError.message !== "Login process cancelled by user."
-          ) {
-            console.error("Erro auth Drive:", authError);
-            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
-          } else {
-            throw new Error("Login process cancelled by user.");
-          }
+          console.error("Erro auth Drive:", authError);
+          alert("Sua sessão do Google Drive expirou ou falhou. O arquivo será salvo no sistema local. Por favor, reconecte o Drive na aba Perfil.");
         }
       }
 
@@ -2345,27 +2361,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (profileData?.driveSync) {
         try {
-          const provider = new GoogleAuthProvider();
-          provider.addScope("https://www.googleapis.com/auth/drive.file");
-          const result = await signInWithPopup(auth, provider);
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            driveToken = credential.accessToken;
+          driveToken = await getDriveToken();
+          if (driveToken) {
             useFirebaseFallback = false;
           }
         } catch (authError: any) {
-          if (authError.code === "auth/popup-blocked") {
-            alert("Popup do Google Drive bloqueado pelo navegador. O arquivo será salvo no sistema local.");
-          } else if (
-            authError.code !== "auth/popup-closed-by-user" &&
-            authError.code !== "auth/cancelled-popup-request" &&
-            authError.message !== "Login process cancelled by user."
-          ) {
-            console.error("Erro auth Drive:", authError);
-            alert("Não foi possível autenticar no Drive. Salvando no sistema local.");
-          } else {
-            throw new Error("Login process cancelled by user.");
-          }
+          console.error("Erro auth Drive:", authError);
+          alert("Sua sessão do Google Drive expirou ou falhou. O arquivo será salvo no sistema local. Por favor, reconecte o Drive na aba Perfil.");
         }
       }
 
@@ -2792,12 +2794,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
     setIsExportingDrive(true);
     try {
-      const provider = new GoogleAuthProvider();
-      provider.addScope("https://www.googleapis.com/auth/drive.file");
-
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
+      const token = await getDriveToken();
 
       if (!token) {
         throw new Error(
@@ -3519,6 +3516,63 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               title="Visão Geral"
               description="Apresenta o painel resumo onde o profissional consegue visualizar rapidamente seu faturamento (pago vs. pendente) e os principais indicadores do momento."
             />
+
+            {(!profileData?.bio || !profileData?.profilePhoto || !profileData?.driveSync) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 animate-in fade-in zoom-in-95 duration-300">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                  <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center text-amber-500 flex-shrink-0 mt-1">
+                    <Star className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Bem-vindo à ELO! Vamos preparar seu consultório virtual.</h3>
+                    <p className="text-slate-600 mb-6 text-sm">Para aproveitar ao máximo a plataforma e ganhar tempo na sua rotina clínica, complete os passos abaixo:</p>
+                    
+                    <div className="space-y-4">
+                      {/* Step 1 */}
+                      <div className="flex items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                        {profileData?.bio && profileData?.profilePhoto ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center bg-white flex-shrink-0" />
+                        )}
+                        <span className={cn("text-sm sm:text-base", profileData?.bio && profileData?.profilePhoto ? "text-slate-400 line-through" : "text-slate-700 font-medium")}>
+                          Configure sua Foto e Biografia no Perfil
+                        </span>
+                        {(!profileData?.bio || !profileData?.profilePhoto) && (
+                          <button 
+                            onClick={() => setActiveTab('perfil')} 
+                            className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ml-auto flex-shrink-0"
+                          >
+                            Configurar
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                        {profileData?.driveSync ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center bg-white flex-shrink-0" />
+                        )}
+                        <span className={cn("text-sm sm:text-base flex-1", profileData?.driveSync ? "text-slate-400 line-through" : "text-slate-700 font-medium")}>
+                          Integre seu Google Drive para os Resumos Automáticos de Sessão
+                        </span>
+                        {!profileData?.driveSync && (
+                          <button 
+                            onClick={() => setActiveTab('perfil')} 
+                            className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ml-auto flex-shrink-0"
+                          >
+                            Integrar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
               {(() => {
                 let outrasReceitasTotal = 0;
@@ -6482,8 +6536,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </div>
             )}
 
-            <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-between items-center mt-4">
-              <div className="relative w-full sm:max-w-md">
+            <div className="mb-6 flex flex-col xl:flex-row gap-3 justify-between items-center mt-4">
+              <div className="relative w-full xl:max-w-md">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
@@ -6493,89 +6547,108 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   onChange={(e) => setClientSearchText(e.target.value)}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleCreateGeneralMeet}
-                  disabled={isGeneratingMeet}
-                  className="bg-indigo-600 border border-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition flex flex-shrink-0 shadow-sm gap-2 font-medium text-sm items-center disabled:opacity-70"
-                  title="Gerar sala do Google Meet para consulta"
-                >
-                  {isGeneratingMeet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Video className="w-5 h-5" />}
-                  <span className="hidden sm:inline">Gerar Meet</span>
-                </button>
-                <label
-                  className="bg-white border border-slate-300 text-slate-700 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer flex-shrink-0 shadow-sm"
-                  title="Importar Pacientes de Planilha (CSV)"
-                >
-                  <FileUp className="w-5 h-5" />
-                  <input
-                    type="file"
-                    accept=".csv"
-                    className="hidden text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
-                    onChange={handleImportCSV}
-                  />
-                </label>
-                <button
-                  onClick={handleExportCSV}
-                  className="bg-white border border-slate-300 text-slate-700 p-3 rounded-xl hover:bg-slate-50 transition flex-shrink-0 shadow-sm"
-                  title="Exportar Pacientes para Planilha (CSV)"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setShowBirthdays(!showBirthdays)}
-                  className={cn(
-                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
-                    showBirthdays
-                      ? "bg-amber-100 text-amber-700 border-amber-200"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
-                  )}
-                  title="Filtrar Aniversariantes do Mês"
-                >
-                  <Gift className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (clientGlobalInvoiceFilter === "all")
-                      setClientGlobalInvoiceFilter("issued");
-                    else if (clientGlobalInvoiceFilter === "issued")
-                      setClientGlobalInvoiceFilter("pending");
-                    else setClientGlobalInvoiceFilter("all");
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
-                    clientGlobalInvoiceFilter === "issued"
-                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                      : clientGlobalInvoiceFilter === "pending"
-                        ? "bg-orange-100 text-orange-700 border-orange-200"
-                        : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
-                  )}
-                  title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
-                >
-                  <ReceiptText className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setShowInactiveClients(!showInactiveClients)}
-                  className={cn(
-                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
-                    showInactiveClients
-                      ? "bg-slate-200 text-slate-800 border-slate-300"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
-                  )}
-                  title="Mostrar Pacientes Inativos"
-                >
-                  <UserMinus className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setClientEditForm({ isActive: true });
-                    setEditingClientId("new");
-                  }}
-                  className="bg-amber-500 text-white p-3 rounded-xl hover:bg-amber-600 transition flex-shrink-0 shadow-sm"
-                  title="Adicionar Paciente Manualmente"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+              <div className="flex flex-wrap items-center justify-end gap-3 w-full xl:w-auto">
+                <div className="flex items-center bg-white border border-slate-200 shadow-sm rounded-xl p-1 dark:bg-slate-800 dark:border-slate-700">
+                  <label
+                    className="text-slate-600 hover:bg-slate-100 p-2.5 rounded-lg transition cursor-pointer dark:text-slate-300 dark:hover:bg-slate-700"
+                    title="Importar Pacientes de Planilha (CSV)"
+                  >
+                    <FileUp className="w-5 h-5" />
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={handleImportCSV}
+                    />
+                  </label>
+                  
+                  <div className="w-px h-6 bg-slate-200 mx-0.5 dark:bg-slate-700" />
+                  
+                  <button
+                    onClick={handleExportCSV}
+                    className="text-slate-600 hover:bg-slate-100 p-2.5 rounded-lg transition dark:text-slate-300 dark:hover:bg-slate-700"
+                    title="Exportar Pacientes para Planilha (CSV)"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="w-px h-6 bg-slate-200 mx-0.5 dark:bg-slate-700" />
+
+                  <button
+                    onClick={() => setShowBirthdays(!showBirthdays)}
+                    className={cn(
+                      "p-2.5 rounded-lg transition",
+                      showBirthdays
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title="Filtrar Aniversariantes do Mês"
+                  >
+                    <Gift className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="w-px h-6 bg-slate-200 mx-0.5 dark:bg-slate-700" />
+
+                  <button
+                    onClick={() => {
+                      if (clientGlobalInvoiceFilter === "all")
+                        setClientGlobalInvoiceFilter("issued");
+                      else if (clientGlobalInvoiceFilter === "issued")
+                        setClientGlobalInvoiceFilter("pending");
+                      else setClientGlobalInvoiceFilter("all");
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-lg transition",
+                      clientGlobalInvoiceFilter === "issued"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400"
+                        : clientGlobalInvoiceFilter === "pending"
+                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
+                  >
+                    <ReceiptText className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="w-px h-6 bg-slate-200 mx-0.5 dark:bg-slate-700" />
+
+                  <button
+                    onClick={() => setShowInactiveClients(!showInactiveClients)}
+                    className={cn(
+                      "p-2.5 rounded-lg transition",
+                      showInactiveClients
+                        ? "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title="Mostrar Pacientes Inativos"
+                  >
+                    <UserMinus className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={handleCreateGeneralMeet}
+                    disabled={isGeneratingMeet}
+                    className="flex-1 sm:flex-none bg-indigo-600 border border-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center shadow-sm gap-2 font-medium text-sm disabled:opacity-70"
+                    title="Gerar sala do Google Meet para consulta"
+                  >
+                    {isGeneratingMeet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Video className="w-5 h-5" />}
+                    <span className="hidden sm:inline">Gerar Meet</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setClientEditForm({ isActive: true });
+                      setEditingClientId("new");
+                    }}
+                    className="flex-1 sm:flex-none bg-amber-500 text-white px-5 py-3 rounded-xl hover:bg-amber-600 transition flex items-center justify-center shadow-sm gap-2 font-medium text-sm"
+                    title="Adicionar Paciente Manualmente"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span className="hidden sm:inline">Adicionar</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -8603,8 +8676,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </p>
             )}
 
-            <div className="mb-6 flex flex-col sm:flex-row gap-2 justify-between items-center mt-4">
-              <div className="relative w-full sm:max-w-md">
+            <div className="mb-6 flex flex-col xl:flex-row gap-3 justify-between items-center mt-4">
+              <div className="relative w-full xl:max-w-md">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
@@ -8614,51 +8687,58 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   onChange={(e) => setCompanySearchText(e.target.value)}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (companyGlobalInvoiceFilter === "all")
-                      setCompanyGlobalInvoiceFilter("issued");
-                    else if (companyGlobalInvoiceFilter === "issued")
-                      setCompanyGlobalInvoiceFilter("pending");
-                    else setCompanyGlobalInvoiceFilter("all");
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
-                    companyGlobalInvoiceFilter === "issued"
-                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                      : companyGlobalInvoiceFilter === "pending"
-                        ? "bg-orange-100 text-orange-700 border-orange-200"
-                        : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
-                  )}
-                  title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
-                >
-                  <ReceiptText className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() =>
-                    setShowInactiveCompanies(!showInactiveCompanies)
-                  }
-                  className={cn(
-                    "p-3 rounded-xl border transition flex-shrink-0 shadow-sm",
-                    showInactiveCompanies
-                      ? "bg-slate-200 text-slate-800 border-slate-300"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50",
-                  )}
-                  title="Mostrar Empresas Inativas"
-                >
-                  <UserMinus className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setCompanyEditForm({ isActive: true });
-                    setEditingCompanyId("new");
-                  }}
-                  className="bg-amber-500 text-white p-3 rounded-xl hover:bg-amber-600 transition flex-shrink-0 shadow-sm"
-                  title="Adicionar Empresa Manualmente"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+              <div className="flex flex-wrap items-center justify-end gap-3 w-full xl:w-auto">
+                <div className="flex items-center bg-white border border-slate-200 shadow-sm rounded-xl p-1 dark:bg-slate-800 dark:border-slate-700">
+                  <button
+                    onClick={() => {
+                      if (companyGlobalInvoiceFilter === "all")
+                        setCompanyGlobalInvoiceFilter("issued");
+                      else if (companyGlobalInvoiceFilter === "issued")
+                        setCompanyGlobalInvoiceFilter("pending");
+                      else setCompanyGlobalInvoiceFilter("all");
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-lg transition",
+                      companyGlobalInvoiceFilter === "issued"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400"
+                        : companyGlobalInvoiceFilter === "pending"
+                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title="Filtro de Nota Fiscal: Geral / Emitidas / Pendentes"
+                  >
+                    <ReceiptText className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="w-px h-6 bg-slate-200 mx-0.5 dark:bg-slate-700" />
+
+                  <button
+                    onClick={() => setShowInactiveCompanies(!showInactiveCompanies)}
+                    className={cn(
+                      "p-2.5 rounded-lg transition",
+                      showInactiveCompanies
+                        ? "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title="Mostrar Empresas Inativas"
+                  >
+                    <UserMinus className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => {
+                      setCompanyEditForm({ isActive: true });
+                      setEditingCompanyId("new");
+                    }}
+                    className="flex-1 sm:flex-none bg-amber-500 text-white px-5 py-3 rounded-xl hover:bg-amber-600 transition flex items-center justify-center shadow-sm gap-2 font-medium text-sm"
+                    title="Adicionar Empresa Manualmente"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span className="hidden sm:inline">Adicionar Empresa</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -11533,6 +11613,19 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </button>
                   <button
                     onClick={() =>
+                      handleTemplateChange("invoice", notificationModalClient)
+                    }
+                    className={cn(
+                      "px-4 py-2 border rounded-full text-sm font-medium transition",
+                      notificationTemplate === "invoice"
+                        ? "bg-purple-100 text-purple-800 border-purple-200"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+                    )}
+                  >
+                    NF emitida
+                  </button>
+                  <button
+                    onClick={() =>
                       handleTemplateChange("referral", notificationModalClient)
                     }
                     className={cn(
@@ -11670,19 +11763,23 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </div>
                 )}
 
-                {notificationTemplate === "receipt" && (
+                {(notificationTemplate === "receipt" || notificationTemplate === "invoice") && (
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Selecione as sessões para o recibo
+                      {notificationTemplate === "invoice"
+                        ? "Selecione as sessões para a nota emitida"
+                        : "Selecione as sessões para o recibo"}
                     </label>
                     <div className="flex flex-col gap-2 mb-4 max-h-[40vh] overflow-y-auto p-3 border border-slate-200 rounded-lg bg-slate-50">
                       {appointments
                         .filter(
-                          (a) =>
-                            a.clientId === notificationModalClient?.id &&
-                            (a.status === "completed" ||
-                              a.paymentStatus === "paid" ||
-                              true),
+                          (a) => {
+                            const isCompany = !!notificationModalClient?.cnpj;
+                            const matchesId = isCompany
+                              ? a.companyId === notificationModalClient?.id
+                              : a.clientId === notificationModalClient?.id;
+                            return matchesId && (a.status === "completed" || a.paymentStatus === "paid" || true);
+                          }
                         )
                         .sort((a, b) => {
                           const da = !isNaN(new Date(a.datetime).getTime())
@@ -11769,11 +11866,16 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                             </label>
                           );
                         })}
-                      {appointments.filter(
-                        (a) => a.clientId === notificationModalClient?.id,
-                      ).length === 0 && (
+                      {appointments.filter((a) => {
+                        const isCompany = !!notificationModalClient?.cnpj;
+                        return isCompany
+                          ? a.companyId === notificationModalClient?.id
+                          : a.clientId === notificationModalClient?.id;
+                      }).length === 0 && (
                         <p className="text-sm text-slate-500 text-center py-4">
-                          Nenhuma sessão encontrada para este paciente.
+                          {notificationModalClient?.cnpj
+                            ? "Nenhuma sessão encontrada para esta empresa."
+                            : "Nenhuma sessão encontrada para este paciente."}
                         </p>
                       )}
                     </div>

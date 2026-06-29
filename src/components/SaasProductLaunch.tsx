@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowRight,
   Calendar,
@@ -12,6 +12,9 @@ import {
   Shield,
   Smartphone,
   Zap,
+  Mic,
+  Info,
+  X
 } from "lucide-react";
 
 export function SaasProductLaunch({
@@ -21,6 +24,8 @@ export function SaasProductLaunch({
   onLogin: () => void;
   user: any;
 }) {
+  const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -270,7 +275,7 @@ export function SaasProductLaunch({
             </div>
 
             {/* Feature 5 */}
-            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col h-full hover:shadow-lg transition-shadow duration-300 md:col-span-2">
+            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col h-full hover:shadow-lg transition-shadow duration-300">
               <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-slate-900">
                 <Shield className="w-7 h-7" />
               </div>
@@ -287,6 +292,34 @@ export function SaasProductLaunch({
                   <Zap className="w-4 h-4 mt-0.5 shrink-0" />
                   Ganho: Durma tranquilo sabendo que a reputação da sua clínica
                   e os dados dos pacientes estão seguros.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 6 - Transcrição e Google Drive */}
+            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col h-full hover:shadow-lg transition-shadow duration-300 relative">
+              <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 text-amber-500">
+                <Mic className="w-7 h-7" />
+              </div>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <h3 className="text-xl font-bold text-slate-900">
+                  Resumo Automático e Drive
+                </h3>
+                <button
+                  onClick={() => setIsTranscriptionModalOpen(true)}
+                  className="bg-amber-100 text-amber-700 hover:bg-amber-200 p-1.5 rounded-full transition-colors flex-shrink-0"
+                  title="Saiba como funciona"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-slate-600 mb-6 flex-1">
+                Conecte-se e foque no paciente. Transcrição e resumo automático dos seus atendimentos por IA com integração direta e segura para o seu Google Drive pessoal.
+              </p>
+              <div className="pt-4 border-t border-slate-200 mt-auto">
+                <p className="text-sm font-semibold text-emerald-600 flex items-start gap-2">
+                  <Zap className="w-4 h-4 mt-0.5 shrink-0" />
+                  Ganho: Fim do trabalho após o expediente. Não perca mais tempo escrevendo anotações manualmente.
                 </p>
               </div>
             </div>
@@ -321,6 +354,68 @@ export function SaasProductLaunch({
           </div>
         </div>
       </div>
+
+      {/* Transcription Modal */}
+      {isTranscriptionModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 sm:p-8">
+              <div className="flex justify-between items-start mb-6">
+                <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mb-4">
+                  <Mic className="w-6 h-6" />
+                </div>
+                <button
+                  onClick={() => setIsTranscriptionModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                Como a Automação Economiza Seu Tempo
+              </h3>
+              <p className="text-slate-600 mb-6 leading-relaxed">
+                Nossa IA atua como seu assistente clínico. Durante a sessão, o áudio é processado em tempo real e transformado em um resumo clínico estruturado, sem gravar a voz para garantir a máxima privacidade.
+              </p>
+              <ul className="space-y-4 mb-8">
+                <li className="flex gap-3">
+                  <div className="mt-1 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 text-sm">Foco Total no Paciente</h4>
+                    <p className="text-sm text-slate-500 mt-0.5">Esqueça o caderno e a caneta. Olhe nos olhos do seu paciente.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <div className="mt-1 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 text-sm">Integração com Google Drive</h4>
+                    <p className="text-sm text-slate-500 mt-0.5">Os resumos são salvos diretamente no seu Google Drive, mantendo o controle total dos dados sob a sua conta.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <div className="mt-1 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 text-sm">Fim do Trabalho Extra</h4>
+                    <p className="text-sm text-slate-500 mt-0.5">Suas anotações estão prontas assim que o paciente sai da sala. Sua noite finalmente será livre.</p>
+                  </div>
+                </li>
+              </ul>
+              <button
+                onClick={() => setIsTranscriptionModalOpen(false)}
+                className="w-full bg-slate-900 text-white font-semibold py-3.5 rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

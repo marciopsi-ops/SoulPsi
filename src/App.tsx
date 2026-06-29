@@ -16,6 +16,7 @@ import { FloatingActions } from './components/FloatingActions';
 import { LogIn, Loader2, CheckCircle2, CreditCard, Moon, Sun, Shield, AlertCircle, X, Mail, MessageSquare, Menu } from 'lucide-react';
 import { SaasProductLaunch } from './components/SaasProductLaunch';
 import { useTheme } from './contexts/ThemeContext';
+import { SessionTimeout } from './components/SessionTimeout';
 
 export type ViewState = 'landing' | 'dashboard' | 'service_detail' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company' | 'saas';
 
@@ -365,6 +366,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 print:bg-white transition-colors">
+      {user && (
+        <SessionTimeout 
+          onLogout={() => auth.signOut()} 
+          timeoutMinutes={8} 
+          warningSeconds={60} 
+        />
+      )}
       {/* Global Header */}
       <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-50 print:hidden transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">

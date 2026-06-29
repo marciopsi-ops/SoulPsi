@@ -7,7 +7,7 @@ export function Footer({
   showIgrejasTab = true,
 }: {
   profileData: any;
-  setActiveTab?: (tab: string) => void;
+  setActiveTab?: (tab: any) => void;
   showIgrejasTab?: boolean;
 }) {
   if (!profileData) return null;
