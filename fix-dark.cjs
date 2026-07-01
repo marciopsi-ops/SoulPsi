@@ -1,55 +1,35 @@
 const fs = require('fs');
+const path = require('path');
 
-function fixColors(filePath) {
-  let content = fs.readFileSync(filePath, 'utf8');
-  let original = content;
+const cssPath = path.join(__dirname, 'src', 'index.css');
+let cssContent = fs.readFileSync(cssPath, 'utf8');
 
-  // Find all className="..." that contain text-slate-X (where X is 500,600,700,800,900) 
-  // and dark:bg-slate-800 but NOT dark:text-slate-* OR dark:text-gray-*
-  
-  // We can do it broadly:
-  // If className contains "dark:bg-slate-800" or "dark:bg-slate-900" 
-  // and does not contain "dark:text-", let's inject " dark:text-slate-100"
-  let lines = content.split('\n');
-  let changed = false;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes('className="') || lines[i].includes("className='") || lines[i].includes('className={`')) {
-       // simple regex to find className values
-       // actually, let's just use string replace on lines
-       let m = lines[i].match(/className=(?:["'`])(.*?)(?:["'`]|\$})/); // simplistic, but okay
-       if (m) {
-           let classStr = m[1];
-           if (classStr.includes('dark:bg-slate-800') || classStr.includes('dark:bg-slate-900') || classStr.includes('dark:bg-gray-800') || classStr.includes('dark:bg-gray-900')) {
-                if (!classStr.includes('dark:text-')) {
-                   // Inject it right before the background class
-                   let updated = lines[i].replace('dark:bg-', 'dark:text-slate-100 dark:bg-');
-                   lines[i] = updated;
-                   changed = true;
-                }
-           }
-       }
-    }
-  }
+cssContent = cssContent.replace(/@theme \{[\s\S]*\}\n/g, '');
 
-  // Also replace any specific textarea instances that might not be caught, or just general dark:bg-slate-800 replacements
-  // Wait, the regex might miss multiline classNames.
+const newTheme = `
+@theme {
+  --color-gelo: #F8F9F9;
+  --color-gelo-dark: #EAEDED;
+
+  --color-concreto-light: #D5D8DC;
+  --color-concreto: #ABB2B9;
+  --color-concreto-dark: #808B96;
+
+  --color-camurca-light: #BCA89F;
+  --color-camurca: #A48C7C;
+  --color-camurca-dark: #8C7565;
+
+  --color-marrom-light: #5D4037;
+  --color-marrom: #4E342E;
+  --color-marrom-dark: #3E2723;
+
+  --color-marsala-light: #B7666A;
+  --color-marsala: #9B4B4E;
+  --color-marsala-dark: #7C3A3F;
   
-  content = lines.join('\n');
-  
-  // Also, add dark:placeholder:text-slate-400 to text, textarea, select if they have placeholder but no dark:placeholder
-  // Actually, just replacing "text-slate-600 " ... with "text-slate-600 dark:text-slate-100 " might be better.
-  
-  // A safe replacement: find `text-slate-600` or `text-slate-500` or `text-slate-700` in combination with `dark:bg-slate-800`
-  // Actually, let's just globally replace `dark:bg-slate-800 dark:border-slate-700` with `dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700` if it doesn't already have dark:text.
-  
-  if (changed) {
-    fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`Updated ${filePath}`);
-  }
+  --color-amarelo: #FDB813;
+  --color-amarelo-dark: #F39C12;
 }
-
-['src/components/Dashboard.tsx', 'src/components/LandingPage.tsx'].forEach(f => {
-  if (fs.existsSync(f)) {
-    fixColors(f);
-  }
-});
+`;
+fs.writeFileSync(cssPath, cssContent + newTheme);
+console.log("Custom colors added!");

@@ -1,9 +1,13 @@
-@import "tailwindcss";
+const fs = require('fs');
+const path = require('path');
 
-@custom-variant dark (&:where(.dark, .dark *));
+const cssPath = path.join(process.cwd(), 'src', 'index.css');
+let cssContent = fs.readFileSync(cssPath, 'utf8');
 
+cssContent = cssContent.replace(/@theme \{[\s\S]*\}\n/g, '');
+cssContent = cssContent.replace(/@theme \{[\s\S]*\}/g, '');
 
-
+const newTheme = `
 @theme {
   /* Gelo / Concreto / Camurça / Marrom mapped to standard Tailwind slate colors */
   /* This ensures all generic layouts automatically inherit the Saúde Mental palette */
@@ -63,3 +67,6 @@
   --color-blue-500: #2196F3;
   --color-blue-600: #1E88E5;
 }
+`;
+fs.writeFileSync(cssPath, cssContent + newTheme);
+console.log("Custom colors added cleanly!");

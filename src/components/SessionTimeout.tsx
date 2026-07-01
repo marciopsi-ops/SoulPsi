@@ -85,7 +85,7 @@ export function SessionTimeout({
   if (!isWarningMode) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-marsala-800/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-md p-8 animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-700">
         <div className="flex justify-center mb-6">
           <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-500 animate-pulse">
@@ -104,7 +104,7 @@ export function SessionTimeout({
         <div className="flex flex-col gap-3">
           <button
             onClick={handleContinue}
-            className="w-full bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-900 font-bold py-3.5 rounded-xl hover:bg-slate-800 dark:hover:bg-amber-400 transition-colors"
+            className="w-full bg-marsala-800 dark:bg-amber-500 text-white dark:text-slate-900 font-bold py-3.5 rounded-xl hover:bg-marsala-700 dark:hover:bg-amber-400 transition-colors"
           >
             Continuar Logado
           </button>

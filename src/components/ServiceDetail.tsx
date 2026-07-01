@@ -1,5 +1,6 @@
 import { formatWa } from "../lib/utils";
 import React from "react";
+import { Helmet } from "react-helmet-async";
 import {
   ArrowLeft,
   Clock,
@@ -87,8 +88,21 @@ export function ServiceDetail({
 
   const theme = themeClasses[colorTheme];
 
+  const therapistName = profileData?.name || "Profissional de Saúde Mental";
+  const therapistTitle = profileData?.title || "Terapeuta";
+  const cleanDescription = (service.description || "").length > 150 
+    ? (service.description || "").substring(0, 150) + "..." 
+    : (service.description || "");
+
+  const seoTitle = `${service.title} | ${therapistName} - ${therapistTitle}`;
+  const seoDesc = `${cleanDescription} - Atendimento especializado oferecido por ${therapistName}. Saiba mais e entre em contato.`;
+
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={seoDesc} />
+      </Helmet>
       <div className="max-w-2xl mx-auto">
         {/* Breadcrumbs Navigation Trail */}
         <nav className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-medium text-slate-500 mb-6 bg-white dark:bg-slate-800 p-3 px-4 rounded-xl border border-slate-100 dark:border-slate-700/60 shadow-sm transition-all animate-in fade-in duration-300">

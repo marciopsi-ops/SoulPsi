@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut, deleteUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, limit, getDocs, updateDoc } from 'firebase/firestore';
@@ -9,6 +10,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SubscriptionManager } from './components/SubscriptionManager';
 import { PatientRegistration } from './components/PatientRegistration';
 import { ServiceDetail } from './components/ServiceDetail';
+import { AudienceLanding } from './components/AudienceLanding';
 import { CompanyRegistration } from './components/CompanyRegistration';
 import { ClientTerms } from './components/ClientTerms';
 import { AuthModal } from './components/AuthModal';
@@ -18,7 +20,7 @@ import { SaasProductLaunch } from './components/SaasProductLaunch';
 import { useTheme } from './contexts/ThemeContext';
 import { SessionTimeout } from './components/SessionTimeout';
 
-export type ViewState = 'landing' | 'dashboard' | 'service_detail' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company' | 'saas';
+export type ViewState = 'landing' | 'dashboard' | 'service_detail' | 'checkout' | 'admin' | 'registration' | 'company_registration' | 'terms' | 'terms_company' | 'saas' | 'audience_landing';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -108,6 +110,16 @@ export default function App() {
        return;
     }
 
+    const paramAudience = params.get('audience');
+    if (paramAudience && paramTherapistId) {
+       setTherapistId(paramTherapistId);
+       fetchPublicProfile(paramTherapistId).then(() => {
+         setView('audience_landing');
+         setLoading(false);
+       });
+       return;
+    }
+
     if (paramRegisterId) {
        setTherapistId(paramRegisterId);
        fetchPublicProfile(paramRegisterId).then(() => {
@@ -157,6 +169,10 @@ export default function App() {
 
         if (paramSaas) {
            setView('saas');
+        } else if (paramAudience && paramTherapistId) {
+           setTherapistId(paramTherapistId);
+           await fetchPublicProfile(paramTherapistId);
+           setView('audience_landing');
         } else if (adminStatus) {
            setTherapistId(currUser.uid);
            await initTherapistProfile(currUser.uid, currUser.displayName || '', currUser.email || '');
@@ -174,6 +190,10 @@ export default function App() {
         setIsAdminUser(false);
         if (paramSaas) {
           setView('saas');
+        } else if (paramAudience && paramTherapistId) {
+          setTherapistId(paramTherapistId);
+          await fetchPublicProfile(paramTherapistId);
+          setView('audience_landing');
         } else if (paramTherapistId) {
           setTherapistId(paramTherapistId);
           await fetchPublicProfile(paramTherapistId);
@@ -366,6 +386,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 print:bg-white transition-colors">
+      <Helmet>
+        <title>ELO Soluções Humanas | Hub de Terapeutas & Saúde Mental</title>
+        <meta name="description" content="Plataforma de alta conversão para terapeutas. Encontre psicoterapeutas, agende sessões online ou presenciais, acesse recursos e decole sua carreira clínica ou bem-estar." />
+      </Helmet>
       {user && (
         <SessionTimeout 
           onLogout={() => auth.signOut()} 
@@ -731,6 +755,27 @@ export default function App() {
             service={profileData?.services?.find((s: any) => s.id === new URLSearchParams(window.location.search).get('service'))}
             profileData={profileData}
             onBack={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const aud = urlParams.get('audience');
+              if (aud) {
+                urlParams.delete('service');
+                if (window.history.pushState) {
+                  window.history.pushState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+                }
+                setView('audience_landing');
+              } else {
+                if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
+                setView('landing');
+              }
+            }}
+          />
+        )}
+        {view === 'audience_landing' && (
+          <AudienceLanding
+            therapistId={therapistId || 'demo-therapist-id'}
+            audience={(new URLSearchParams(window.location.search).get('audience') as any) || 'empresa'}
+            profileData={profileData}
+            onBack={() => {
               if (window.history.pushState) window.history.pushState({}, '', window.location.pathname);
               setView('landing');
             }}
@@ -739,7 +784,7 @@ export default function App() {
       </main>
       )}
 
-      {['landing', 'service_detail', 'checkout', 'registration', 'company_registration', 'terms', 'terms_company'].includes(view) && (
+      {['landing', 'service_detail', 'audience_landing', 'checkout', 'registration', 'company_registration', 'terms', 'terms_company'].includes(view) && (
         <FloatingActions whatsapp={profileData?.whatsapp || '5511999999999'} />
       )}
 

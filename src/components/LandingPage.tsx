@@ -44,9 +44,11 @@ import {
   Smile,
   Compass,
   HeartPulse,
+  Search,
 } from "lucide-react";
 
 import { cn, formatWa } from "../lib/utils";
+import { Helmet } from "react-helmet-async";
 import { Footer } from "./Footer";
 
 const WidgetRenderer = ({ htmlCode }: { htmlCode: string }) => {
@@ -122,6 +124,7 @@ export function LandingPage({
   const [activeTab, setActiveTab] = useState<
     "voce" | "empresa" | "igrejas" | "psicologos" | "materiais"
   >("voce");
+  const [searchQuery, setSearchQuery] = useState("");
   const [reviews, setReviews] = useState<any[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [registrationStep, setRegistrationStep] = useState<0 | 1 | 2>(1);
@@ -130,6 +133,33 @@ export function LandingPage({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showIgrejasTab, setShowIgrejasTab] = useState(false);
+
+  const logInteraction = async (type: 'page_view' | 'whatsapp_click' | 'service_click', details?: any) => {
+    try {
+      if (!therapistId || therapistId === "preview") return;
+      // Do not log if logged in as the therapist themselves (owner viewing their own page)
+      if (isLoggedIn) return;
+      
+      const sessionKey = `elo_interaction_${therapistId}_${type}`;
+      const now = new Date().getTime();
+      const lastLogged = localStorage.getItem(sessionKey);
+      
+      // Basic rate limiting: don't log the exact same event more than once per minute per browser
+      if (lastLogged && now - parseInt(lastLogged) < 60000) {
+        return; 
+      }
+      
+      localStorage.setItem(sessionKey, now.toString());
+      
+      await addDoc(collection(db, `profiles/${therapistId}/interactions`), {
+        type,
+        details: details || null,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Failed to log interaction", e);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -145,10 +175,26 @@ export function LandingPage({
       setActiveTab(targetTab);
       window.scrollTo({ top: 500, behavior: "smooth" });
     };
+    
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      if (link && link.href.includes('wa.me/')) {
+        logInteraction('whatsapp_click');
+      }
+    };
 
     window.addEventListener("changeTab", handleChangeTab);
-    return () => window.removeEventListener("changeTab", handleChangeTab);
-  }, []);
+    document.addEventListener("click", handleGlobalClick);
+    
+    // Log page view when component mounts
+    logInteraction('page_view');
+    
+    return () => {
+      window.removeEventListener("changeTab", handleChangeTab);
+      document.removeEventListener("click", handleGlobalClick);
+    };
+  }, [therapistId]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -225,6 +271,15 @@ export function LandingPage({
   };
 
   const finalProfile = profileData || dummyProfile;
+
+  const filteredServices = (finalProfile.services || []).filter((s: any) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const titleMatch = (s.title || "").toLowerCase().includes(q);
+    const catMatch = (s.category || "").toLowerCase().includes(q);
+    const descMatch = (s.description || "").toLowerCase().includes(q);
+    return titleMatch || catMatch || descMatch;
+  });
 
   const hasVoce =
     finalProfile.services?.some((s: any) => s.category === "voce") ?? false;
@@ -631,8 +686,55 @@ export function LandingPage({
     return <HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
   };
 
+  // Dynamic SEO meta tags based on activeTab
+  const getSeoMeta = () => {
+    const name = finalProfile.name || "Terapeuta";
+    const title = finalProfile.title || "Psicólogo Clínico";
+    const bio = finalProfile.bio || finalProfile.about || "";
+    const cleanBio = bio.length > 150 ? bio.substring(0, 150) + "..." : bio;
+
+    switch (activeTab) {
+      case "voce":
+        return {
+          title: `${name} - ${title} | Psicoterapia e Atendimento Individual`,
+          description: `Conheça os serviços de psicoterapia e atendimento individual oferecidos por ${name} (${title}). ${cleanBio || "Agende sua consulta de forma prática e segura."}`
+        };
+      case "empresa":
+        return {
+          title: `${name} - ${title} | Saúde Mental Corporativa e Treinamentos para Empresas`,
+          description: `Soluções corporativas de saúde mental, palestras, workshops e treinamentos de liderança desenvolvidos por ${name}. Potencialize o capital humano da sua empresa.`
+        };
+      case "psicologos":
+        return {
+          title: `${name} - ${title} | Supervisão Clínica e Mentoria para Psicólogos`,
+          description: `Acelere sua carreira clínica. Supervisão clínica, mentoria ética de captação de pacientes e orientação profissional ministrada por ${name}.`
+        };
+      case "igrejas":
+        return {
+          title: `${name} - ${title} | Apoio Institucional e Palestras para Igrejas`,
+          description: `Atendimento psicológico sensível, palestras de base bíblica, aconselhamento de casais e suporte para líderes e comunidades religiosas por ${name}.`
+        };
+      case "materiais":
+        return {
+          title: `${name} - ${title} | Recursos e Materiais de Apoio`,
+          description: `Acesse e-books, guias, cartilhas e materiais educativos para o cuidado contínuo da sua saúde mental e emocional desenvolvidos por ${name}.`
+        };
+      default:
+        return {
+          title: `${name} - ${title} | Agendamento de Consultas`,
+          description: `Agende consultas presenciais ou online com ${name} (${title}). Saiba mais sobre especialidades, abordagens e portfólio de serviços.`
+        };
+    }
+  };
+
+  const seoMeta = getSeoMeta();
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8" style={customStyle}>
+      <Helmet>
+        <title>{seoMeta.title}</title>
+        <meta name="description" content={seoMeta.description} />
+      </Helmet>
       {finalProfile.isPublicSiteActive === false && isLoggedIn && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 text-sm font-medium flex items-center justify-center">
           O seu site está atualmente DESATIVADO para o público. Esta é apenas
@@ -747,7 +849,99 @@ export function LandingPage({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Search Bar */}
+      <div className="mb-6 relative max-w-xl mx-auto">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <Search className="w-5 h-5 text-slate-400" />
+        </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar serviço ou categoria..."
+          className="w-full pl-11 pr-10 py-3.5 bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))] focus:border-transparent transition-all placeholder:text-slate-400 text-slate-700"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute inset-y-0 right-0 pr-4 flex items-center"
+          >
+            <X className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />
+          </button>
+        )}
+      </div>
+
+      {searchQuery ? (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-h-[300px]">
+          <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            Resultados da busca
+          </h2>
+          {filteredServices.length > 0 ? (
+            <div className="space-y-4">
+              {filteredServices.map((svc: any, idx: number) => (
+                <div
+                  key={`search-${idx}`}
+                  className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-300"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl flex-shrink-0">
+                      {getServiceIcon(svc.category, svc.title)}
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-800">
+                      {svc.title}
+                    </h3>
+                  </div>
+                  <p className="text-sm sm:text-base text-slate-600 mb-5 sm:mb-6 text-justify">
+                    {svc.description}
+                  </p>
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
+                    {svc.allowScheduling === false ? (
+                      <a
+                        href={`https://wa.me/${formatWa(finalProfile.whatsapp)}?text=${encodeURIComponent("Olá, gostaria de saber mais sobre: " + svc.title)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity text-center flex items-center justify-center gap-2"
+                      >
+                        Contato pelo Whatsapp
+                      </a>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => openScheduleModal(svc, false)}
+                          className="w-full sm:flex-1 bg-[rgb(var(--theme-primary))] text-white px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                        >
+                          Agendar Online
+                        </button>
+                        {finalProfile.inPersonEnabled && (
+                          <button
+                            onClick={() => openScheduleModal(svc, true)}
+                            className="w-full sm:flex-1 bg-white border-2 border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))] px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                          >
+                            Agendar Presencial
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button
+                        onClick={() => { window.location.href = `/?t=${therapistId || finalProfile.id}&service=${svc.id}`; }}
+                        className="w-full sm:flex-1 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium sm:font-semibold shadow-sm hover:bg-slate-100 transition-colors text-center flex items-center justify-center gap-2"
+                    >
+                        Saiba mais
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center">
+              <Search className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 font-medium">Nenhum serviço encontrado para sua busca.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Tabs */}
       <div className="flex items-center justify-end gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2 px-2">
         <span>Deslize</span>
         <ArrowLeftRight className="w-3 h-3 animate-pulse" />
@@ -834,6 +1028,17 @@ export function LandingPage({
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-h-[300px]">
         {activeTab === "voce" && (
           <div className="animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-sm sm:text-base text-amber-50 leading-relaxed font-medium">Visualize todas as soluções de atendimento clínico reunidas em uma landpage de apresentação exclusiva para você.</p>
+              </div>
+              <button
+                onClick={() => { window.location.href = `/?t=${therapistId || finalProfile.id}&audience=voce`; }}
+                className="bg-white text-amber-800 hover:bg-amber-50 transition-colors font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg shrink-0 cursor-pointer"
+              >
+                Acessar Página Geral
+              </button>
+            </div>
             {/* Dynamic Services List for 'voce' */}
             {finalProfile.services?.filter((s: any) => s.category === "voce")
               .length > 0 ? (
@@ -843,7 +1048,7 @@ export function LandingPage({
                   .map((svc: any, idx: number) => (
                     <div
                       key={idx}
-                      className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden"
+                      className="border border-slate-200 rounded-xl p-5 sm:p-6 bg-white overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         {" "}
@@ -967,6 +1172,17 @@ export function LandingPage({
 
         {activeTab === "empresa" && (
           <div className="animate-in fade-in">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-sm sm:text-base text-emerald-50 leading-relaxed font-medium">Visualize todas as soluções corporativas reunidas em uma landpage de apresentação exclusiva para empresas.</p>
+              </div>
+              <button
+                onClick={() => { window.location.href = `/?t=${therapistId || finalProfile.id}&audience=empresa`; }}
+                className="bg-white text-emerald-800 hover:bg-emerald-50 transition-colors font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg shrink-0 cursor-pointer"
+              >
+                Acessar Página Geral
+              </button>
+            </div>
             {finalProfile.services?.filter((s: any) => s.category === "empresa").length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">
@@ -977,7 +1193,7 @@ export function LandingPage({
                   .map((svc: any, idx: number) => (
                     <div
                       key={idx}
-                      className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50"
+                      className="border border-emerald-100 rounded-xl p-5 sm:p-6 bg-emerald-50 hover:scale-[1.02] hover:shadow-md transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 sm:p-2.5 bg-emerald-100/50 rounded-xl flex-shrink-0">
@@ -1038,6 +1254,17 @@ export function LandingPage({
 
         {activeTab === "igrejas" && (
           <div className="animate-in fade-in">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-sm sm:text-base text-blue-50 leading-relaxed font-medium">Visualize todas as soluções institucionais reunidas em uma landpage de apresentação exclusiva para igrejas.</p>
+              </div>
+              <button
+                onClick={() => { window.location.href = `/?t=${therapistId || finalProfile.id}&audience=igrejas`; }}
+                className="bg-white text-blue-800 hover:bg-blue-50 transition-colors font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg shrink-0 cursor-pointer"
+              >
+                Acessar Página Geral
+              </button>
+            </div>
             {finalProfile.services?.filter((s: any) => s.category === "igrejas").length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-lg sm:text-xl font-bold mb-4 text-slate-800">
@@ -1048,7 +1275,7 @@ export function LandingPage({
                   .map((svc: any, idx: number) => (
                     <div
                       key={idx}
-                      className="border border-blue-100 rounded-xl p-5 sm:p-6 bg-blue-50"
+                      className="border border-blue-100 rounded-xl p-5 sm:p-6 bg-blue-50 hover:scale-[1.02] hover:shadow-md transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 sm:p-2.5 bg-blue-100/50 rounded-xl flex-shrink-0">
@@ -1111,6 +1338,17 @@ export function LandingPage({
 
         {activeTab === "psicologos" && (
           <div className="animate-in fade-in">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-sm sm:text-base text-purple-50 leading-relaxed font-medium">Visualize todos os cursos, supervisões e soluções em uma landpage de apresentação exclusiva para psicólogos.</p>
+              </div>
+              <button
+                onClick={() => { window.location.href = `/?t=${therapistId || finalProfile.id}&audience=psicologos`; }}
+                className="bg-white text-purple-800 hover:bg-purple-50 transition-colors font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg shrink-0 cursor-pointer"
+              >
+                Acessar Página Geral
+              </button>
+            </div>
             {finalProfile.services?.filter(
               (s: any) =>
                 s.category === "psicologos" || s.category === "psicologo",
@@ -1127,7 +1365,7 @@ export function LandingPage({
                   .map((svc: any, idx: number) => (
                     <div
                       key={idx}
-                      className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50"
+                      className="border border-purple-100 rounded-xl p-5 sm:p-6 bg-purple-50 hover:scale-[1.02] hover:shadow-md transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-2">
                         {" "}
@@ -1254,6 +1492,8 @@ export function LandingPage({
           </div>
         )}
       </div>
+      </>
+      )}
 
       {finalProfile.inPersonEnabled && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mt-8 mb-8">
@@ -1390,7 +1630,7 @@ export function LandingPage({
 
       {/* Registration Modal */}
       {showScheduleModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-marsala-800/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
               <div className="flex-1">
@@ -1870,7 +2110,7 @@ export function LandingPage({
       )}
 
       {showReviewModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-marsala-800/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
               <h3 className="text-lg sm:text-xl font-bold text-slate-800">

@@ -859,7 +859,7 @@ export function DocumentManager({
 
       {/* Modal / Popup de Edição de Sessões */}
       {editingSectionIdx !== null && editSectionDraft && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden">
+        <div className="fixed inset-0 bg-marsala-800/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -907,7 +907,7 @@ export function DocumentManager({
 
       {/* Modal / Popup de Identificação */}
       {isEditingIdentificacao && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden">
+        <div className="fixed inset-0 bg-marsala-800/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">

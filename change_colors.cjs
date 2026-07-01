@@ -1,46 +1,48 @@
 const fs = require('fs');
+const path = require('path');
 
-const files = [
-    'src/App.tsx',
-    'src/components/AdminDashboard.tsx',
-    'src/components/Checkout.tsx',
-    'src/components/CompanyRegistration.tsx',
-    'src/components/Dashboard.tsx',
-    'src/components/LandingPage.tsx',
-    'src/components/PatientRegistration.tsx',
-    'src/components/PublicProfile.tsx'
-];
+const cssPath = path.join(__dirname, 'src', 'index.css');
+let cssContent = fs.readFileSync(cssPath, 'utf8');
 
-const replaces = {
-    'bg-blue-600': 'bg-amber-500',
-    'hover:bg-blue-700': 'hover:bg-amber-600',
-    'text-blue-600': 'text-amber-500',
-    'text-blue-700': 'text-amber-600',
-    'text-blue-800': 'text-amber-700',
-    'text-blue-900': 'text-amber-800',
-    'text-blue-500': 'text-amber-500',
-    'ring-blue-500': 'ring-amber-400',
-    'border-blue-500': 'border-amber-400',
-    'border-blue-400': 'border-amber-400',
-    'border-blue-200': 'border-amber-200',
-    'border-blue-100': 'border-amber-100',
-    'bg-blue-50': 'bg-amber-50',
-    'bg-blue-100': 'bg-amber-100',
-    'from-blue-600': 'from-amber-500',
-    'to-blue-500': 'to-amber-400',
-    'to-indigo-700': 'to-amber-600',
-    'from-emerald-400': 'from-yellow-400'
-};
+const themeInjection = `
+@theme {
+  /* Gelo / Concreto / Camurça / Marrom / Marsala mapped to slate */
+  --color-slate-50: #F8F9FA; /* Gelo */
+  --color-slate-100: #F0F2F1; /* Gelo/Camurça soft */
+  --color-slate-200: #E0E4E5; /* Concreto claro */
+  --color-slate-300: #C4CBCC; /* Concreto */
+  --color-slate-400: #BCA89F; /* Camurça clara */
+  --color-slate-500: #A48C7C; /* Camurça */
+  --color-slate-600: #755F51; /* Marrom claro (texto secundário) */
+  --color-slate-700: #4E342E; /* Marrom (texto primário) */
+  --color-slate-800: #9B4B4E; /* Marsala (títulos, botões) */
+  --color-slate-900: #7C3A3F; /* Marsala escuro (hover botões) */
 
-for (const file of files) {
-    if (!fs.existsSync(file)) continue;
-    let content = fs.readFileSync(file, 'utf8');
-    for (const [key, value] of Object.entries(replaces)) {
-        // use regex globally
-        const re = new RegExp(key, 'g');
-        content = content.replace(re, value);
-    }
-    fs.writeFileSync(file, content);
+  /* Amarelo Quente (ELO Soluções Humanas) mapped to amber */
+  --color-amber-50: #FFF9E6;
+  --color-amber-100: #FFECB3;
+  --color-amber-200: #FFE082;
+  --color-amber-300: #FFD54F;
+  --color-amber-400: #FFCA28;
+  --color-amber-500: #FDB813; /* Amarelo quente ELO */
+  --color-amber-600: #F39C12; 
+  --color-amber-700: #D68910;
+  --color-amber-800: #BA4A00;
+  --color-amber-900: #873600;
+
+  /* Adjust emerald to a softer mint/green to match the pastel mental health vibe */
+  --color-emerald-50: #F1F8E9;
+  --color-emerald-100: #DCEDC8;
+  --color-emerald-500: #8BC34A;
+  --color-emerald-600: #689F38;
+  --color-emerald-700: #558B2F;
 }
+`;
 
-console.log("Colors updated.");
+if (!cssContent.includes('@theme')) {
+  cssContent += themeInjection;
+  fs.writeFileSync(cssPath, cssContent);
+  console.log("Colors injected!");
+} else {
+  console.log("Theme already present.");
+}

@@ -1,0 +1,3 @@
+O erro "Failed to log interaction: Missing or insufficient permissions" ocorria pois a regra do Firebase Firestore responsável por autorizar o registro de visualizações da página não estava totalmente flexível, bloqueando acessos não autenticados ou de tipos de sessão desconhecidos.
+
+Simplifiquei e relaxei a regra de criação para a coleção `interactions` (`allow create: if true;`), já que as métricas são apenas de inserção (append-only) e requerem criação sem autenticação prévia de pacientes ou visitantes. O deploy das regras também foi refeito com sucesso para o banco em nuvem, garantindo que o rastreamento das métricas da página funcione corretamente.

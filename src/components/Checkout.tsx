@@ -185,7 +185,7 @@ export function Checkout({
               <button
                 disabled={loading}
                 onClick={handleConfirmReservation}
-                className="w-full bg-slate-900 text-white font-semibold py-4 rounded-xl hover:bg-slate-800 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-marsala-800 text-white font-semibold py-4 rounded-xl hover:bg-marsala-700 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? "Confirmando..." : "Confirmar Reserva de Horário"}
               </button>

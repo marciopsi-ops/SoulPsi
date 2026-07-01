@@ -33,6 +33,8 @@ export function PatientRegistration({
     source: "",
     guardianName: "",
     guardianPhone: "",
+    guardianCpf: "",
+    guardianEmail: "",
     lgpdAccepted: false,
   });
 
@@ -280,6 +282,34 @@ export function PatientRegistration({
                     setForm({ ...form, guardianPhone: e.target.value })
                   }
                   placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  CPF do Responsável
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700"
+                  value={form.guardianCpf}
+                  onChange={(e) =>
+                    setForm({ ...form, guardianCpf: e.target.value })
+                  }
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  E-mail do Responsável
+                </label>
+                <input
+                  type="email"
+                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700"
+                  value={form.guardianEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, guardianEmail: e.target.value })
+                  }
+                  placeholder="Para recebimento de NFs"
                 />
               </div>
             </div>

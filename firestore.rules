@@ -135,6 +135,12 @@ service cloud.firestore {
       allow get, list, create, update, delete: if isOwner(profileId) && isValidId(profileId);
     }
 
+    // --- Interactions ---
+    match /profiles/{profileId}/interactions/{interactionId} {
+      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow create: if true;
+    }
+
     // --- Custom Notifications & System Notifications ---
     match /profiles/{profileId}/notifications/{notifId} {
       allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);

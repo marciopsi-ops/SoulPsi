@@ -100,7 +100,7 @@ export function AuthModal({ onClose, saasEnabled = true, supportInfo }: AuthModa
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-marsala-800/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-800">

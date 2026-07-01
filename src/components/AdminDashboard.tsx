@@ -507,7 +507,7 @@ export function AdminDashboard() {
               href="/?saas=true"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+              className="flex items-center justify-center gap-1.5 bg-marsala-700 hover:bg-marsala-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
             >
               <ExternalLink className="w-4 h-4" />
               Acessar Landing Page
@@ -618,7 +618,7 @@ export function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={savingSupport}
-                  className="w-full bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                  className="w-full bg-marsala-700 hover:bg-marsala-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                 >
                   {savingSupport ? "Salvando..." : "Salvar Dados"}
                 </button>
@@ -1028,7 +1028,7 @@ export function AdminDashboard() {
 
       {/* Selected Profile Modal */}
       {selectedProfile && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-marsala-800/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800 font-sans">
@@ -1181,7 +1181,7 @@ export function AdminDashboard() {
 
       {/* Manual Notification Dispatch Modal */}
       {notifyingProfile && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-marsala-800/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-200 font-sans">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
@@ -1309,7 +1309,7 @@ export function AdminDashboard() {
 
       {/* Deletion Confirmation Modal */}
       {confirmDelete.type && (
-        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-marsala-800/55 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-slate-100 font-sans">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-2">
               <span className="text-red-500">⚠️</span> {confirmDelete.title}

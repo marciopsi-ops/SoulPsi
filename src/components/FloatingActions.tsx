@@ -15,7 +15,7 @@ export function FloatingActions({ whatsapp }: { whatsapp?: string }) {
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col gap-3 items-end pointer-events-auto">
       <button
         onClick={handleShare}
-        className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-slate-600 hover:bg-slate-800 hover:scale-105 transition-all backdrop-blur-md"
+        className="flex items-center justify-center w-12 h-12 rounded-full bg-marsala-700/90 text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-slate-600 hover:bg-marsala-700 hover:scale-105 transition-all backdrop-blur-md"
         title="Compartilhar Perfil"
       >
         {copiedLink ? (

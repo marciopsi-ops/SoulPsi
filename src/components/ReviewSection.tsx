@@ -237,7 +237,7 @@ export function ReviewSection({
       </div>
 
       {showReviewModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-marsala-800/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
               <h3 className="text-lg sm:text-xl font-bold text-slate-800">

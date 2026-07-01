@@ -574,7 +574,7 @@ export function SubscriptionManager({
               className={cn(
                 "p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition",
                 paymentMethod === "card"
-                  ? "bg-slate-900 border-slate-900 text-white shadow-sm"
+                  ? "bg-marsala-800 border-slate-900 text-white shadow-sm"
                   : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
               )}
             >
@@ -586,7 +586,7 @@ export function SubscriptionManager({
               className={cn(
                 "p-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition",
                 paymentMethod === "pix"
-                  ? "bg-slate-900 border-slate-900 text-white shadow-sm"
+                  ? "bg-marsala-800 border-slate-900 text-white shadow-sm"
                   : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100",
               )}
             >
@@ -792,7 +792,7 @@ export function SubscriptionManager({
               if (onClose) onClose();
               setStep("plans");
             }}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition shadow mt-8"
+            className="w-full bg-marsala-800 hover:bg-marsala-700 text-white font-bold py-3.5 px-6 rounded-xl transition shadow mt-8"
           >
             Acessar Plataforma Agora
           </button>

@@ -67,6 +67,7 @@ import {
   Star,
   Eye,
   EyeOff,
+  Globe,
 } from "lucide-react";
 import { DocumentManager } from "./DocumentManager";
 import { SubscriptionManager } from "./SubscriptionManager";
@@ -107,6 +108,7 @@ function CostManager({
   billingAccounts = ["ELO", "MEI Carla", "CPF Marcio", "CPF Carla", "Dinheiro"],
   onManageAccounts,
   hideFinance = true,
+  additionalUpdates,
 }: {
   costsStr: string;
   type:
@@ -122,6 +124,7 @@ function CostManager({
   billingAccounts?: string[];
   onManageAccounts?: () => void;
   hideFinance?: boolean;
+  additionalUpdates?: Record<string, any>;
 }) {
   const [costs, setCosts] = useState<
     {
@@ -238,10 +241,14 @@ function CostManager({
     setSaving(true);
     try {
       const str = JSON.stringify(newCosts);
-      await updateDoc(doc(db, "profiles", userId), {
+      const updateData: any = {
         [type]: str,
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (additionalUpdates) {
+        Object.assign(updateData, additionalUpdates);
+      }
+      await updateDoc(doc(db, "profiles", userId), updateData);
       setCosts(newCosts);
       onUpdates(str);
     } catch (e: any) {
@@ -605,6 +612,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [signatures, setSignatures] = useState<any[]>([]);
+  const [interactions, setInteractions] = useState<any[]>([]);
 
   // Browser notifications states & functions
   const [notiPermission, setNotiPermission] = useState<string>(
@@ -948,6 +956,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         setSignatures(sigSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (e: any) {
         console.error("Error fetching static dashboard data:", e);
+      }
+      
+      try {
+        const intSnap = await getDocs(query(collection(db, `profiles/${userId}/interactions`)));
+        setInteractions(intSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (e: any) {
+        console.error("Error fetching interactions dashboard data:", e);
       }
     };
     fetchStaticData();
@@ -3763,26 +3778,37 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               ][i],
                           );
 
-                          const getCosts = (str?: string) => {
-                            const items = JSON.parse(str || "[]");
-                            return items
-                              .filter((c: any) => {
-                                if (!c.month) return true;
-                                if (stringMonths.length > 0)
-                                  return (
-                                    stringMonths.includes(c.month) &&
-                                    c.year === filterYear.toString()
-                                  );
-                                return true;
-                              })
-                              .reduce((a: any, b: any) => a + b.amount, 0);
-                          };
+                          let allCosts: any[] = [];
+                          try {
+                            if (profileData?.generalCostsStr) allCosts = [...allCosts, ...JSON.parse(profileData.generalCostsStr)];
+                          } catch(e) {}
+                          try {
+                            if (profileData?.patientCostsStr) allCosts = [...allCosts, ...JSON.parse(profileData.patientCostsStr)];
+                          } catch(e) {}
+                          try {
+                            if (profileData?.companyCostsStr) allCosts = [...allCosts, ...JSON.parse(profileData.companyCostsStr)];
+                          } catch(e) {}
 
-                          const c1 = getCosts(profileData?.generalCostsStr);
-                          const c2 = getCosts(profileData?.patientCostsStr);
-                          const c3 = getCosts(profileData?.companyCostsStr);
+                          const uniqueCostsMap = new Map();
+                          allCosts.forEach((c) => {
+                            if (c.id) {
+                              uniqueCostsMap.set(c.id, c);
+                            } else {
+                              uniqueCostsMap.set(Math.random().toString(36), c);
+                            }
+                          });
 
-                          return c1 + c2 + c3;
+                          return Array.from(uniqueCostsMap.values())
+                            .filter((c: any) => {
+                              if (!c.month) return true;
+                              if (stringMonths.length > 0)
+                                return (
+                                  stringMonths.includes(c.month) &&
+                                  c.year === filterYear.toString()
+                                );
+                              return true;
+                            })
+                            .reduce((a: any, b: any) => a + b.amount, 0);
                         } catch {
                           return "0,00";
                         }
@@ -3790,6 +3816,49 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       hideFinance,
                     )}
                   </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Interaction Metrics */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Engajamento com a Página</h3>
+                  <p className="text-sm text-slate-500">Métricas de visualização e cliques dos últimos 30 dias</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-slate-500 mb-1">
+                      Visualizações da Página
+                    </h3>
+                    <p className="text-3xl font-bold text-slate-800">
+                      {interactions.filter(i => i.type === 'page_view' && (!i.timestamp || (new Date().getTime() - i.timestamp.toMillis()) < 30 * 24 * 60 * 60 * 1000)).length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
+                    <Eye className="w-6 h-6 text-slate-500" />
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-emerald-800 mb-1">
+                      Cliques no WhatsApp
+                    </h3>
+                    <p className="text-3xl font-bold text-emerald-900">
+                      {interactions.filter(i => i.type === 'whatsapp_click' && (!i.timestamp || (new Date().getTime() - i.timestamp.toMillis()) < 30 * 24 * 60 * 60 * 1000)).length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-emerald-200 flex items-center justify-center">
+                    <MessageCircle className="w-6 h-6 text-emerald-700" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -4218,7 +4287,26 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   ];
               } catch (e) {}
 
-              const mergedCostsStr = JSON.stringify(mergedCosts);
+              // Deduplicate costs to prevent triplicates from legacy structure
+              const uniqueCostsMap = new Map();
+              mergedCosts.forEach(item => {
+                if (item.id) {
+                  uniqueCostsMap.set(item.id, item);
+                } else {
+                  uniqueCostsMap.set(Math.random().toString(36), item);
+                }
+              });
+              const uniqueCosts = Array.from(uniqueCostsMap.values());
+
+              const mergedCostsStr = JSON.stringify(uniqueCosts);
+              
+              const legacyUpdates: any = {};
+              if (profileData?.patientCostsStr && profileData.patientCostsStr !== "[]") {
+                legacyUpdates.patientCostsStr = "[]";
+              }
+              if (profileData?.companyCostsStr && profileData.companyCostsStr !== "[]") {
+                legacyUpdates.companyCostsStr = "[]";
+              }
 
               return (
                 <CostManager
@@ -4226,18 +4314,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   costsStr={mergedCostsStr}
                   type="generalCostsStr"
                   userId={userId}
+                  additionalUpdates={legacyUpdates}
                   onUpdates={(val) => {
                     const toUpdate: any = { generalCostsStr: val };
-                    if (
-                      profileData?.patientCostsStr &&
-                      profileData.patientCostsStr !== "[]"
-                    )
-                      toUpdate.patientCostsStr = "[]";
-                    if (
-                      profileData?.companyCostsStr &&
-                      profileData.companyCostsStr !== "[]"
-                    )
-                      toUpdate.companyCostsStr = "[]";
+                    if (legacyUpdates.patientCostsStr) toUpdate.patientCostsStr = "[]";
+                    if (legacyUpdates.companyCostsStr) toUpdate.companyCostsStr = "[]";
                     onUpdateProfile({ ...profileData, ...toUpdate });
                   }}
                   filterMonths={filterMonths}
@@ -5111,6 +5192,38 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   </button>
                 </div>
 
+                {activeServiceTab !== "voce" && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">LINK GERAL DE VENDAS (LANDPAGE)</span>
+                      <p className="text-xs text-slate-600">Compartilhe esta página comercial contendo todos os seus serviços para este público em uma única tela.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `${window.location.origin}/?t=${userId || ""}&audience=${activeServiceTab}`;
+                          navigator.clipboard.writeText(url);
+                          alert("Link geral copiado com sucesso!");
+                        }}
+                        className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copiar Link</span>
+                      </button>
+                      <a
+                        href={`/?t=${userId || ""}&audience=${activeServiceTab}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Visualizar</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {(() => {
                     const filteredServices = (editForm.services || []).filter(
@@ -5337,7 +5450,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                 return (
                   <div
-                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                    className="fixed inset-0 bg-marsala-800/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
                     onClick={() => setEditingServiceId(null)}
                   >
                     <div
@@ -5604,7 +5717,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               }
                               setEditingServiceId(null);
                             }}
-                            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition cursor-pointer"
+                            className="px-6 py-2.5 bg-marsala-800 hover:bg-marsala-700 text-white font-bold text-sm rounded-xl transition cursor-pointer"
                           >
                             Concluir
                           </button>
@@ -6284,7 +6397,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
             {editingClientId === "new" && (
               <div
-                className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditingClientId(null);
@@ -6698,7 +6811,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       >
                         {editingClientId === client.id ? (
                           <div
-                            className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                            className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingClientId(null);
@@ -7165,7 +7278,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                             {expandedClientId === client.id && (
                               <div
-                                className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                                className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setExpandedClientId(null);
@@ -7403,7 +7516,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                             className={cn(
                                               "px-3 py-1.5 rounded-lg text-xs font-medium border",
                                               sessionFilter === "all"
-                                                ? "bg-slate-800 text-white border-slate-800"
+                                                ? "bg-marsala-700 text-white border-slate-800"
                                                 : "bg-white text-slate-600 border-slate-200",
                                             )}
                                           >
@@ -8265,7 +8378,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                         </span>
                                                         <div className="flex flex-wrap items-center gap-1">
                                                           {ap.priceAdjust && (
-                                                            <span className="bg-slate-800 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                                            <span className="bg-marsala-700 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
                                                               {ap.priceAdjust}
                                                             </span>
                                                           )}
@@ -8744,7 +8857,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
             {editingCompanyId === "new" && (
               <div
-                className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditingCompanyId(null);
@@ -9088,7 +9201,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     >
                       {editingCompanyId === company.id ? (
                         <div
-                          className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                          className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingCompanyId(null);
@@ -9576,7 +9689,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
                           {expandedCompanyId === company.id && (
                             <div
-                              className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
+                              className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in cursor-default"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setExpandedCompanyId(null);
@@ -9718,7 +9831,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                           className={cn(
                                             "px-3 py-1.5 rounded-lg text-xs font-medium border",
                                             sessionFilter === "all"
-                                              ? "bg-slate-800 text-white border-slate-800"
+                                              ? "bg-marsala-700 text-white border-slate-800"
                                               : "bg-white text-slate-600 border-slate-200",
                                           )}
                                         >
@@ -10598,7 +10711,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                       </span>
                                                       <div className="flex flex-wrap items-center gap-2">
                                                         {ap.priceAdjust && (
-                                                          <span className="bg-slate-800 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                                          <span className="bg-marsala-700 text-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
                                                             {ap.priceAdjust}
                                                           </span>
                                                         )}
@@ -11157,7 +11270,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   Enviaremos um JSON no corpo da requisição POST com a seguinte
                   estrutura:
                 </p>
-                <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-xs font-mono">
+                <pre className="bg-marsala-800 text-emerald-400 p-4 rounded-xl overflow-x-auto text-xs font-mono">
                   {`{
   "event": "appointment_created", // ou patient_created, appointment_updated...
   "data": {
@@ -11426,7 +11539,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       {/* Generated Meet Modal */}
       {generatedMeetLink && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur z-10">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -11481,7 +11594,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       {/* Export Modal */}
       {exportModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur z-10">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -11564,7 +11677,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       {/* Notification Modal */}
       {notificationModalClient && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -11686,7 +11799,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     className={cn(
                       "px-4 py-2 border rounded-full text-sm font-medium transition",
                       notificationTemplate === "other"
-                        ? "bg-slate-800 text-white border-slate-800"
+                        ? "bg-marsala-700 text-white border-slate-800"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
                     )}
                   >
@@ -11933,7 +12046,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       )}
 
       {confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-marsala-800/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="p-6">
               <h3 className="text-xl font-bold text-slate-900 mb-2">
@@ -11965,7 +12078,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       )}
 
       {showContractEditor && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[60] animate-in fade-in">
+        <div className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-[60] animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-3xl flex flex-col max-h-[90vh] shadow-xl overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
               <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
@@ -12032,7 +12145,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   setSaving(false);
                 }}
                 disabled={saving}
-                className="px-5 py-2.5 bg-slate-900 text-white font-medium hover:bg-slate-800 rounded-xl transition flex items-center gap-2"
+                className="px-5 py-2.5 bg-marsala-800 text-white font-medium hover:bg-marsala-700 rounded-xl transition flex items-center gap-2"
               >
                 {saving ? "Salvando..." : "Salvar Contrato"}
               </button>
@@ -12042,7 +12155,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       )}
 
       {isManageAccountsOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-marsala-800/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[85vh]">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2">
@@ -12124,7 +12237,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               <button
                 type="button"
                 onClick={() => setIsManageAccountsOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg text-sm transition"
+                className="px-4 py-2 bg-marsala-700 hover:bg-marsala-800 text-white font-medium rounded-lg text-sm transition"
               >
                 Concluir
               </button>
