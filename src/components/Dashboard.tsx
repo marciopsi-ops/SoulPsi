@@ -68,10 +68,13 @@ import {
   Eye,
   EyeOff,
   Globe,
+  AlertTriangle,
+  Percent,
 } from "lucide-react";
 import { DocumentManager } from "./DocumentManager";
 import { SubscriptionManager } from "./SubscriptionManager";
-import { cn, formatWa } from "../lib/utils";
+import { ReadjustmentHistoryManager } from "./ReadjustmentHistoryManager";
+import { cn, formatWa, validateEmailDomain, ALLOWED_CORPORATE_DOMAINS } from "../lib/utils";
 import { createMeetSpace } from "../services/meetService";
 import { format } from "date-fns";
 import { FastAverageColor } from "fast-average-color";
@@ -528,6 +531,55 @@ const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, errorMessage: s
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
 };
 
+const uploadMultipartToDrive = async (
+  token: string,
+  filename: string,
+  mimeType: string,
+  content: any,
+  fields: string = "id,webViewLink"
+): Promise<Response> => {
+  const boundary = "314159265358979323846";
+  const delimiter = "\r\n--" + boundary + "\r\n";
+  const close_delim = "\r\n--" + boundary + "--";
+
+  const metadata = {
+    name: filename,
+    mimeType: mimeType,
+  };
+
+  const metadataPart = [
+    delimiter,
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+    JSON.stringify(metadata),
+  ].join("");
+
+  const mediaPartHeader = [
+    delimiter,
+    "Content-Type: " + mimeType + "\r\n\r\n",
+  ].join("");
+
+  const body = new Blob([
+    metadataPart,
+    mediaPartHeader,
+    content,
+    close_delim
+  ], { type: "multipart/related; boundary=" + boundary });
+
+  const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart${fields ? `&fields=${fields}` : ""}`;
+
+  return withTimeout(
+    fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: body,
+    }),
+    20000,
+    "Timeout: A conexão com o Google Drive demorou muito."
+  );
+};
+
 export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const fireWebhook = (event: string, data: any) => {
     if (profileData && profileData.webhookUrl) {
@@ -778,6 +830,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [widgetSaved, setWidgetSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
+  const [isConnectingMeet, setIsConnectingMeet] = useState(false);
+  const [isConnectingBusiness, setIsConnectingBusiness] = useState(false);
 
   const getDriveToken = async (): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -799,16 +853,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         client_id:
           (import.meta as any).env.VITE_CLIENT_ID ||
           "your-client-id.apps.googleusercontent.com",
-        scope: "https://www.googleapis.com/auth/drive.file",
-        prompt: "",
-        callback: (response: any) => {
+        scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+        prompt: "select_account",
+        callback: async (response: any) => {
           if (response.access_token) {
-            const expiresAt = Date.now() + 3500 * 1000;
-            localStorage.setItem(
-              "google_drive_token",
-              JSON.stringify({ token: response.access_token, expiresAt })
-            );
-            resolve(response.access_token);
+            try {
+              const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: { Authorization: `Bearer ${response.access_token}` },
+              });
+              if (!userInfoRes.ok) {
+                throw new Error("Não foi possível verificar os dados do seu e-mail do Google.");
+              }
+              const userInfo = await userInfoRes.json();
+              const email = userInfo.email || "";
+              
+              if (!validateEmailDomain(email)) {
+                reject(new Error(`Este serviço só pode ser conectado com um e-mail profissional com o domínio da plataforma (@elosolucoeshumanas.com). Você tentou conectar com o e-mail pessoal: ${email}`));
+                return;
+              }
+
+              const expiresAt = Date.now() + 3500 * 1000;
+              localStorage.setItem(
+                "google_drive_token",
+                JSON.stringify({ token: response.access_token, email, expiresAt })
+              );
+              resolve(response.access_token);
+            } catch (err: any) {
+              reject(err);
+            }
           } else {
             reject(new Error("Token não obtido"));
           }
@@ -824,14 +896,119 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const handleDriveConnect = async () => {
     setIsConnectingDrive(true);
     try {
+      const userEmail = editForm.email || profileData?.email || auth.currentUser?.email || "";
+      const isCorporate = validateEmailDomain(userEmail);
+      
+      if (!isCorporate) {
+        const proceed = window.confirm(
+          `AVISO DE INTEGRAÇÃO CORPORATIVA:\n\n` +
+          `O Google Drive exige conexão com um e-mail profissional com o domínio da plataforma (@elosolucoeshumanas.com ou @elosolucoes.com.br).\n\n` +
+          `Identificamos que seu e-mail cadastrado (${userEmail || "não identificado"}) não é corporativo. Se prosseguir, você DEVERÁ obrigatoriamente selecionar ou fazer login em uma conta Google corporativa válida durante o processo.\n\n` +
+          `Deseja prosseguir?`
+        );
+        if (!proceed) {
+          setIsConnectingDrive(false);
+          return;
+        }
+      } else {
+        const proceed = window.confirm(
+          `AVISO DE INTEGRAÇÃO CORPORATIVA:\n\n` +
+          `Você iniciará a conexão com o Google Drive.\n` +
+          `Certifique-se de escolher exatamente a sua conta profissional (${userEmail}) no painel de login do Google.\n\n` +
+          `Deseja prosseguir?`
+        );
+        if (!proceed) {
+          setIsConnectingDrive(false);
+          return;
+        }
+      }
+
       await getDriveToken();
-      setEditForm((prev: any) => ({ ...prev, driveSync: true }));
-      alert("Google Drive conectado com sucesso! Lembre-se de salvar suas alterações de perfil.");
+      const stored = localStorage.getItem("google_drive_token");
+      let email = "";
+      if (stored) {
+        try {
+          email = JSON.parse(stored).email || "";
+        } catch (e) {}
+      }
+      setEditForm((prev: any) => ({ ...prev, driveSync: true, driveEmail: email }));
+      alert(`Google Drive conectado com sucesso com a conta corporativa ${email}! Lembre-se de salvar suas alterações de perfil.`);
     } catch (e: any) {
       console.error(e);
       alert("Erro ao conectar Google Drive: " + e.message);
     } finally {
       setIsConnectingDrive(false);
+    }
+  };
+
+  const handleMeetConnect = async () => {
+    setIsConnectingMeet(true);
+    try {
+      const userEmail = editForm.email || profileData?.email || auth.currentUser?.email || "";
+      const isCorporate = validateEmailDomain(userEmail);
+      
+      if (!isCorporate) {
+        const proceed = window.confirm(
+          `AVISO DE INTEGRAÇÃO CORPORATIVA:\n\n` +
+          `O Google Meet exige conexão com um e-mail profissional com o domínio da plataforma (@elosolucoeshumanas.com ou @elosolucoes.com.br).\n\n` +
+          `Identificamos que seu e-mail cadastrado (${userEmail || "não identificado"}) não é corporativo. Se prosseguir, você DEVERÁ obrigatoriamente selecionar ou fazer login em uma conta Google corporativa válida durante o processo.\n\n` +
+          `Deseja prosseguir?`
+        );
+        if (!proceed) {
+          setIsConnectingMeet(false);
+          return;
+        }
+      } else {
+        const proceed = window.confirm(
+          `AVISO DE INTEGRAÇÃO CORPORATIVA:\n\n` +
+          `Você iniciará a conexão com o Google Meet.\n` +
+          `Certifique-se de escolher exatamente a sua conta profissional (${userEmail}) no painel de login do Google.\n\n` +
+          `Deseja prosseguir?`
+        );
+        if (!proceed) {
+          setIsConnectingMeet(false);
+          return;
+        }
+      }
+
+      const { signInAndGetTokenForMeet } = await import("../services/meetService");
+      const token = await signInAndGetTokenForMeet();
+      const stored = localStorage.getItem("google_meet_token");
+      let email = "";
+      if (stored) {
+        try {
+          email = JSON.parse(stored).email || "";
+        } catch (e) {}
+      }
+      setEditForm((prev: any) => ({ ...prev, meetSync: true, meetEmail: email }));
+      alert(`Google Meet conectado com sucesso com a conta corporativa ${email}! Lembre-se de salvar suas alterações de perfil.`);
+    } catch (e: any) {
+      console.error(e);
+      alert("Erro ao conectar Google Meet: " + e.message);
+    } finally {
+      setIsConnectingMeet(false);
+    }
+  };
+
+  const handleGoogleBusinessConnect = async () => {
+    setIsConnectingBusiness(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope("https://www.googleapis.com/auth/userinfo.email");
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user?.email || "";
+      setEditForm((prev: any) => ({
+        ...prev,
+        googleBusinessSync: true,
+        googleBusinessEmail: email,
+      }));
+      alert(`Google Perfil da Empresa conectado com sucesso com a conta ${email}! Lembre-se de salvar suas alterações de perfil.`);
+    } catch (e: any) {
+      console.error(e);
+      alert("Erro ao conectar Google Perfil da Empresa: " + e.message);
+    } finally {
+      setIsConnectingBusiness(false);
     }
   };
 
@@ -1130,7 +1307,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         "calendarSync",
         "calendarUrl",
         "calendarEmbed",
+        "calendarEmail",
         "driveSync",
+        "driveEmail",
+        "meetSync",
+        "meetEmail",
+        "googleBusinessSync",
+        "googleBusinessEmail",
         "materials",
         "services",
         "schedule",
@@ -1567,6 +1750,15 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+
+  const [readjustmentConfirmModal, setReadjustmentConfirmModal] = useState<{
+    isOpen: boolean;
+    entity: any;
+    type: "client" | "company" | null;
+  }>({ isOpen: false, entity: null, type: null });
+  const [readjustmentPercent, setReadjustmentPercent] = useState<string>("");
+  const [readjustmentNewValue, setReadjustmentNewValue] = useState<string>("");
+  const [readjustmentNotes, setReadjustmentNotes] = useState<string>("");
 
   const askConfirm = (
     title: string,
@@ -2089,28 +2281,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (!useFirebaseFallback && driveToken) {
         // Upload to Google Drive
-        const metadata = {
-          name: file.name,
-          mimeType: file.type,
-        };
-
-        const form = new FormData();
-        form.append(
-          "metadata",
-          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        const res = await uploadMultipartToDrive(
+          driveToken,
+          file.name,
+          file.type || "application/octet-stream",
+          file,
+          "id,webViewLink"
         );
-        form.append("file", file);
-
-        const res = await withTimeout(fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${driveToken}`,
-            },
-            body: form,
-          }
-        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
 
         if (!res.ok) throw new Error("Falha no upload para o Drive.");
         const data = await res.json();
@@ -2289,28 +2466,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (!useFirebaseFallback && driveToken) {
         // Upload to Google Drive
-        const metadata = {
-          name: file.name,
-          mimeType: file.type,
-        };
-
-        const form = new FormData();
-        form.append(
-          "metadata",
-          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        const res = await uploadMultipartToDrive(
+          driveToken,
+          file.name,
+          file.type || "application/octet-stream",
+          file,
+          "id,webViewLink"
         );
-        form.append("file", file);
-
-        const res = await withTimeout(fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${driveToken}`,
-            },
-            body: form,
-          }
-        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
 
         if (!res.ok) throw new Error("Falha no upload para o Drive.");
         const data = await res.json();
@@ -2388,28 +2550,13 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
       if (!useFirebaseFallback && driveToken) {
         // Upload to Google Drive
-        const metadata = {
-          name: file.name,
-          mimeType: file.type,
-        };
-
-        const form = new FormData();
-        form.append(
-          "metadata",
-          new Blob([JSON.stringify(metadata)], { type: "application/json" })
+        const res = await uploadMultipartToDrive(
+          driveToken,
+          file.name,
+          file.type || "application/octet-stream",
+          file,
+          "id,webViewLink"
         );
-        form.append("file", file);
-
-        const res = await withTimeout(fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${driveToken}`,
-            },
-            body: form,
-          }
-        ), 20000, "Timeout: A conexão com o Google Drive demorou muito.");
 
         if (!res.ok) throw new Error("Falha no upload para o Drive.");
         const data = await res.json();
@@ -2624,6 +2771,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         source: companyEditForm.source || "Outros",
         entryDate:
           companyEditForm.entryDate || new Date().toISOString().split("T")[0],
+        annualReadjustmentDate: companyEditForm.annualReadjustmentDate || "",
+        lastReadjustmentConfirmedYear: companyEditForm.lastReadjustmentConfirmedYear || null,
+        readjustmentHistory: companyEditForm.readjustmentHistory || [],
       };
 
       if (editingCompanyId === "new") {
@@ -2681,17 +2831,33 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     }
   };
 
+  const [exportFilterType, setExportFilterType] = useState<"all" | "period">("all");
+  const [exportFilterMonths, setExportFilterMonths] = useState<number[]>(() => [new Date().getMonth()]);
+  const [exportFilterYear, setExportFilterYear] = useState<number>(() => new Date().getFullYear());
+
   const handleExportCSV = () => {
     setExportModalOpen(true);
   };
 
+  const getExportFilename = () => {
+    const now = new Date();
+    const ts = format(now, "yyyyMMdd_HHmmss");
+    if (exportFilterType === "all") {
+      return `backup_pacientes_completo_${ts}.csv`;
+    } else {
+      const monthStr = exportFilterMonths.map((m) => m + 1).join("-");
+      return `backup_pacientes_periodo_${monthStr}_${exportFilterYear}_${ts}.csv`;
+    }
+  };
+
   const generateCSVString = () => {
     const filteredAppointments = appointments.filter((a) => {
+      if (exportFilterType === "all") return true;
       if (!a.datetime) return false;
       const date = new Date(a.datetime);
       return (
-        filterMonths.includes(date.getMonth()) &&
-        date.getFullYear() === filterYear
+        exportFilterMonths.includes(date.getMonth()) &&
+        date.getFullYear() === exportFilterYear
       );
     });
 
@@ -2701,18 +2867,43 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       "Telefone",
       "CPF",
       "Data de Nascimento",
+      "Data de Entrada",
       "Frequência",
       "Fonte",
       "Status Cliente",
       "Anotações Cliente",
+      "Responsável (Menor/Financeiro)",
+      "Telefone do Responsável",
+      "CPF do Responsável",
+      "E-mail do Responsável",
+      "Data de Reajuste Anual",
+      "Histórico de Reajustes",
       "Data Sessão",
       "Status Sessão",
       "Pagamento Sessão",
       "Valor Sessão",
+      "Serviço",
+      "Quantidade de Horas",
+      "Modalidade",
+      "Conta de Faturamento",
       "Anotações Sessão",
     ];
 
     const rows: string[][] = [];
+
+    const formatReadjustmentHistory = (history: any[]) => {
+      if (!history || history.length === 0) return "";
+      return history
+        .map((h) => {
+          const yr = h.year || "";
+          const pct = h.percent || h.aliquot || 0;
+          const valBefore = h.valueBefore || 0;
+          const valAfter = h.valueAfter || h.newValue || 0;
+          const nt = h.notes || "";
+          return `${yr}: ${pct}% (R$ ${valBefore} -> R$ ${valAfter})${nt ? ` - ${nt}` : ""}`;
+        })
+        .join(" | ");
+    };
 
     clients.forEach((c) => {
       const clientAppts = filteredAppointments.filter(
@@ -2724,14 +2915,21 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         `"${(c.phone || "").replace(/"/g, '""')}"`,
         `"${(c.cpf || "").replace(/"/g, '""')}"`,
         `"${(c.dob || "").replace(/"/g, '""')}"`,
+        `"${(c.entryDate || "").replace(/"/g, '""')}"`,
         `"${(c.frequency || "Avulso").replace(/"/g, '""')}"`,
         `"${(c.source || "Outros").replace(/"/g, '""')}"`,
         `"${c.isActive ? "Ativo" : "Inativo"}"`,
         `"${(c.notes || "").replace(/"/g, '""')}"`,
+        `"${(c.guardianName || "").replace(/"/g, '""')}"`,
+        `"${(c.guardianPhone || "").replace(/"/g, '""')}"`,
+        `"${(c.guardianCpf || "").replace(/"/g, '""')}"`,
+        `"${(c.guardianEmail || "").replace(/"/g, '""')}"`,
+        `"${(c.annualReadjustmentDate || "").replace(/"/g, '""')}"`,
+        `"${formatReadjustmentHistory(c.readjustmentHistory).replace(/"/g, '""')}"`,
       ];
 
       if (clientAppts.length === 0) {
-        rows.push([...baseClientRow, '""', '""', '""', '""', '""']);
+        rows.push([...baseClientRow, '""', '""', '""', '""', '""', '""', '""', '""', '""']);
       } else {
         clientAppts
           .sort(
@@ -2745,6 +2943,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               `"${a.status}"`,
               `"${a.paymentStatus}"`,
               `"${a.totalAmount}"`,
+              `"${(a.serviceName || "").replace(/"/g, '""')}"`,
+              `"${a.hoursQty || 1}"`,
+              `"${(a.modality || "").replace(/"/g, '""')}"`,
+              `"${(a.billingAccount || "").replace(/"/g, '""')}"`,
               `"${(a.notes || "").replace(/"/g, '""')}"`,
             ]);
           });
@@ -2763,8 +2965,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     const csvContent = generateCSVString();
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
 
-    let dateStr = `${filterMonths.map((m) => m + 1).join("-")}_${filterYear}`;
-    const filename = `pacientes_export_${dateStr}.csv`;
+    const filename = getExportFilename();
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -2818,32 +3019,14 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       }
 
       const csvContent = generateCSVString();
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const filename = getExportFilename();
 
-      let dateStr = `${filterMonths.map((m) => m + 1).join("-")}_${filterYear}`;
-      const filename = `pacientes_export_${dateStr}.csv`;
-
-      const metadata = {
-        name: filename,
-        mimeType: "text/csv",
-      };
-
-      const form = new FormData();
-      form.append(
-        "metadata",
-        new Blob([JSON.stringify(metadata)], { type: "application/json" }),
-      );
-      form.append("file", blob);
-
-      const res = await fetch(
-        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: form,
-        },
+      const res = await uploadMultipartToDrive(
+        token,
+        filename,
+        "text/csv; charset=utf-8",
+        csvContent,
+        ""
       );
 
       if (!res.ok) {
@@ -3137,6 +3320,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         name: clientEditForm.name || "",
         guardianName: clientEditForm.guardianName || "",
         guardianPhone: clientEditForm.guardianPhone || "",
+        guardianCpf: clientEditForm.guardianCpf || "",
+        guardianEmail: clientEditForm.guardianEmail || "",
         dob: clientEditForm.dob || "",
         cpf: clientEditForm.cpf || "",
         email: clientEditForm.email || "",
@@ -3146,6 +3331,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         source: clientEditForm.source || "Outros",
         entryDate:
           clientEditForm.entryDate || new Date().toISOString().split("T")[0],
+        annualReadjustmentDate: clientEditForm.annualReadjustmentDate || "",
+        lastReadjustmentConfirmedYear: clientEditForm.lastReadjustmentConfirmedYear || null,
+        readjustmentHistory: clientEditForm.readjustmentHistory || [],
       };
 
       if (editingClientId === "new") {
@@ -3204,6 +3392,67 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         editingClientId === "new" ? OperationType.CREATE : OperationType.UPDATE,
         `profiles/${userId}/clients/${editingClientId}`,
       );
+    }
+  };
+
+  const handleConfirmReadjustmentProcess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { entity, type } = readjustmentConfirmModal;
+    if (!entity || !type) return;
+
+    try {
+      const currentYear = new Date().getFullYear();
+      const baseVal = entity.sessionPrice || entity.basePrice || 0;
+      
+      const newEntry = {
+        year: currentYear,
+        date: new Date().toISOString(),
+        percent: readjustmentPercent ? parseFloat(readjustmentPercent) : 0,
+        aliquot: readjustmentPercent ? parseFloat(readjustmentPercent) : 0,
+        valueBefore: baseVal,
+        newValue: readjustmentNewValue ? parseFloat(readjustmentNewValue) : 0,
+        valueAfter: readjustmentNewValue ? parseFloat(readjustmentNewValue) : 0,
+        notes: readjustmentNotes || "Reajuste anual confirmado.",
+      };
+
+      const prevHistory = entity.readjustmentHistory || [];
+      const updatedHistory = [...prevHistory, newEntry];
+
+      const payload = {
+        lastReadjustmentConfirmedYear: currentYear,
+        readjustmentHistory: updatedHistory,
+      };
+
+      if (type === "client") {
+        await updateDoc(
+          doc(db, `profiles/${userId}/clients/${entity.id}`),
+          payload
+        );
+        setClients(
+          clients.map((c) =>
+            c.id === entity.id ? { ...c, ...payload } : c
+          )
+        );
+      } else {
+        await updateDoc(
+          doc(db, `profiles/${userId}/companies/${entity.id}`),
+          payload
+        );
+        setCompanies(
+          companies.map((c) =>
+            c.id === entity.id ? { ...c, ...payload } : c
+          )
+        );
+      }
+
+      setReadjustmentConfirmModal({ isOpen: false, entity: null, type: null });
+      setReadjustmentPercent("");
+      setReadjustmentNewValue("");
+      setReadjustmentNotes("");
+      alert("Processo de reajuste confirmado e registrado com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao confirmar reajuste.");
     }
   };
 
@@ -3908,12 +4157,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
             {clients.length > 0 && appointments.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm min-w-0">
                   <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
                     Origem dos Pacientes
                   </h3>
                   <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <PieChart>
                         <Pie
                           data={Object.entries(
@@ -3962,12 +4211,12 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border text-sm border-slate-200 rounded-xl p-5 shadow-sm min-w-0">
                   <h3 className="font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
                     Sessões Realizadas por Mês
                   </h3>
                   <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart
                         data={Object.entries(
                           appointmentsInPeriod.reduce(
@@ -5014,67 +5263,256 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </div>
               </div>
 
-              <div className="p-5 border border-slate-200 bg-white rounded-xl mt-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                  <RefreshCw className="w-4 h-4 text-slate-500" /> Integração Google Workspace
-                </h3>
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-full", editForm.calendarSync ? "bg-emerald-100/50" : "bg-slate-200/50")}>
-                        <CalendarIcon className={cn("w-5 h-5", editForm.calendarSync ? "text-emerald-600" : "text-slate-500")} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-800 text-sm">Google Agenda</h4>
-                        <p className="text-xs text-slate-500">
-                          {editForm.calendarSync ? "Conectado. Permissões de calendário ativas." : "Desconectado. Vincule para sincronizar agenda."}
-                        </p>
-                      </div>
-                    </div>
-                    {editForm.calendarSync ? (
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                        <Check className="w-3.5 h-3.5" /> Conectado
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleCalendarSync}
-                        disabled={isSyncing}
-                        className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
-                      >
-                        {isSyncing ? "Conectando..." : "Conectar"}
-                      </button>
-                    )}
+              <div className="p-6 border border-slate-200 bg-white rounded-2xl mt-6 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <RefreshCw className="w-5 h-5 animate-spin-slow" />
                   </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">
+                      Central de Integrações Google
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Conecte e gerencie seus serviços do ecossistema Google de forma centralizada e segura.
+                    </p>
+                  </div>
+                </div>
 
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50 gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-full", editForm.driveSync ? "bg-indigo-100/50" : "bg-slate-200/50")}>
-                        <div className={cn("w-5 h-5 flex items-center justify-center font-bold text-sm", editForm.driveSync ? "text-indigo-600" : "text-slate-500")}>
-                          D
+                {/* Section 1: Professional Integrations (Platform Domain Only) */}
+                <div className="mt-6 border-t border-slate-100 pt-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold tracking-widest text-indigo-600 uppercase">
+                      SERVIÇOS CORPORATIVOS (REQUER E-MAIL DO DOMÍNIO)
+                    </span>
+                    <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                      Domínio @elosolucoeshumanas.com ou @elosolucoes.com.br
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                    Estes serviços lidam com dados sensíveis de pacientes (arquivos de prontuários, termos de serviços e chamadas de vídeo confidenciais) e, por política de segurança, <strong>apenas e-mails profissionais com o domínio da plataforma</strong> podem ser associados.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Google Meet */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2.5 rounded-xl", editForm.meetSync ? "bg-indigo-100 text-indigo-700" : "bg-slate-200/60 text-slate-500")}>
+                          <Video className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">Google Meet</h4>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            {editForm.meetSync 
+                              ? `Conectado com a conta corporativa: ${editForm.meetEmail || "Domínio da Plataforma"}` 
+                              : "Gere salas de consulta virtuais com transcrição automática e resumos inteligentes."}
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-800 text-sm">Google Drive</h4>
-                        <p className="text-xs text-slate-500">
-                          {editForm.driveSync ? "Conectado. Salvamento de dados habilitado." : "Desconectado. Permita envio de exportações."}
-                        </p>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        {editForm.meetSync ? (
+                          <>
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100">
+                              <Check className="w-3.5 h-3.5" /> Ativo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev: any) => ({ ...prev, meetSync: false, meetEmail: "" }))}
+                              className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition"
+                            >
+                              Desconectar
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleMeetConnect}
+                            disabled={isConnectingMeet}
+                            className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                          >
+                            {isConnectingMeet ? "Conectando..." : "Conectar Meet"}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    {editForm.driveSync ? (
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
-                        <Check className="w-3.5 h-3.5" /> Conectado
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleDriveConnect}
-                        disabled={isConnectingDrive}
-                        className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition sm:flex-shrink-0"
-                      >
-                        {isConnectingDrive ? "Conectando..." : "Conectar"}
-                      </button>
-                    )}
+
+                    {/* Google Drive */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2.5 rounded-xl", editForm.driveSync ? "bg-indigo-100 text-indigo-700" : "bg-slate-200/60 text-slate-500")}>
+                          <div className="w-5 h-5 flex items-center justify-center font-extrabold text-sm tracking-tighter">
+                            GD
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">Google Drive</h4>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            {editForm.driveSync 
+                              ? `Conectado com a conta corporativa: ${editForm.driveEmail || "Domínio da Plataforma"}` 
+                              : "Armazene e exporte prontuários, backups periódicos e documentos clínicos com total segurança."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        {editForm.driveSync ? (
+                          <>
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100">
+                              <Check className="w-3.5 h-3.5" /> Ativo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev: any) => ({ ...prev, driveSync: false, driveEmail: "" }))}
+                              className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition"
+                            >
+                              Desconectar
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleDriveConnect}
+                            disabled={isConnectingDrive}
+                            className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                          >
+                            {isConnectingDrive ? "Conectando..." : "Conectar Drive"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Personal/Commercial Integrations (Any Account Allowed) */}
+                <div className="mt-6 border-t border-slate-100 pt-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold tracking-widest text-emerald-600 uppercase">
+                      SERVIÇOS PESSOAIS OU COMERCIAIS (QUALQUER CONTA GMAIL)
+                    </span>
+                    <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
+                      Qualquer conta Google / Gmail
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                    Você pode conectar sua conta pessoal de e-mail (ou conta comercial própria do seu consultório) para herdar suas avaliações consolidadas no Google Meu Negócio e manter sua agenda sincronizada.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Google Agenda */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2.5 rounded-xl", editForm.calendarSync ? "bg-emerald-100 text-emerald-700" : "bg-slate-200/60 text-slate-500")}>
+                          <CalendarIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">Google Agenda</h4>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            {editForm.calendarSync 
+                              ? `Sincronizado com a conta Google: ${editForm.calendarEmail || "Sua conta"}` 
+                              : "Sincronize seus horários de atendimento da plataforma com o seu calendário pessoal."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        {editForm.calendarSync ? (
+                          <>
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                              <Check className="w-3.5 h-3.5" /> Ativo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((prev: any) => ({ ...prev, calendarSync: false, calendarEmail: "" }))}
+                              className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition"
+                            >
+                              Desconectar
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleCalendarSync}
+                            disabled={isSyncing}
+                            className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                          >
+                            {isSyncing ? "Sincronizando..." : "Sincronizar Agenda"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Google Perfil da Empresa (Meu Negócio) */}
+                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("p-2.5 rounded-xl", editForm.googleBusinessSync ? "bg-emerald-100 text-emerald-700" : "bg-slate-200/60 text-slate-500")}>
+                            <Globe className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-sm">Google Perfil da Empresa</h4>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                              {editForm.googleBusinessSync 
+                                ? `Integrado com a conta Google: ${editForm.googleBusinessEmail || "Sua conta"}` 
+                                : "Apresente suas avaliações, pontuações e reviews reais do Google Meu Negócio no seu perfil público."}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          {editForm.googleBusinessSync ? (
+                            <>
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                                <Check className="w-3.5 h-3.5" /> Ativo
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((prev: any) => ({ ...prev, googleBusinessSync: false, googleBusinessEmail: "" }))}
+                                className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition"
+                              >
+                                Desconectar
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleGoogleBusinessConnect}
+                              disabled={isConnectingBusiness}
+                              className="text-xs font-semibold bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                            >
+                              {isConnectingBusiness ? "Conectando..." : "Conectar Perfil"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Dropdown collapsible fields when Perfil da Empresa is connected */}
+                      {editForm.googleBusinessSync && (
+                        <div className="mt-4 border-t border-slate-200/60 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Link de Avaliações do Google Meu Negócio
+                            </label>
+                            <input
+                              type="url"
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs focus:ring-amber-400 focus:outline-none bg-white text-slate-900"
+                              value={editForm.googleReviewsUrl || ""}
+                              onChange={(e) => setEditForm({ ...editForm, googleReviewsUrl: e.target.value })}
+                              placeholder="Ex: https://g.page/r/.../review"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Este link permite que novos pacientes cliquem e avaliem você diretamente.</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Link do Google Maps do Consultório
+                            </label>
+                            <input
+                              type="url"
+                              className="w-full p-2 border border-slate-300 rounded-lg text-xs focus:ring-amber-400 focus:outline-none bg-white text-slate-900"
+                              value={editForm.googleMapsUrl || ""}
+                              onChange={(e) => setEditForm({ ...editForm, googleMapsUrl: e.target.value })}
+                              placeholder="Ex: https://maps.app.goo.gl/..."
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Para facilitar a navegação até o consultório físico.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6420,196 +6858,278 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                         Novo Paciente
                       </h3>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Nome
-                        </label>
-                        <input
-                          required
-                          type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.name || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              name: e.target.value,
-                            })
-                          }
-                        />
+
+                    <div className="space-y-6">
+                      {/* Seção: Dados do Paciente */}
+                      <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                        <h4 className="font-semibold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-1.5 flex items-center gap-2">
+                          <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
+                          Dados do Paciente
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Nome
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.name || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  name: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              E-mail
+                            </label>
+                            <input
+                              required
+                              type="email"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.email || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  email: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Telefone
+                            </label>
+                            <input
+                              required
+                              type="tel"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.phone || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  phone: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              CPF
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.cpf || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  cpf: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Data de Nascimento
+                            </label>
+                            <input
+                              required
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.dob || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  dob: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Data de Entrada
+                            </label>
+                            <input
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.entryDate || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  entryDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between items-center">
+                              <span>Data de Reajuste Anual</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClientEditForm({
+                                    ...clientEditForm,
+                                    annualReadjustmentDate: clientEditForm.entryDate || new Date().toISOString().split("T")[0],
+                                  });
+                                }}
+                                className="text-[10px] text-amber-600 hover:text-amber-700 underline font-medium"
+                              >
+                                Puxar Data de Entrada
+                              </button>
+                            </label>
+                            <input
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.annualReadjustmentDate || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  annualReadjustmentDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Frequência
+                            </label>
+                            <select
+                              required
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.frequency || "Avulso"}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  frequency: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="Semanal">Semanal</option>
+                              <option value="Quinzenal">Quinzenal</option>
+                              <option value="Mensal">Mensal</option>
+                              <option value="Avulso">Avulso</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Fonte
+                            </label>
+                            <select
+                              required
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.source || "Outros"}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  source: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="Indicação de profissional">
+                                Indicação de profissional
+                              </option>
+                              <option value="Projetos">Projetos</option>
+                              <option value="Plataformas">Plataformas</option>
+                              <option value="Instituição/ Igreja">
+                                Instituição/ Igreja
+                              </option>
+                              <option value="Amigos/ conhecidos">
+                                Amigos/ conhecidos
+                              </option>
+                              <option value="Google/ Site">Google/ Site</option>
+                              <option value="Pacientes">Pacientes</option>
+                              <option value="Outros">Outros</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          E-mail
-                        </label>
-                        <input
-                          required
-                          type="email"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.email || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              email: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Telefone
-                        </label>
-                        <input
-                          required
-                          type="tel"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.phone || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              phone: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Nome do Responsável Legal
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.guardianName || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              guardianName: e.target.value,
-                            })
-                          }
-                          placeholder="Para menores"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Telefone do Responsável
-                        </label>
-                        <input
-                          type="tel"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.guardianPhone || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              guardianPhone: e.target.value,
-                            })
-                          }
-                          placeholder="(00) 00000-0000"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Fonte
-                        </label>
-                        <select
-                          required
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.source || "Outros"}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              source: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="Indicação de profissional">
-                            Indicação de profissional
-                          </option>
-                          <option value="Projetos">Projetos</option>
-                          <option value="Plataformas">Plataformas</option>
-                          <option value="Instituição/ Igreja">
-                            Instituição/ Igreja
-                          </option>
-                          <option value="Amigos/ conhecidos">
-                            Amigos/ conhecidos
-                          </option>
-                          <option value="Google/ Site">Google/ Site</option>
-                          <option value="Pacientes">Pacientes</option>
-                          <option value="Outros">Outros</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Frequência
-                        </label>
-                        <select
-                          required
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.frequency || "Avulso"}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              frequency: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="Semanal">Semanal</option>
-                          <option value="Quinzenal">Quinzenal</option>
-                          <option value="Mensal">Mensal</option>
-                          <option value="Avulso">Avulso</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          CPF
-                        </label>
-                        <input
-                          required
-                          type="text"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.cpf || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              cpf: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Data de Nascimento
-                        </label>
-                        <input
-                          required
-                          type="date"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.dob || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              dob: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Data de Entrada
-                        </label>
-                        <input
-                          type="date"
-                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                          value={clientEditForm.entryDate || ""}
-                          onChange={(e) =>
-                            setClientEditForm({
-                              ...clientEditForm,
-                              entryDate: e.target.value,
-                            })
-                          }
-                        />
+
+                      {/* Seção: Dados do Responsável */}
+                      <div className="bg-amber-50/20 p-4 rounded-xl border border-amber-100/60">
+                        <h4 className="font-semibold text-amber-800 text-sm mb-3 border-b border-amber-100/60 pb-1.5 flex items-center gap-2">
+                          <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
+                          Dados do Responsável (se menor de idade ou financeiro)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Responsável (se menor de idade) ou Responsável Financeiro
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianName || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianName: e.target.value,
+                                })
+                              }
+                              placeholder="Nome do responsável"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Telefone do Responsável
+                            </label>
+                            <input
+                              type="tel"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianPhone || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianPhone: e.target.value,
+                                })
+                              }
+                              placeholder="(00) 00000-0000"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              CPF do Responsável
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianCpf || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianCpf: e.target.value,
+                                })
+                              }
+                              placeholder="000.000.000-00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              E-mail do Responsável
+                            </label>
+                            <input
+                              type="email"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianEmail || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianEmail: e.target.value,
+                                })
+                              }
+                              placeholder="responsavel@email.com"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div>
+<div>
                       <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
                         <span>Anotações / Prontuário</span>
                         <span className="text-slate-400 font-normal">
@@ -6837,210 +7357,298 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                     Editar Prontuário
                                   </h3>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Nome
-                                    </label>
-                                    <input
-                                      required
-                                      type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.name || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          name: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      E-mail
-                                    </label>
-                                    <input
-                                      required
-                                      type="email"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.email || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          email: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Telefone
-                                    </label>
-                                    <input
-                                      required
-                                      type="tel"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.phone || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          phone: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Nome do Responsável Legal
-                                    </label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.guardianName || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          guardianName: e.target.value,
-                                        })
-                                      }
-                                      placeholder="Para menores"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Telefone do Responsável
-                                    </label>
-                                    <input
-                                      type="tel"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.guardianPhone || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          guardianPhone: e.target.value,
-                                        })
-                                      }
-                                      placeholder="(00) 00000-0000"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Fonte
-                                    </label>
-                                    <select
-                                      required
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.source || "Outros"}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          source: e.target.value,
-                                        })
-                                      }
-                                    >
-                                      <option value="Indicação de profissional">
-                                        Indicação de profissional
-                                      </option>
-                                      <option value="Projetos">Projetos</option>
-                                      <option value="Plataformas">
-                                        Plataformas
-                                      </option>
-                                      <option value="Instituição/ Igreja">
-                                        Instituição/ Igreja
-                                      </option>
-                                      <option value="Amigos/ conhecidos">
-                                        Amigos/ conhecidos
-                                      </option>
-                                      <option value="Google/ Site">
-                                        Google/ Site
-                                      </option>
-                                      <option value="Pacientes">
-                                        Pacientes
-                                      </option>
-                                      <option value="Outros">Outros</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Frequência
-                                    </label>
-                                    <select
-                                      required
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
-                                      value={
-                                        clientEditForm.frequency || "Avulso"
-                                      }
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          frequency: e.target.value,
-                                        })
-                                      }
-                                    >
-                                      <option value="Semanal">Semanal</option>
-                                      <option value="Quinzenal">
-                                        Quinzenal
-                                      </option>
-                                      <option value="Mensal">Mensal</option>
-                                      <option value="Avulso">Avulso</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      CPF
-                                    </label>
-                                    <input
-                                      required
-                                      type="text"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.cpf || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          cpf: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                                      Data de Nascimento
-                                    </label>
-                                    <input
-                                      required
-                                      type="date"
-                                      className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      value={clientEditForm.dob || ""}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          dob: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-6">
-                                    <input
-                                      type="checkbox"
-                                      id={`active-${client.id}`}
-                                      className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
-                                      checked={clientEditForm.isActive}
-                                      onChange={(e) =>
-                                        setClientEditForm({
-                                          ...clientEditForm,
-                                          isActive: e.target.checked,
-                                        })
-                                      }
-                                    />
-                                    <label
-                                      htmlFor={`active-${client.id}`}
-                                      className="text-sm font-medium text-slate-700"
-                                    >
-                                      Paciente Ativo
-                                    </label>
-                                  </div>
-                                </div>
-                                <div>
+
+                    <div className="space-y-6">
+                      {/* Seção: Dados do Paciente */}
+                      <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                        <h4 className="font-semibold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-1.5 flex items-center gap-2">
+                          <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
+                          Dados do Paciente
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Nome
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.name || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  name: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              E-mail
+                            </label>
+                            <input
+                              required
+                              type="email"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.email || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  email: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Telefone
+                            </label>
+                            <input
+                              required
+                              type="tel"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.phone || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  phone: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              CPF
+                            </label>
+                            <input
+                              required
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.cpf || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  cpf: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Data de Nascimento
+                            </label>
+                            <input
+                              required
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.dob || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  dob: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Data de Entrada
+                            </label>
+                            <input
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.entryDate || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  entryDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between items-center">
+                              <span>Data de Reajuste Anual</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClientEditForm({
+                                    ...clientEditForm,
+                                    annualReadjustmentDate: clientEditForm.entryDate || new Date().toISOString().split("T")[0],
+                                  });
+                                }}
+                                className="text-[10px] text-amber-600 hover:text-amber-700 underline font-medium"
+                              >
+                                Puxar Data de Entrada
+                              </button>
+                            </label>
+                            <input
+                              type="date"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.annualReadjustmentDate || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  annualReadjustmentDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Frequência
+                            </label>
+                            <select
+                              required
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.frequency || "Avulso"}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  frequency: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="Semanal">Semanal</option>
+                              <option value="Quinzenal">Quinzenal</option>
+                              <option value="Mensal">Mensal</option>
+                              <option value="Avulso">Avulso</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Fonte
+                            </label>
+                            <select
+                              required
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.source || "Outros"}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  source: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="Indicação de profissional">
+                                Indicação de profissional
+                              </option>
+                              <option value="Projetos">Projetos</option>
+                              <option value="Plataformas">Plataformas</option>
+                              <option value="Instituição/ Igreja">
+                                Instituição/ Igreja
+                              </option>
+                              <option value="Amigos/ conhecidos">
+                                Amigos/ conhecidos
+                              </option>
+                              <option value="Google/ Site">Google/ Site</option>
+                              <option value="Pacientes">Pacientes</option>
+                              <option value="Outros">Outros</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2 mt-6">
+                            <input
+                              type="checkbox"
+                              id={`active-${client.id}`}
+                              className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
+                              checked={clientEditForm.isActive}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  isActive: e.target.checked,
+                                })
+                              }
+                            />
+                            <label
+                              htmlFor={`active-${client.id}`}
+                              className="text-sm font-medium text-slate-700"
+                            >
+                              Paciente Ativo
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Seção: Dados do Responsável */}
+                      <div className="bg-amber-50/20 p-4 rounded-xl border border-amber-100/60">
+                        <h4 className="font-semibold text-amber-800 text-sm mb-3 border-b border-amber-100/60 pb-1.5 flex items-center gap-2">
+                          <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
+                          Dados do Responsável (se menor de idade ou financeiro)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Responsável (se menor de idade) ou Responsável Financeiro
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianName || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianName: e.target.value,
+                                })
+                              }
+                              placeholder="Nome do responsável"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              Telefone do Responsável
+                            </label>
+                            <input
+                              type="tel"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianPhone || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianPhone: e.target.value,
+                                })
+                              }
+                              placeholder="(00) 00000-0000"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              CPF do Responsável
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianCpf || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianCpf: e.target.value,
+                                })
+                              }
+                              placeholder="000.000.000-00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                              E-mail do Responsável
+                            </label>
+                            <input
+                              type="email"
+                              className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                              value={clientEditForm.guardianEmail || ""}
+                              onChange={(e) =>
+                                setClientEditForm({
+                                  ...clientEditForm,
+                                  guardianEmail: e.target.value,
+                                })
+                              }
+                              placeholder="responsavel@email.com"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+<div>
                                   <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between">
                                     <span>Anotações / Prontuário</span>
                                     <span className="text-slate-400 font-normal">
@@ -7184,6 +7792,61 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 )}
                               </h3>
 
+                              {client.annualReadjustmentDate &&
+                                (() => {
+                                  const parts = client.annualReadjustmentDate.split("-");
+                                  if (parts.length < 2) return null;
+                                  const readjustmentMonth = parseInt(parts[1], 10) - 1;
+                                  const currentMonth = new Date().getMonth();
+                                  const currentYear = new Date().getFullYear();
+                                  const isConfirmedThisYear = client.lastReadjustmentConfirmedYear === currentYear;
+
+                                  if (readjustmentMonth === currentMonth && !isConfirmedThisYear) {
+                                    return (
+                                      <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="bg-amber-50 border border-amber-200 rounded-xl p-3 my-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                          <div>
+                                            <p className="text-sm font-bold text-amber-900">
+                                              Mês de Reajuste Anual!
+                                            </p>
+                                            <p className="text-xs text-amber-700 leading-relaxed">
+                                              Este paciente está no mês de reajuste anual acordado em{" "}
+                                              <strong className="font-semibold">
+                                                {format(
+                                                  new Date(client.annualReadjustmentDate + "T12:00:00"),
+                                                  "dd/MM/yyyy",
+                                                )}
+                                              </strong>
+                                              .
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setReadjustmentPercent("");
+                                            setReadjustmentNewValue("");
+                                            setReadjustmentNotes("");
+                                            setReadjustmentConfirmModal({
+                                              isOpen: true,
+                                              entity: client,
+                                              type: "client",
+                                            });
+                                          }}
+                                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition"
+                                        >
+                                          Confirmar Reajuste
+                                        </button>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
                               <p className="text-sm text-slate-600 mb-3 leading-relaxed">
                                 <span className="hidden sm:inline">
                                   {client.email} •{" "}
@@ -7230,16 +7893,38 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                 </p>
                               )}
                               {(client.guardianName ||
-                                client.guardianPhone) && (
+                                client.guardianPhone ||
+                                client.guardianCpf ||
+                                client.guardianEmail) && (
                                 <p className="text-xs text-slate-500 mb-3 -mt-2">
                                   Responsável:{" "}
                                   <strong className="text-slate-600">
                                     {client.guardianName || "-"}
-                                  </strong>{" "}
-                                  • Tel:{" "}
-                                  <strong className="text-slate-600">
-                                    {client.guardianPhone || "-"}
                                   </strong>
+                                  {client.guardianPhone && (
+                                    <>
+                                      {" "}• Tel:{" "}
+                                      <strong className="text-slate-600">
+                                        {client.guardianPhone}
+                                      </strong>
+                                    </>
+                                  )}
+                                  {client.guardianCpf && (
+                                    <>
+                                      {" "}• CPF:{" "}
+                                      <strong className="text-slate-600">
+                                        {client.guardianCpf}
+                                      </strong>
+                                    </>
+                                  )}
+                                  {client.guardianEmail && (
+                                    <>
+                                      {" "}• Email:{" "}
+                                      <strong className="text-slate-600">
+                                        {client.guardianEmail}
+                                      </strong>
+                                    </>
+                                  )}
                                 </p>
                               )}
 
@@ -7408,7 +8093,24 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                       </div>
                                     )}
 
-                                    {/* Central de Documentos do Paciente */}
+                                    {/* Histórico de Reajustes Anuais */}
+                                     <ReadjustmentHistoryManager
+                                       userId={userId}
+                                       entityId={client.id}
+                                       entityType="client"
+                                       history={client.readjustmentHistory || []}
+                                       onHistoryUpdated={(newHistory) => {
+                                         setClients((prev) =>
+                                           prev.map((c) =>
+                                             c.id === client.id
+                                               ? { ...c, readjustmentHistory: newHistory }
+                                               : c,
+                                           ),
+                                         );
+                                       }}
+                                     />
+
+                                     {/* Central de Documentos do Paciente */}
                                     <div className="mb-6 bg-slate-50 p-4 pb-5 rounded-xl border border-slate-200 shadow-sm">
                                       <div className="flex justify-between items-center mb-4">
                                         <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -7898,27 +8600,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                 ))}
                                               </select>
                                             </div>
-                                            <div>
-                                              <label className="block text-slate-600 mb-1">
-                                                Ajuste de Valor
-                                                (Índice/Alíquota)
-                                              </label>
-                                              <input
-                                                type="text"
-                                                className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
-                                                value={
-                                                  appointmentEditForm.priceAdjust ||
-                                                  ""
-                                                }
-                                                onChange={(e) =>
-                                                  setAppointmentEditForm({
-                                                    ...appointmentEditForm,
-                                                    priceAdjust: e.target.value,
-                                                  })
-                                                }
-                                                placeholder="Ex: IGPM, 5% descto..."
-                                              />
-                                            </div>
                                           </div>
                                           <div className="mb-4 text-sm">
                                             <label className="block text-slate-600 mb-1">
@@ -8256,25 +8937,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                               Dinheiro
                                                             </option>
                                                           </select>
-                                                          <input
-                                                            type="text"
-                                                            className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
-                                                            value={
-                                                              appointmentEditForm.priceAdjust ||
-                                                              ""
-                                                            }
-                                                            onChange={(e) =>
-                                                              setAppointmentEditForm(
-                                                                {
-                                                                  ...appointmentEditForm,
-                                                                  priceAdjust:
-                                                                    e.target
-                                                                      .value,
-                                                                },
-                                                              )
-                                                            }
-                                                            placeholder="Índice / Alíquota"
-                                                          />
                                                         </div>
                                                         <div>
                                                           <input
@@ -8947,6 +9609,34 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                           }
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between items-center">
+                          <span>Data de Reajuste Anual</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCompanyEditForm({
+                                ...companyEditForm,
+                                annualReadjustmentDate: companyEditForm.entryDate || new Date().toISOString().split("T")[0],
+                              });
+                            }}
+                            className="text-[10px] text-amber-600 hover:text-amber-700 underline font-medium"
+                          >
+                            Puxar Data de Entrada
+                          </button>
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                          value={companyEditForm.annualReadjustmentDate || ""}
+                          onChange={(e) =>
+                            setCompanyEditForm({
+                              ...companyEditForm,
+                              annualReadjustmentDate: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
                       <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-12 gap-4">
                         <div className="col-span-12 md:col-span-10">
                           <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -9274,6 +9964,50 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                       setCompanyEditForm({
                                         ...companyEditForm,
                                         cnpj: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                                    Data de Entrada
+                                  </label>
+                                  <input
+                                    type="date"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                                    value={companyEditForm.entryDate || ""}
+                                    onChange={(e) =>
+                                      setCompanyEditForm({
+                                        ...companyEditForm,
+                                        entryDate: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-700 mb-1 flex justify-between items-center">
+                                    <span>Data de Reajuste Anual</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCompanyEditForm({
+                                          ...companyEditForm,
+                                          annualReadjustmentDate: companyEditForm.entryDate || new Date().toISOString().split("T")[0],
+                                        });
+                                      }}
+                                      className="text-[10px] text-amber-600 hover:text-amber-700 underline font-medium"
+                                    >
+                                      Puxar Data de Entrada
+                                    </button>
+                                  </label>
+                                  <input
+                                    type="date"
+                                    className="w-full p-2 border border-slate-300 rounded focus:ring-amber-400 focus:outline-none text-sm bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                                    value={companyEditForm.annualReadjustmentDate || ""}
+                                    onChange={(e) =>
+                                      setCompanyEditForm({
+                                        ...companyEditForm,
+                                        annualReadjustmentDate: e.target.value,
                                       })
                                     }
                                   />
@@ -9624,6 +10358,61 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                               )}
                             </h3>
 
+                            {company.annualReadjustmentDate &&
+                              (() => {
+                                const parts = company.annualReadjustmentDate.split("-");
+                                if (parts.length < 2) return null;
+                                const readjustmentMonth = parseInt(parts[1], 10) - 1;
+                                const currentMonth = new Date().getMonth();
+                                const currentYear = new Date().getFullYear();
+                                const isConfirmedThisYear = company.lastReadjustmentConfirmedYear === currentYear;
+
+                                if (readjustmentMonth === currentMonth && !isConfirmedThisYear) {
+                                  return (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="bg-amber-50 border border-amber-200 rounded-xl p-3 my-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                          <p className="text-sm font-bold text-amber-900">
+                                            Mês de Reajuste Anual!
+                                          </p>
+                                          <p className="text-xs text-amber-700 leading-relaxed">
+                                            Esta empresa está no mês de reajuste anual acordado em{" "}
+                                            <strong className="font-semibold">
+                                              {format(
+                                                new Date(company.annualReadjustmentDate + "T12:00:00"),
+                                                "dd/MM/yyyy",
+                                              )}
+                                            </strong>
+                                            .
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setReadjustmentPercent("");
+                                          setReadjustmentNewValue("");
+                                          setReadjustmentNotes("");
+                                          setReadjustmentConfirmModal({
+                                            isOpen: true,
+                                            entity: company,
+                                            type: "company",
+                                          });
+                                        }}
+                                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition"
+                                      >
+                                        Confirmar Reajuste
+                                      </button>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+
                             <p className="text-sm text-slate-600 mb-3 leading-relaxed">
                               <span className="hidden sm:inline">
                                 {company.email} •{" "}
@@ -9806,6 +10595,23 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                       </div>
                                     </div>
                                   )}
+                                  {/* Histórico de Reajustes Anuais */}
+                                  <ReadjustmentHistoryManager
+                                    userId={userId}
+                                    entityId={company.id}
+                                    entityType="company"
+                                    history={company.readjustmentHistory || []}
+                                    onHistoryUpdated={(newHistory) => {
+                                      setCompanies((prev) =>
+                                        prev.map((c) =>
+                                          c.id === company.id
+                                            ? { ...c, readjustmentHistory: newHistory }
+                                            : c,
+                                        ),
+                                      );
+                                    }}
+                                  />
+
                                   {company.notes && (
                                     <div className="mb-6 bg-yellow-50/50 p-4 rounded-xl border border-yellow-100">
                                       <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
@@ -10221,26 +11027,6 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                               ))}
                                             </select>
                                           </div>
-                                          <div>
-                                            <label className="block text-slate-600 mb-1">
-                                              Ajuste de Valor (Índice/Alíquota)
-                                            </label>
-                                            <input
-                                              type="text"
-                                              className="w-full p-2 border rounded focus:ring-amber-400 bg-white text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
-                                              value={
-                                                companyAppointmentEditForm.priceAdjust ||
-                                                ""
-                                              }
-                                              onChange={(e) =>
-                                                setCompanyAppointmentEditForm({
-                                                  ...companyAppointmentEditForm,
-                                                  priceAdjust: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Ex: ISS, Retenção..."
-                                            />
-                                          </div>
                                         </div>
                                         <div className="mb-4 text-sm">
                                           <label className="block text-slate-600 mb-1">
@@ -10593,25 +11379,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                                                             Dinheiro
                                                           </option>
                                                         </select>
-                                                        <input
-                                                          type="text"
-                                                          className="p-1.5 border w-32 rounded focus:ring-amber-400 bg-white shadow-sm text-slate-900 dark:text-slate-100 dark:placeholder-slate-400 dark:bg-slate-800"
-                                                          value={
-                                                            companyAppointmentEditForm.priceAdjust ||
-                                                            ""
-                                                          }
-                                                          onChange={(e) =>
-                                                            setCompanyAppointmentEditForm(
-                                                              {
-                                                                ...companyAppointmentEditForm,
-                                                                priceAdjust:
-                                                                  e.target
-                                                                    .value,
-                                                              },
-                                                            )
-                                                          }
-                                                          placeholder="Índice / Alíquota"
-                                                        />
+                                                        
                                                       </div>
                                                       <div>
                                                         <input
@@ -11595,11 +12363,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       {/* Export Modal */}
       {exportModalOpen && (
         <div className="fixed inset-0 bg-marsala-800/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl flex flex-col">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur z-10">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Download className="w-5 h-5 text-amber-500" />
-                Exportar Pacientes
+                Backup & Exportar Pacientes
               </h2>
               <button
                 onClick={() => setExportModalOpen(false)}
@@ -11608,42 +12376,189 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 flex-1 space-y-4">
-              <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                O relatório será gerado de acordo com o{" "}
-                <strong>Filtro Global de Período</strong> selecionado (
-                {filterMonths
-                  .map(
-                    (m) =>
-                      [
-                        "Jan",
-                        "Fev",
-                        "Mar",
-                        "Abr",
-                        "Mai",
-                        "Jun",
-                        "Jul",
-                        "Ago",
-                        "Set",
-                        "Out",
-                        "Nov",
-                        "Dez",
-                      ][m],
-                  )
-                  .join(", ")}{" "}
-                de {filterYear}).
-              </p>
-              <p className="text-xs text-slate-500 mt-4 leading-relaxed">
-                Será gerada uma planilha com todos os pacientes. Pacientes com
-                sessões no período selecionado terão essas sessões desmembradas
-                em linhas, facilitando o acompanhamento detalhado.
-              </p>
+            
+            <div className="p-6 flex-1 space-y-5 overflow-y-auto max-h-[70vh]">
+              {/* Informational callout */}
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 leading-relaxed">
+                  <p className="font-semibold mb-0.5">Informações inclusas no backup:</p>
+                  <p>Inclusão de todos os dados cadastrais, dados dos responsáveis (se menor de idade), datas de reajuste anual, histórico completo de reajustes realizados e todas as sessões desmembradas (com serviço, modalidade, faturamento, valor e evolução clínica/prontuário).</p>
+                </div>
+              </div>
+
+              {/* Independent Filter Selection */}
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                    Filtro de Período do Backup (Independente)
+                  </span>
+                  
+                  {/* Segmented controls */}
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setExportFilterType("all")}
+                      className={cn(
+                        "py-2 text-xs font-semibold rounded-lg transition-all",
+                        exportFilterType === "all"
+                          ? "bg-white text-slate-800 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      Todo o Histórico
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExportFilterType("period")}
+                      className={cn(
+                        "py-2 text-xs font-semibold rounded-lg transition-all",
+                        exportFilterType === "period"
+                          ? "bg-white text-slate-800 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      Período Específico
+                    </button>
+                  </div>
+                </div>
+
+                {exportFilterType === "period" && (
+                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                    {/* Year Selector */}
+                    <div className="flex items-center justify-between gap-4">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Ano do Backup
+                      </label>
+                      <select
+                        value={exportFilterYear}
+                        onChange={(e) => setExportFilterYear(Number(e.target.value))}
+                        className="p-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:ring-amber-400 focus:outline-none min-w-[120px]"
+                      >
+                        {Array.from({ length: 7 }, (_, idx) => new Date().getFullYear() - 4 + idx).map((yr) => (
+                          <option key={yr} value={yr}>
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Month Multi-Select */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-semibold text-slate-700">
+                          Meses do Backup
+                        </label>
+                        <div className="flex gap-2 text-[10px] font-medium">
+                          <button
+                            type="button"
+                            onClick={() => setExportFilterMonths([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])}
+                            className="text-amber-600 hover:text-amber-700 underline"
+                          >
+                            Todos
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setExportFilterMonths([])}
+                            className="text-amber-600 hover:text-amber-700 underline"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          "Jan",
+                          "Fev",
+                          "Mar",
+                          "Abr",
+                          "Mai",
+                          "Jun",
+                          "Jul",
+                          "Ago",
+                          "Set",
+                          "Out",
+                          "Nov",
+                          "Dez",
+                        ].map((monthName, idx) => {
+                          const isSelected = exportFilterMonths.includes(idx);
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setExportFilterMonths(exportFilterMonths.filter((m) => m !== idx));
+                                } else {
+                                  setExportFilterMonths([...exportFilterMonths, idx].sort((a, b) => a - b));
+                                }
+                              }}
+                              className={cn(
+                                "py-1.5 text-xs rounded-lg font-medium border transition-all text-center",
+                                isSelected
+                                  ? "bg-amber-500 text-white border-amber-500 font-bold shadow-sm shadow-amber-500/10"
+                                  : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                              )}
+                            >
+                              {monthName}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Selected filter status text */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                  <span className="text-xs text-slate-600 block">
+                    {exportFilterType === "all" ? (
+                      <>
+                        Exportando <strong>Todo o Histórico</strong> de atendimentos.
+                      </>
+                    ) : exportFilterMonths.length === 0 ? (
+                      <span className="text-rose-500 font-semibold">
+                        Por favor, selecione pelo menos um mês.
+                      </span>
+                    ) : (
+                      <>
+                        Exportando meses:{" "}
+                        <strong>
+                          {exportFilterMonths
+                            .map(
+                              (m) =>
+                                [
+                                  "Jan",
+                                  "Fev",
+                                  "Mar",
+                                  "Abr",
+                                  "Mai",
+                                  "Jun",
+                                  "Jul",
+                                  "Ago",
+                                  "Set",
+                                  "Out",
+                                  "Nov",
+                                  "Dez",
+                                ][m],
+                            )
+                            .join(", ")}
+                        </strong>{" "}
+                        de <strong>{exportFilterYear}</strong>.
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
+
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
               <button
                 onClick={executeExportToDrive}
-                disabled={isExportingDrive}
-                className="w-full px-4 py-2.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 shadow-sm"
+                disabled={isExportingDrive || (exportFilterType === "period" && exportFilterMonths.length === 0)}
+                className="w-full px-4 py-2.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
                 {isExportingDrive ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -11664,8 +12579,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 </button>
                 <button
                   onClick={executeExportCSV}
-                  disabled={isExportingDrive}
-                  className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={isExportingDrive || (exportFilterType === "period" && exportFilterMonths.length === 0)}
+                  className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
                 >
                   <Download className="w-4 h-4" /> Baixar Planilha
                 </button>
@@ -12072,6 +12987,105 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   Confirmar Exclusão
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {readjustmentConfirmModal.isOpen && (
+        <div className="fixed inset-0 bg-marsala-800/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in zoom-in-95">
+            <div className="p-6">
+              <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-100">
+                <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+                  <Percent className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Confirmar Processo de Reajuste Anual
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {readjustmentConfirmModal.type === "client" ? "Paciente" : "Empresa"}:{" "}
+                    <strong className="font-semibold text-slate-700">
+                      {readjustmentConfirmModal.entity?.name}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmReadjustmentProcess} className="space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  Ao preencher este formulário e confirmar, o sistema registrará este reajuste no histórico financeiro do cliente e desativará o alerta visual do card para o ano corrente de{" "}
+                  <strong className="font-bold">{new Date().getFullYear()}</strong>.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Percentual de Reajuste (%) *
+                    </label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
+                      placeholder="Ex: 5.5"
+                      value={readjustmentPercent}
+                      onChange={(e) => setReadjustmentPercent(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Novo Valor do Serviço (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
+                      placeholder="Ex: 150.00"
+                      value={readjustmentNewValue}
+                      onChange={(e) => setReadjustmentNewValue(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Anotações / Observações do Reajuste
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-amber-400 focus:outline-none text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700"
+                    placeholder="Ex: Reajuste anual acordado conforme IPCA acumulado..."
+                    value={readjustmentNotes}
+                    onChange={(e) => setReadjustmentNotes(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReadjustmentConfirmModal({
+                        isOpen: false,
+                        entity: null,
+                        type: null,
+                      })
+                    }
+                    className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold text-sm transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition shadow-sm"
+                  >
+                    Confirmar e Aplicar
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

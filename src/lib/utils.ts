@@ -13,3 +13,12 @@ export function formatWa(phone: string | undefined): string {
   }
   return cleaned;
 }
+
+export const ALLOWED_CORPORATE_DOMAINS = ["elosolucoeshumanas.com", "elosolucoes.com.br"];
+
+export function validateEmailDomain(email: string | undefined, allowedDomains: string[] = ALLOWED_CORPORATE_DOMAINS): boolean {
+  if (!email) return false;
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  return allowedDomains.includes(domain);
+}
+

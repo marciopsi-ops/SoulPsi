@@ -137,8 +137,7 @@ service cloud.firestore {
 
     // --- Interactions ---
     match /profiles/{profileId}/interactions/{interactionId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
-      allow create: if true;
+      allow read, write: if true;
     }
 
     // --- Custom Notifications & System Notifications ---

@@ -1,1 +1,1 @@
-Os campos de CPF e E-mail do Responsável Legal foram adicionados com sucesso na área de menores de idade no formulário de cadastro de pacientes.
+A nova paleta "LinkedIn-inspired" para área da saúde mental, com o tom amarelo ELO, foi totalmente aplicada em toda a plataforma.
