@@ -575,6 +575,10 @@ export function LandingPage({
               src={finalProfile.coverPhoto}
               alt="Cover"
               className="absolute -inset-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] object-cover"
+              style={{ 
+                objectPosition: finalProfile.coverPhotoPosition || "50% 50%",
+                transform: `scale(${finalProfile.coverPhotoScale || 1})`
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             {finalProfile.logoUrl && (
@@ -745,8 +749,12 @@ export function LandingPage({
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
         <div className="relative w-full h-48 md:h-64 overflow-hidden bg-[rgb(var(--theme-primary)_/_0.2)]">
           <div
-            className="absolute -inset-2 bg-cover bg-center"
-            style={{ backgroundImage: `url(${finalProfile.coverPhoto})` }}
+            className="absolute -inset-2 bg-cover"
+            style={{ 
+              backgroundImage: `url(${finalProfile.coverPhoto})`,
+              backgroundPosition: finalProfile.coverPhotoPosition || "50% 50%",
+              transform: `scale(${finalProfile.coverPhotoScale || 1})`
+            }}
           />
           {finalProfile.logoUrl && (
             <img

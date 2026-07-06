@@ -70,6 +70,7 @@ import {
   Globe,
   AlertTriangle,
   Percent,
+  SlidersHorizontal,
 } from "lucide-react";
 import { DocumentManager } from "./DocumentManager";
 import { SubscriptionManager } from "./SubscriptionManager";
@@ -1355,6 +1356,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         "whatsappFinancialTemplate",
         "whatsappBirthdayTemplate",
         "whatsappOtherTemplate",
+        "coverPhotoPosition",
       ];
 
       const payload: any = {};
@@ -4634,7 +4636,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       <img
                         src={editForm.coverPhoto}
                         alt="Capa"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform"
+                        style={{ 
+                          objectPosition: editForm.coverPhotoPosition || "50% 50%",
+                          transform: `scale(${editForm.coverPhotoScale || 1})`
+                        }}
                       />
                     ) : (
                       <span className="text-slate-400 font-medium">
@@ -4660,6 +4666,114 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       />
                     </label>
                   </div>
+                  {editForm.coverPhoto && (
+                    <div className="mt-3 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                      {/* Zoom Control */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
+                            Zoom da Capa (Escala)
+                          </label>
+                          <span className="text-xs font-mono text-amber-600 font-bold px-1.5 py-0.5 bg-amber-50 rounded border border-amber-200">
+                            {(editForm.coverPhotoScale || 1.0).toFixed(1)}x
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="3"
+                          step="0.1"
+                          value={editForm.coverPhotoScale || 1.0}
+                          onChange={(e) => {
+                            setEditForm({
+                              ...editForm,
+                              coverPhotoScale: parseFloat(e.target.value),
+                            });
+                          }}
+                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                          <span>1.0x (Original)</span>
+                          <span>2.0x (Zoom)</span>
+                          <span>3.0x (Máximo)</span>
+                        </div>
+                      </div>
+
+                      {/* Vertical Alignment Control */}
+                      <div className="pt-2 border-t border-slate-200/60">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
+                            Ajuste Vertical da Capa
+                          </label>
+                          <span className="text-xs font-mono text-slate-600 font-bold px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200">
+                            {editForm.coverPhotoPosition || "50% 50%"}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={(() => {
+                            const pos = editForm.coverPhotoPosition || "50% 50%";
+                            const parts = pos.split(" ");
+                            const valStr = parts[1] || parts[0];
+                            const parsed = parseInt(valStr);
+                            return isNaN(parsed) ? 50 : parsed;
+                          })()}
+                          onChange={(e) => {
+                            setEditForm({
+                              ...editForm,
+                              coverPhotoPosition: `50% ${e.target.value}%`,
+                            });
+                          }}
+                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                          <span>Topo (0%)</span>
+                          <span>Centro (50%)</span>
+                          <span>Base (100%)</span>
+                        </div>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-slate-200/40">
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPhotoPosition: "50% 0%" })}
+                            className={`px-2.5 py-1 text-xs rounded-lg border transition ${
+                              editForm.coverPhotoPosition === "50% 0%"
+                                ? "bg-amber-100 border-amber-300 text-amber-700 font-medium"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Topo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPhotoPosition: "50% 50%" })}
+                            className={`px-2.5 py-1 text-xs rounded-lg border transition ${
+                              !editForm.coverPhotoPosition || editForm.coverPhotoPosition === "50% 50%"
+                                ? "bg-amber-100 border-amber-300 text-amber-700 font-medium"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Centro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPhotoPosition: "50% 100%" })}
+                            className={`px-2.5 py-1 text-xs rounded-lg border transition ${
+                              editForm.coverPhotoPosition === "50% 100%"
+                                ? "bg-amber-100 border-amber-300 text-amber-700 font-medium"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Base
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
