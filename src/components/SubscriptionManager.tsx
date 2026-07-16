@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, handleFirestoreError, OperationType } from "../firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import {
   Sparkles,
   CreditCard,
@@ -50,6 +50,7 @@ export function SubscriptionManager({
   const [cardCvv, setCardCvv] = useState("");
   const [pixCopied, setPixCopied] = useState(false);
   const [pixCountdown, setPixCountdown] = useState(600); // 10 minutes
+  const [forceShowPlans, setForceShowPlans] = useState(false);
 
   const isTrial = profileData?.subscriptionStatus === "trial";
   const isTrialValid =
@@ -128,9 +129,16 @@ export function SubscriptionManager({
       ? (selectedBillingCycle === "monthly" ? "59.90" : "499.90")
       : (selectedBillingCycle === "monthly" ? "99.90" : "839.90");
     const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${priceStr}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
-    navigator.clipboard.writeText(pixCode);
-    setPixCopied(true);
-    setTimeout(() => setPixCopied(false), 2500);
+    try {
+      navigator.clipboard.writeText(pixCode);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 2500);
+    } catch (err) {
+      console.warn("Clipboard access failed:", err);
+      alert("Código Pix copiado! (Caso não tenha sido copiado automaticamente devido às permissões do seu navegador, selecione o código no campo abaixo para copiar)");
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 2500);
+    }
   };
 
   // Execute actual database update
@@ -182,7 +190,7 @@ export function SubscriptionManager({
           `profiles/${userId}/system_notifications`,
           `billing_${Date.now()}`,
         );
-        await updateDoc(notifRef, {
+        await setDoc(notifRef, {
           title: "Assinatura Ativada! 🎉",
           message: `Obrigado! Seu pagamento para o ${planName} foi processado e aprovado com sucesso via Stripe. Todas as funcionalidades já estão totalmente liberadas.`,
           isRead: false,
@@ -197,6 +205,7 @@ export function SubscriptionManager({
         ...newSubscriptionData,
       });
 
+      setForceShowPlans(false);
       setStep("success");
     } catch (e: any) {
       setStep("checkout");
@@ -206,7 +215,7 @@ export function SubscriptionManager({
     }
   };
 
-  if (isActive) {
+  if (isActive && !forceShowPlans) {
     const nextDate = profileData?.subscriptionExpiresAt
       ? new Date(profileData.subscriptionExpiresAt)
       : addMonths(
@@ -342,16 +351,10 @@ export function SubscriptionManager({
               </p>
             </div>
             <button
-              onClick={async () => {
-                try {
-                  const userRef = doc(db, "profiles", userId);
-                  await updateDoc(userRef, { subscriptionStatus: "trial" });
-                  onUpdateProfile({ ...profileData, subscriptionStatus: "trial" });
-                  setSelectedPlanType("gestao_total");
-                  setStep("plans");
-                } catch (e) {
-                  console.error(e);
-                }
+              onClick={() => {
+                setSelectedPlanType("gestao_total");
+                setForceShowPlans(true);
+                setStep("plans");
               }}
               className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm px-6 py-3 rounded-xl transition shrink-0 shadow-md whitespace-nowrap"
             >
@@ -617,9 +620,15 @@ export function SubscriptionManager({
           </div>
 
           <div className="flex items-center justify-center gap-4 border-t border-slate-100 pt-8 max-w-md mx-auto">
-            {onClose && (
+            {(onClose || forceShowPlans) && (
               <button
-                onClick={onClose}
+                onClick={() => {
+                  if (forceShowPlans) {
+                    setForceShowPlans(false);
+                  } else if (onClose) {
+                    onClose();
+                  }
+                }}
                 className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition"
               >
                 Voltar

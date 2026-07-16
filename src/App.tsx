@@ -341,7 +341,7 @@ export default function App() {
         const existingData = docSnap.data();
         if (existingData.subscriptionStatus !== 'active' && finalStatus === 'active') {
            existingData.subscriptionStatus = 'active';
-           await updateDoc(docRef, { subscriptionStatus: 'active' });
+           await updateDoc(docRef, { subscriptionStatus: 'active', updatedAt: serverTimestamp() });
         }
         setProfileData(existingData);
       }

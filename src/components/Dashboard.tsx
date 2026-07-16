@@ -606,6 +606,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       try {
         await updateDoc(doc(db, "profiles", userId), {
           hasSeenTour: true,
+          updatedAt: serverTimestamp(),
         });
         if (onUpdateProfile) {
           onUpdateProfile({

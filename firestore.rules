@@ -80,9 +80,10 @@ service cloud.firestore {
                     && isValidId(profileId)
                     && isValidProfile(incoming());
                     
-      allow update: if (isOwner(profileId) || isAdmin())
-                    && isValidId(profileId)
-                    && isValidProfile(incoming());
+      allow update: if isValidId(profileId) && (
+                      (isOwner(profileId) && isValidProfile(incoming())) ||
+                      isAdmin()
+                    );
                     
       allow delete: if isAdmin() || isOwner(profileId);
     }
