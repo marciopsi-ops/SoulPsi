@@ -15,12 +15,16 @@ interface DocumentManagerProps {
   userId: string;
   profileData: any;
   clients: any[];
+  isGestaoTotal?: boolean;
+  onUpgradeTriggered?: (featureName: string) => void;
 }
 
 export function DocumentManager({
   userId,
   profileData,
   clients,
+  isGestaoTotal = true,
+  onUpgradeTriggered,
 }: DocumentManagerProps) {
   const [selectedTemplate, setSelectedTemplate] = useState("branco");
   const [docType, setDocType] = useState("Documento Psicológico");
@@ -101,6 +105,11 @@ export function DocumentManager({
   };
 
   const handleCustomLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isGestaoTotal) {
+      onUpgradeTriggered?.("Upload de Logotipo Personalizado");
+      e.target.value = "";
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -110,6 +119,11 @@ export function DocumentManager({
   };
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isGestaoTotal) {
+      onUpgradeTriggered?.("Upload de Assinatura Digitalizada");
+      e.target.value = "";
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -206,10 +220,18 @@ export function DocumentManager({
   };
 
   const handlePrint = () => {
+    if (!isGestaoTotal) {
+      onUpgradeTriggered?.("Impressão e Exportação para PDF");
+      return;
+    }
     window.print();
   };
 
   const addNewSection = () => {
+    if (!isGestaoTotal) {
+      onUpgradeTriggered?.("Criação de Novas Seções no Documento");
+      return;
+    }
     setActiveSections([
       ...activeSections,
       { title: "Nova Seção", paragraphs: ["Digite aqui o seu texto."] },
@@ -252,7 +274,29 @@ export function DocumentManager({
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 h-[85vh] min-h-[850px] print:h-auto print:block">
+    <div className="flex flex-col gap-4 h-full">
+      {!isGestaoTotal && (
+        <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 shadow-sm animate-in fade-in print:hidden">
+          <div className="flex items-center gap-3">
+            <span className="p-2 bg-amber-100 rounded-xl text-amber-700">💡</span>
+            <div>
+              <p className="text-sm font-extrabold text-slate-800">
+                Visualização do Plano Gestão Total
+              </p>
+              <p className="text-xs text-slate-500">
+                Você pode experimentar a interface do gerador de documentos, mas as funções de impressão, PDF e assinaturas exigem o plano <strong>Gestão Total</strong>.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onUpgradeTriggered?.("Gerador de Documentos Psicológicos")}
+            className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm"
+          >
+            Fazer Upgrade Agora
+          </button>
+        </div>
+      )}
+      <div className="flex flex-col md:flex-row gap-6 h-[85vh] min-h-[850px] print:h-auto print:block">
       {/* Editor Lateral - Oculto na Impressão */}
       <div className="w-full md:w-5/12 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col print:hidden h-full overflow-y-auto">
         <div className="p-5 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-md z-10 flex flex-col gap-2">
@@ -1060,6 +1104,7 @@ export function DocumentManager({
       `,
         }}
       />
+    </div>
     </div>
   );
 }

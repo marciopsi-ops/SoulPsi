@@ -30,13 +30,13 @@ service cloud.firestore {
 
     // --- Admin Settings ---
     match /admin_settings/{settingId} {
-      allow read: if isSignedIn() || true;
+      allow read: if (settingId == "stripe_private") ? isAdmin() : (isSignedIn() || true);
       allow create, update, delete: if isAdmin();
     }
 
     // --- Allowed Users ---
     match /allowed_users/{email} {
-      allow get: if isSignedIn() && (request.auth.token.email.lower() == email.lower() || isAdmin());
+      allow get: if isSignedIn() && ((request.auth.token.email != null && request.auth.token.email.lower() == email.lower()) || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
@@ -136,8 +136,21 @@ service cloud.firestore {
     }
 
     // --- Interactions ---
+    function isValidInteraction(data) {
+      return data.keys().hasAll(['type', 'timestamp'])
+        && data.type is string && data.type.size() > 0 && data.type.size() <= 100
+        && (!('details' in data) || data.details == null || (data.details is string && data.details.size() <= 1000) || (data.details is map))
+        && (!('audience' in data) || data.audience == null || (data.audience is string && data.audience.size() <= 100))
+        && data.timestamp == request.time;
+    }
+
     match /profiles/{profileId}/interactions/{interactionId} {
-      allow read, write: if true;
+      allow get, list, delete: if isOwner(profileId) && isValidId(profileId);
+      
+      allow create: if isValidId(profileId) && isValidId(interactionId)
+                    && isValidInteraction(incoming());
+      
+      allow update: if false; // Interactions are immutable
     }
 
     // --- Custom Notifications & System Notifications ---
@@ -149,6 +162,16 @@ service cloud.firestore {
     match /profiles/{profileId}/system_notifications/{notifId} {
       allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
       allow create: if isValidId(profileId) && exists(/databases/$(database)/documents/profiles/$(profileId));
+    }
+
+    // --- Backups History ---
+    match /backups_history/{backupId} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- Stripe Logs ---
+    match /stripe_logs/{logId} {
+      allow read, write: if isAdmin();
     }
   }
 }

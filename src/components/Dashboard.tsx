@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Joyride, STATUS } from "react-joyride";
 import {
   db,
   storage,
@@ -63,6 +64,7 @@ import {
   ReceiptText,
   FileText,
   LifeBuoy,
+  HelpCircle,
   CreditCard,
   Star,
   Eye,
@@ -582,6 +584,104 @@ const uploadMultipartToDrive = async (
 };
 
 export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (profileData) {
+      const hasSeenTour = profileData.hasSeenTour;
+      const localSeen = localStorage.getItem(`has_seen_tour_${userId}`);
+      if (!hasSeenTour && !localSeen) {
+        setRunTour(true);
+      }
+    }
+  }, [profileData, userId]);
+
+  const handleTourCallback = async (data: any) => {
+    const { status } = data;
+    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+    if (finishedStatuses.includes(status)) {
+      setRunTour(false);
+      localStorage.setItem(`has_seen_tour_${userId}`, "true");
+      try {
+        await updateDoc(doc(db, "profiles", userId), {
+          hasSeenTour: true,
+        });
+        if (onUpdateProfile) {
+          onUpdateProfile({
+            ...profileData,
+            hasSeenTour: true,
+          });
+        }
+      } catch (err) {
+        console.error("Error updating tour status in Firestore:", err);
+      }
+    }
+  };
+
+  const tourSteps = useMemo(() => [
+    {
+      target: "body",
+      placement: "center" as const,
+      title: "🎉 Bem-vindo à ELO!",
+      content: "Olá! Vamos fazer um tour guiado rápido de 1 minuto para você conhecer os principais recursos do seu novo consultório virtual.",
+    },
+    {
+      target: "#tour-visao-geral",
+      placement: "right" as const,
+      title: "📊 Painel de Visão Geral",
+      content: "Aqui é o seu ponto de partida. Um resumo completo com seus indicadores financeiros, faturamento consolidado e progresso das configurações de boas-vindas.",
+    },
+    {
+      target: "#tour-visao-geral-faturamento",
+      placement: "bottom" as const,
+      title: "💰 Faturamento Consolidado",
+      content: "Visualize seu faturamento global integrado (valores recebidos e pendentes de pacientes, empresas conveniadas e outras receitas).",
+    },
+    {
+      target: "#tour-visao-geral-metricas",
+      placement: "top" as const,
+      title: "📈 Indicadores em Tempo Real",
+      content: "Veja detalhadamente os recebíveis e as despesas do seu consultório clínico separados por categorias para facilitar sua contabilidade.",
+    },
+    {
+      target: "#tour-ocultar-valores",
+      placement: "bottom" as const,
+      title: "👁️ Privacidade no Atendimento",
+      content: "Caso esteja projetando sua tela ou com o paciente no consultório, clique aqui a qualquer momento para ocultar todos os valores financeiros.",
+    },
+    {
+      target: "#tour-perfil",
+      placement: "right" as const,
+      title: "⚙️ Seu Perfil e Integrações",
+      content: "Cadastre sua foto profissional, biografia, chaves PIX de faturamento, configure modelos de mensagens de WhatsApp e faça a integração com o Google Drive.",
+    },
+    {
+      target: "#tour-servicos",
+      placement: "right" as const,
+      title: "🔗 Landing Page e Serviços",
+      content: "Crie e gerencie os serviços clínicos que você oferece e configure sua página de agendamentos online para novos pacientes.",
+    },
+    {
+      target: "#tour-agenda",
+      placement: "right" as const,
+      title: "📅 Agenda Digital",
+      content: "Monitore e organize seus horários de atendimento, crie bloqueios e gerencie compromissos clínicos diretamente na plataforma.",
+    },
+    {
+      target: "#tour-assinatura",
+      placement: "right" as const,
+      title: "💳 Seu Plano & Assinatura",
+      content: "Acompanhe os detalhes da sua assinatura (Essencial ou Gestão Total). No plano Gestão Total, você tem faturamento ilimitado, relatórios avançados, webhooks e geração automatizada de contratos.",
+    },
+    {
+      target: "body",
+      placement: "center" as const,
+      title: "🚀 Tudo Pronto!",
+      content: "Você está pronto para gerenciar seu consultório. Se precisar de ajuda, acesse a aba 'Suporte' para falar com nossa equipe! Desejamos muito sucesso em sua jornada.",
+    }
+  ], []);
+
   const fireWebhook = (event: string, data: any) => {
     if (profileData && profileData.webhookUrl) {
       fetch(profileData.webhookUrl, {
@@ -620,6 +720,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
     | "assinatura"
   >("visao_geral");
   const [clients, setClients] = useState<any[]>([]);
+  const isRestrictedByPlan = profileData?.activePlan === "essencial";
   const [hideFinance, setHideFinance] = useState(true);
 
   const [supportSettings, setSupportSettings] = useState<any>(null);
@@ -943,6 +1044,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleMeetConnect = async () => {
+    if (isRestrictedByPlan) {
+      alert("A integração com Google Meet, gravação, transcrição e resumos automatizados com domínio corporativo são exclusivas do plano Gestão Total.");
+      return;
+    }
     setIsConnectingMeet(true);
     try {
       const userEmail = editForm.email || profileData?.email || auth.currentUser?.email || "";
@@ -1287,6 +1392,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           .filter((m: any) => m.url.trim() !== ""),
         updatedAt: serverTimestamp(),
       };
+
+      if (isRestrictedByPlan) {
+        // Check if restricted fields were changed
+        const hasWebhookChanged = editForm.webhookUrl !== (profileData?.webhookUrl || "");
+        const hasMaterialsChanged = JSON.stringify(rawPayload.materials) !== JSON.stringify(profileData?.materials || []);
+        const hasContractTermsChanged = editForm.contractTerms !== (profileData?.contractTerms || "");
+        const hasCompanyContractTermsChanged = editForm.companyContractTerms !== (profileData?.companyContractTerms || "");
+        
+        if (hasWebhookChanged || hasMaterialsChanged || hasContractTermsChanged || hasCompanyContractTermsChanged) {
+          alert("O salvamento de automações (webhooks), materiais de apoio e customização de contratos/termos são exclusivos do plano Gestão Total.");
+          setEditForm((prev: any) => ({
+            ...prev,
+            webhookUrl: profileData?.webhookUrl || "",
+            materials: profileData?.materials || [],
+            contractTerms: profileData?.contractTerms || "",
+            companyContractTerms: profileData?.companyContractTerms || "",
+          }));
+          setSaving(false);
+          return;
+        }
+      }
 
       const allowedKeys = [
         "name",
@@ -2698,6 +2824,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleClientDelete = async (clientId: string) => {
+    if (isRestrictedByPlan) {
+      alert("A exclusão de pacientes é uma funcionalidade exclusiva do plano Gestão Total.");
+      return;
+    }
     askConfirm(
       "Excluir Paciente",
       "Tem certeza que deseja excluir permanentemente este paciente e todos os seus dados?",
@@ -2721,6 +2851,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   };
 
   const handleCompanyDelete = async (companyId: string) => {
+    if (isRestrictedByPlan) {
+      alert("A exclusão de empresas é uma funcionalidade exclusiva do plano Gestão Total.");
+      return;
+    }
     askConfirm(
       "Excluir Empresa",
       "Tem certeza que deseja excluir permanentemente esta empresa e todos os seus dados?",
@@ -2755,6 +2889,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const handleCompanySave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRestrictedByPlan) {
+      alert("O cadastro e alteração de empresas é uma funcionalidade exclusiva do plano Gestão Total. Suas alterações não foram salvas.");
+      setEditingCompanyId(null);
+      return;
+    }
     try {
       const payload: any = {
         name: companyEditForm.name,
@@ -2986,6 +3125,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
   const [generatedMeetLink, setGeneratedMeetLink] = useState<string | null>(null);
 
   const handleCreateGeneralMeet = async () => {
+    if (isRestrictedByPlan) {
+      alert("A geração de links do Google Meet para vídeo chamadas integradas, gravação e transcrição inteligente são exclusivas do plano Gestão Total.");
+      return;
+    }
     setIsGeneratingMeet(true);
     setGeneratedMeetLink(null);
     try {
@@ -3317,6 +3460,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   const handleClientSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRestrictedByPlan) {
+      alert("A criação e alteração de pacientes é uma funcionalidade exclusiva do plano Gestão Total. Suas alterações não foram salvas.");
+      setEditingClientId(null);
+      return;
+    }
     try {
       const payload: any = {
         name: clientEditForm.name || "",
@@ -3520,10 +3668,63 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+      <Joyride
+        {...({
+          steps: tourSteps,
+          run: runTour,
+          continuous: true,
+          showSkipButton: true,
+          showProgress: true,
+          callback: handleTourCallback,
+          locale: {
+            back: "Voltar",
+            close: "Fechar",
+            last: "Concluir",
+            next: "Próximo",
+            skip: "Pular"
+          },
+          styles: {
+            options: {
+              arrowColor: "#fff",
+              backgroundColor: "#fff",
+              overlayColor: "rgba(15, 23, 42, 0.65)",
+              primaryColor: "#f59e0b",
+              textColor: "#1e293b",
+              zIndex: 10000,
+            },
+            tooltipContainer: {
+              textAlign: "left",
+              fontFamily: "Inter, sans-serif",
+              borderRadius: "16px",
+            },
+            buttonNext: {
+              backgroundColor: "#f59e0b",
+              color: "#fff",
+              fontWeight: "600",
+              borderRadius: "8px",
+              padding: "8px 16px",
+              border: "none",
+              cursor: "pointer",
+            },
+            buttonBack: {
+              color: "#64748b",
+              fontWeight: "600",
+              marginRight: "8px",
+              cursor: "pointer",
+            },
+            buttonSkip: {
+              color: "#94a3b8",
+              fontWeight: "500",
+              cursor: "pointer",
+            }
+          }
+        } as any)}
+      />
       {/* Sidebar */}
       <aside className="w-full md:w-64 flex-shrink-0 print:hidden">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2 mb-6">
           <button
+            id="tour-ocultar-valores"
             onClick={() => setHideFinance(!hideFinance)}
             className="flex items-center justify-center gap-2 p-3 text-sm font-bold text-slate-600 hover:text-slate-800 transition rounded-2xl hover:bg-slate-50"
           >
@@ -3536,7 +3737,9 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           </button>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+          {/* 1. Visão Geral */}
           <button
+            id="tour-visao-geral"
             onClick={() => setActiveTab("visao_geral")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3548,7 +3751,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
             <span>Visão Geral</span>
           </button>
+
+          {/* 2. Meu Perfil */}
           <button
+            id="tour-perfil"
             onClick={() => setActiveTab("perfil")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3560,7 +3766,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <Settings className="w-5 h-5 flex-shrink-0" />
             <span>Meu Perfil</span>
           </button>
+
+          {/* 3. Serviços */}
           <button
+            id="tour-servicos"
             onClick={() => setActiveTab("servicos")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3572,6 +3781,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <Link className="w-5 h-5 flex-shrink-0" />
             <span>Serviços</span>
           </button>
+
+          {/* 4. Notificações */}
           <button
             onClick={() => setActiveTab("notificacoes")}
             className={cn(
@@ -3591,55 +3802,10 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </span>
             )}
           </button>
+
+          {/* 5. Minha Agenda */}
           <button
-            onClick={() => setActiveTab("pacientes")}
-            className={cn(
-              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
-              activeTab === "pacientes"
-                ? "bg-amber-50 text-amber-500"
-                : "text-slate-600 hover:bg-slate-50",
-            )}
-          >
-            <User className="w-5 h-5 flex-shrink-0" />
-            <span>Gestão de pacientes e faturamento</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("empresas")}
-            className={cn(
-              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
-              activeTab === "empresas"
-                ? "bg-amber-50 text-amber-500"
-                : "text-slate-600 hover:bg-slate-50",
-            )}
-          >
-            <Building className="w-5 h-5 flex-shrink-0" />
-            <span>Gestão de empresas e faturamento</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("materiais")}
-            className={cn(
-              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
-              activeTab === "materiais"
-                ? "bg-amber-50 text-amber-500"
-                : "text-slate-600 hover:bg-slate-50",
-            )}
-          >
-            <BookOpen className="w-5 h-5 flex-shrink-0" />
-            <span>Gestão de Materiais</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("documentos")}
-            className={cn(
-              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
-              activeTab === "documentos"
-                ? "bg-amber-50 text-amber-500"
-                : "text-slate-600 hover:bg-slate-50",
-            )}
-          >
-            <FileText className="w-5 h-5 flex-shrink-0" />
-            <span>Gestão de Documentos</span>
-          </button>
-          <button
+            id="tour-agenda"
             onClick={() => setActiveTab("agenda")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3651,6 +3817,8 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <CalendarIcon className="w-5 h-5 flex-shrink-0" />
             <span>Minha Agenda</span>
           </button>
+
+          {/* 6. Avaliações */}
           <button
             onClick={() => setActiveTab("avaliacoes")}
             className={cn(
@@ -3670,20 +3838,120 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               </span>
             )}
           </button>
+
+          {/* 7. Gestão de pacientes e faturamento */}
+          <button
+            onClick={() => setActiveTab("pacientes")}
+            className={cn(
+              "w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "pacientes"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <User className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de pacientes e faturamento</span>
+            </div>
+            {isRestrictedByPlan && (
+              <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                🔒 Gestão Total
+              </span>
+            )}
+          </button>
+
+          {/* 8. Gestão de empresas e faturamento */}
+          <button
+            onClick={() => setActiveTab("empresas")}
+            className={cn(
+              "w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "empresas"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Building className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de empresas e faturamento</span>
+            </div>
+            {isRestrictedByPlan && (
+              <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                🔒 Gestão Total
+              </span>
+            )}
+          </button>
+
+          {/* 9. Gestão de Materiais */}
+          <button
+            onClick={() => setActiveTab("materiais")}
+            className={cn(
+              "w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "materiais"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de Materiais</span>
+            </div>
+            {isRestrictedByPlan && (
+              <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                🔒 Gestão Total
+              </span>
+            )}
+          </button>
+
+          {/* 10. Gestão de Documents */}
+          <button
+            onClick={() => setActiveTab("documentos")}
+            className={cn(
+              "w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition",
+              activeTab === "documentos"
+                ? "bg-amber-50 text-amber-500"
+                : "text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 flex-shrink-0" />
+              <span>Gestão de Documents</span>
+            </div>
+            {isRestrictedByPlan && (
+              <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                🔒 Gestão Total
+              </span>
+            )}
+          </button>
+
+
+
+          {/* 13. Automações */}
           <button
             onClick={() => setActiveTab("automacoes")}
             className={cn(
-              "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
+              "w-full text-left flex items-center justify-between px-4 py-3 rounded-xl font-medium transition",
               activeTab === "automacoes"
                 ? "bg-amber-50 text-amber-500"
                 : "text-slate-600 hover:bg-slate-50",
             )}
           >
-            <Zap className="w-5 h-5 flex-shrink-0" />
-            <span>Automações</span>
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 flex-shrink-0" />
+              <span>Automações</span>
+            </div>
+            {isRestrictedByPlan && (
+              <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                🔒 Gestão Total
+              </span>
+            )}
           </button>
 
+          {/* (linha de separação) */}
+          <div className="h-px bg-slate-100 my-2"></div>
+
+          {/* Minha Assinatura */}
           <button
+            id="tour-assinatura"
             onClick={() => setActiveTab("assinatura")}
             className={cn(
               "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition",
@@ -3696,8 +3964,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
             <span>Minha Assinatura</span>
           </button>
 
-          <div className="h-px bg-slate-100 my-2"></div>
-
+          {/* Suporte */}
           <button
             onClick={() => setActiveTab("suporte")}
             className={cn(
@@ -3709,6 +3976,20 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
           >
             <LifeBuoy className="w-5 h-5 flex-shrink-0" />
             <span>Suporte</span>
+          </button>
+
+          {/* Ver Tour Guiado */}
+          <button
+            onClick={() => {
+              setActiveTab("visao_geral");
+              setTimeout(() => {
+                setRunTour(true);
+              }, 100);
+            }}
+            className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition text-slate-500 hover:bg-slate-50 hover:text-slate-800 text-xs mt-1"
+          >
+            <HelpCircle className="w-4 h-4 flex-shrink-0 text-amber-500" />
+            <span>Ver Tour Guiado</span>
           </button>
         </div>
       </aside>
@@ -3886,7 +4167,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                   outrasReceitasTotal;
 
                 return (
-                  <div className="bg-white border text-center border-slate-200 rounded-xl p-6 mb-6 shadow-sm flex flex-col items-center justify-center">
+                  <div id="tour-visao-geral-faturamento" className="bg-white border text-center border-slate-200 rounded-xl p-6 mb-6 shadow-sm flex flex-col items-center justify-center">
                     <div>
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-1">
                         Faturamento Global (Total)
@@ -3899,7 +4180,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                 );
               })()}
 
-              <div className="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-4">
+              <div id="tour-visao-geral-metricas" className="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-4">
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
                   <h3 className="text-sm font-medium text-blue-800 mb-1">
                     Pacientes (Recebido)
@@ -4818,7 +5099,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
               <div className="py-6 border-b border-slate-100">
                 <label className="block text-sm font-medium text-slate-700 mb-3">
-                  Tema do Perfil
+                  Tema do Perfil / Landing Page
                 </label>
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -4864,7 +5145,84 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
                       </span>
                     </label>
                   ))}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={editForm.theme === "custom"}
+                      onChange={() =>
+                        setEditForm({
+                          ...editForm,
+                          theme: "custom",
+                          themeColor: editForm.themeColor && editForm.themeColor.startsWith("#") ? editForm.themeColor : "#3763eb"
+                        })
+                      }
+                      className="text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="flex items-center gap-2 text-sm text-slate-700">
+                      <span
+                        className="w-5 h-5 rounded-full shadow-sm border border-slate-200"
+                        style={{
+                          backgroundColor: editForm.themeColor && editForm.themeColor.startsWith("#") ? editForm.themeColor : "#3763eb",
+                        }}
+                      ></span>
+                      Personalizado (Escolher cor)
+                    </span>
+                  </label>
                 </div>
+
+                {editForm.theme === "custom" && (
+                  <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-600">Cor Primária Personalizada</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-mono select-all bg-white px-2 py-1 rounded border border-slate-150">
+                          {editForm.themeColor || "#3763eb"}
+                        </span>
+                        <input
+                          type="color"
+                          value={editForm.themeColor || "#3763eb"}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, themeColor: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 p-0 overflow-hidden bg-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-medium text-slate-400">Sugestões de Paleta Clínica e Terapêutica:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { hex: "#0ea5e9", label: "Mente Calma (Céu)" },
+                          { hex: "#14b8a6", label: "Equilíbrio (Turquesa)" },
+                          { hex: "#06b6d4", label: "Cura (Ciano)" },
+                          { hex: "#8b5cf6", label: "Intuição (Lavanda)" },
+                          { hex: "#10b981", label: "Crescimento (Esmeralda)" },
+                          { hex: "#22c55e", label: "Saúde (Verde)" },
+                          { hex: "#f43f5e", label: "Empatia (Rose)" },
+                          { hex: "#f97316", label: "Acolhimento (Laranja)" },
+                          { hex: "#ca8a04", label: "Estabilidade (Dourado)" },
+                          { hex: "#4f46e5", label: "Confiança (Indigo)" },
+                          { hex: "#3b82f6", label: "Foco (Azul Clássico)" },
+                          { hex: "#64748b", label: "Minimalista (Slate)" },
+                        ].map((preset) => (
+                          <button
+                            type="button"
+                            key={preset.hex}
+                            onClick={() => setEditForm({ ...editForm, themeColor: preset.hex })}
+                            className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 rounded-lg text-[11px] font-medium text-slate-600 transition-colors shadow-sm"
+                          >
+                            <span
+                              className="w-3 h-3 rounded-full border border-slate-100 flex-shrink-0"
+                              style={{ backgroundColor: preset.hex }}
+                            />
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -6284,6 +6642,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "materiais" && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            {isRestrictedByPlan && (
+              <div className="mb-6 bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-amber-100 rounded-xl text-amber-700">💡</span>
+                  <div className="text-left">
+                    <p className="text-sm font-extrabold text-slate-800">
+                      Modo de Demonstração (Plano Essencial)
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Você pode visualizar e simular esta área de materiais de apoio, mas as alterações não serão salvas e exigem o plano <strong>Gestão Total</strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("assinatura")}
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm"
+                >
+                  Fazer Upgrade
+                </button>
+              </div>
+            )}
             <div className="flex flex-col mb-6 gap-2">
               <h2 className="text-xl font-bold text-slate-800">
                 Gestão de Materiais
@@ -6413,6 +6792,11 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
               userId={userId}
               profileData={profileData}
               clients={clients}
+              isGestaoTotal={!isRestrictedByPlan}
+              onUpgradeTriggered={(featureName) => {
+                setActiveTab("assinatura");
+                alert(`A funcionalidade "${featureName}" é exclusiva do plano Gestão Total.`);
+              }}
             />
           </div>
         )}
@@ -6780,6 +7164,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "pacientes" && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            {isRestrictedByPlan && (
+              <div className="mb-6 bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-amber-100 rounded-xl text-amber-700">💡</span>
+                  <div className="text-left">
+                    <p className="text-sm font-extrabold text-slate-800">
+                      Modo de Demonstração (Plano Essencial)
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Você pode visualizar e navegar pela gestão de pacientes e faturamento, mas a criação, alteração ou faturamento de pacientes exigem o plano <strong>Gestão Total</strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("assinatura")}
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm"
+                >
+                  Fazer Upgrade
+                </button>
+              </div>
+            )}
             <div className="flex flex-col mb-6 gap-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-800">
@@ -9398,6 +9803,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "empresas" && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            {isRestrictedByPlan && (
+              <div className="mb-6 bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-amber-100 rounded-xl text-amber-700">💡</span>
+                  <div className="text-left">
+                    <p className="text-sm font-extrabold text-slate-800">
+                      Modo de Demonstração (Plano Essencial)
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Você pode visualizar e navegar pela gestão de empresas parceiras, faturamento e convênios, mas o cadastro, alteração ou faturamento de empresas exigem o plano <strong>Gestão Total</strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("assinatura")}
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm"
+                >
+                  Fazer Upgrade
+                </button>
+              </div>
+            )}
             <div className="flex flex-col mb-6 gap-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-800">
@@ -12099,6 +12525,27 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
 
         {activeTab === "automacoes" && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 animate-in fade-in">
+            {isRestrictedByPlan && (
+              <div className="mb-6 bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-700 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-amber-100 rounded-xl text-amber-700">💡</span>
+                  <div className="text-left">
+                    <p className="text-sm font-extrabold text-slate-800">
+                      Modo de Demonstração (Plano Essencial)
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Você pode visualizar e simular esta área de automações via Webhook, mas salvar as configurações de integrações e disparar webhooks exige o plano <strong>Gestão Total</strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("assinatura")}
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm"
+                >
+                  Fazer Upgrade
+                </button>
+              </div>
+            )}
             <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
               <Zap className="w-5 h-5 text-amber-500" /> Integração com Webhooks
               (Zapier, Make, etc)

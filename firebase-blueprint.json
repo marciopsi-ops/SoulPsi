@@ -170,6 +170,18 @@
         "createdAt": { "type": "string" }
       },
       "required": ["companyId", "companyName", "datetime", "status", "totalAmount", "createdAt"]
+    },
+    "Interaction": {
+      "title": "Visitor Interaction",
+      "description": "A page view or button click logged from public landing pages.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "description": "e.g., page_view, whatsapp_click" },
+        "audience": { "type": "string", "description": "e.g., paciente, empresa" },
+        "details": { "type": "string", "description": "Optional extra details" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "timestamp"]
     }
   },
   "firestore": {
@@ -200,6 +212,10 @@
     "/profiles/{profileId}/companyAppointments/{appointmentId}": {
       "schema": { "$ref": "#/entities/CompanyAppointment" },
       "description": "Appointments for companies."
+    },
+    "/profiles/{profileId}/interactions/{interactionId}": {
+      "schema": { "$ref": "#/entities/Interaction" },
+      "description": "Landing page interactions logged for analytics."
     }
   }
 }

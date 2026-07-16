@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, handleFirestoreError, OperationType } from "../firebase";
+import { db, storage, handleFirestoreError, OperationType } from "../firebase";
 import {
   collection,
   query,
@@ -12,6 +12,7 @@ import {
   getDoc,
   addDoc,
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   Shield,
   Search,
@@ -26,6 +27,17 @@ import {
   ExternalLink,
   Bell,
   Sparkles,
+  Database,
+  Download,
+  Loader2,
+  CreditCard,
+  Key,
+  RefreshCw,
+  Play,
+  Check,
+  HelpCircle,
+  Activity,
+  Code,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
@@ -94,6 +106,31 @@ export function AdminDashboard() {
     message: string;
   }>({ type: null, id: "", title: "", message: "" });
   const [deleting, setDeleting] = useState(false);
+
+  // Backup system states
+  const [backupsHistory, setBackupsHistory] = useState<any[]>([]);
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
+  const [deletingBackupId, setDeletingBackupId] = useState<string | null>(null);
+
+  // Stripe configuration and simulator states
+  const [stripeConfig, setStripeConfig] = useState({
+    mode: "test",
+    publishableKey: "",
+    secretKey: "",
+    webhookSecret: "",
+    priceProfMonthly: "",
+    priceProfYearly: "",
+    pricePremMonthly: "",
+    pricePremYearly: "",
+  });
+  const [savingStripe, setSavingStripe] = useState(false);
+  const [simulatedUser, setSimulatedUser] = useState("");
+  const [simulatedPlan, setSimulatedPlan] = useState("professional");
+  const [simulatedBillingCycle, setSimulatedBillingCycle] = useState("monthly");
+  const [simulatingPayment, setSimulatingPayment] = useState(false);
+  const [simulatedLogs, setSimulatedLogs] = useState<any[]>([]);
+  const [activeStripeTab, setActiveStripeTab] = useState<"config" | "instructions" | "simulator">("config");
 
   // Notification dispatch states
   const [notifyingProfile, setNotifyingProfile] = useState<any | null>(null);
@@ -263,11 +300,292 @@ export function AdminDashboard() {
     }
   };
 
+  const fetchBackupsHistory = async () => {
+    try {
+      const q = query(collection(db, "backups_history"));
+      const snap = await getDocs(q);
+      const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      list.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setBackupsHistory(list);
+    } catch (e) {
+      console.error("Error fetching backups history:", e);
+    }
+  };
+
+  const handleBackup = async () => {
+    if (backingUp) return;
+    setBackingUp(true);
+    setBackupMessage("Iniciando rotina de exportação do Firestore...");
+
+    try {
+      setBackupMessage("Buscando perfis dos terapeutas...");
+      const q = query(collection(db, "profiles"));
+      const snap = await getDocs(q);
+      const profilesData = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      setBackupMessage(`Encontrados ${profilesData.length} terapeutas. Exportando subcoleções...`);
+
+      const fullProfilesBackup = await Promise.all(
+        profilesData.map(async (profile) => {
+          const subcollections: Record<string, any[]> = {};
+          const subcollNames = [
+            "clients",
+            "appointments",
+            "signatures",
+            "companies",
+            "companyAppointments",
+            "interactions",
+            "reviews",
+            "notifications",
+            "system_notifications"
+          ];
+
+          await Promise.all(
+            subcollNames.map(async (subName) => {
+              try {
+                const subSnap = await getDocs(collection(db, "profiles", profile.id, subName));
+                subcollections[subName] = subSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+              } catch (err) {
+                console.warn(`Could not backup subcollection ${subName} for profile ${profile.id}:`, err);
+                subcollections[subName] = [];
+              }
+            })
+          );
+
+          return {
+            id: profile.id,
+            data: profile,
+            subcollections,
+          };
+        })
+      );
+
+      setBackupMessage("Exportando lista de convites (allowed_users)...");
+      let allowedUsersBackup: any[] = [];
+      try {
+        const allowedSnap = await getDocs(collection(db, "allowed_users"));
+        allowedUsersBackup = allowedSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        console.error("Failed to backup allowed_users:", e);
+      }
+
+      setBackupMessage("Exportando configurações administrativas (admin_settings)...");
+      let adminSettingsBackup: any[] = [];
+      try {
+        const settingsSnap = await getDocs(collection(db, "admin_settings"));
+        adminSettingsBackup = settingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        console.error("Failed to backup admin_settings:", e);
+      }
+
+      setBackupMessage("Gerando arquivo de snapshot JSON...");
+      const backupPayload = {
+        backupVersion: "1.0",
+        exportedAt: new Date().toISOString(),
+        totalProfiles: profilesData.length,
+        profiles: fullProfilesBackup,
+        allowedUsers: allowedUsersBackup,
+        adminSettings: adminSettingsBackup,
+      };
+
+      const jsonString = JSON.stringify(backupPayload, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const filename = `backups/therapists_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+
+      setBackupMessage("Enviando snapshot para o Firebase Storage...");
+      const storageRef = ref(storage, filename);
+      await uploadBytes(storageRef, blob);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      setBackupMessage("Registrando histórico de backup...");
+      await addDoc(collection(db, "backups_history"), {
+        filename,
+        downloadUrl,
+        createdAt: new Date().toISOString(),
+        profileCount: profilesData.length,
+      });
+
+      setBackupMessage("");
+      alert("Backup completo e snapshot salvo no Storage com sucesso!");
+      fetchBackupsHistory();
+    } catch (error: any) {
+      console.error("Error during backup operation:", error);
+      alert(`Erro durante a rotina de backup: ${error.message || error}`);
+      setBackupMessage("");
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleDeleteBackup = async (backupId: string, filename: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir permanentemente este backup do Storage e do Histórico?")) {
+      return;
+    }
+    setDeletingBackupId(backupId);
+    try {
+      try {
+        const fileRef = ref(storage, filename);
+        await deleteObject(fileRef);
+      } catch (storageErr) {
+        console.warn("Could not delete backup file from storage (it might already be deleted):", storageErr);
+      }
+
+      await deleteDoc(doc(db, "backups_history", backupId));
+      alert("Backup excluído com sucesso!");
+      fetchBackupsHistory();
+    } catch (err: any) {
+      console.error("Error deleting backup:", err);
+      alert(`Erro ao excluir backup: ${err.message || err}`);
+    } finally {
+      setDeletingBackupId(null);
+    }
+  };
+
   useEffect(() => {
     fetchProfiles();
     fetchAllowedUsers();
     fetchSupportSettings();
+    fetchBackupsHistory();
+    fetchStripeConfig();
+    fetchStripeLogs();
   }, []);
+
+  const fetchStripeConfig = async () => {
+    try {
+      const publicSnap = await getDoc(doc(db, "admin_settings", "stripe_public"));
+      const privateSnap = await getDoc(doc(db, "admin_settings", "stripe_private"));
+      let loaded = {
+        mode: "test",
+        publishableKey: "",
+        secretKey: "",
+        webhookSecret: "",
+        priceProfMonthly: "",
+        priceProfYearly: "",
+        pricePremMonthly: "",
+        pricePremYearly: "",
+      };
+      if (publicSnap.exists()) {
+        loaded = { ...loaded, ...publicSnap.data() };
+      }
+      if (privateSnap.exists()) {
+        loaded = { ...loaded, ...privateSnap.data() };
+      }
+      setStripeConfig(loaded);
+    } catch (e) {
+      console.error("Error loading stripe config:", e);
+    }
+  };
+
+  const handleSaveStripeConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingStripe(true);
+    try {
+      const { secretKey, webhookSecret, ...publicFields } = stripeConfig;
+      await setDoc(doc(db, "admin_settings", "stripe_public"), {
+        ...publicFields,
+        updatedAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, "admin_settings", "stripe_private"), {
+        secretKey: secretKey || "",
+        webhookSecret: webhookSecret || "",
+        updatedAt: serverTimestamp(),
+      });
+      alert("Configurações do Stripe salvas e ativadas com sucesso!");
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.WRITE, "admin_settings/stripe_config");
+      alert("Erro ao salvar chaves e preços do Stripe.");
+    } finally {
+      setSavingStripe(false);
+    }
+  };
+
+  const fetchStripeLogs = async () => {
+    try {
+      const q = query(collection(db, "stripe_logs"));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      list.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setSimulatedLogs(list);
+    } catch (e) {
+      console.error("Error loading stripe logs:", e);
+    }
+  };
+
+  const handleSimulatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!simulatedUser) {
+      alert("Selecione um profissional para simular a assinatura!");
+      return;
+    }
+    setSimulatingPayment(true);
+    try {
+      const targetProfile = profiles.find((p) => p.id === simulatedUser);
+      if (!targetProfile) throw new Error("Perfil não encontrado");
+
+      const price = simulatedPlan === "professional" 
+        ? (simulatedBillingCycle === "monthly" ? 59.90 : 599.00)
+        : (simulatedBillingCycle === "monthly" ? 99.90 : 999.00);
+
+      const endsAt = simulatedBillingCycle === "monthly"
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+      const transactionId = "ch_sim_" + Math.random().toString(36).substring(2, 12);
+      const subscriptionId = "sub_sim_" + Math.random().toString(36).substring(2, 12);
+
+      const updateData = {
+        subscriptionStatus: "active",
+        activePlan: simulatedPlan,
+        billingCycle: simulatedBillingCycle,
+        trialEndsAt: null,
+        subscriptionStartedAt: new Date().toISOString(),
+        subscriptionExpiresAt: endsAt.toISOString(),
+        subscriptionPrice: price,
+        paymentMethod: "credit_card",
+        lastPaymentDate: new Date().toISOString(),
+        stripeSubscriptionId: subscriptionId,
+        updatedAt: serverTimestamp(),
+      };
+
+      // 1. Update therapist profile subscription
+      await updateDoc(doc(db, "profiles", simulatedUser), updateData);
+
+      // 2. Add system notification
+      const notifId = `stripe_${Date.now()}`;
+      await setDoc(doc(db, "profiles", simulatedUser, "system_notifications", notifId), {
+        title: "Assinatura Confirmada! 💳",
+        message: `Sua assinatura do plano ${simulatedPlan === "professional" ? "Profissional" : "Premium"} (${simulatedBillingCycle === "monthly" ? "Mensal" : "Anual"}) foi confirmada com sucesso via Stripe! Obrigado por fazer parte da ELO.`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      });
+
+      // 3. Log webhook event
+      await addDoc(collection(db, "stripe_logs"), {
+        eventId: "evt_" + Math.random().toString(36).substring(2, 12),
+        type: "invoice.payment_succeeded",
+        profileId: simulatedUser,
+        profileName: targetProfile.name || "Profissional Sem Nome",
+        profileEmail: targetProfile.email || "Sem e-mail",
+        plan: simulatedPlan,
+        cycle: simulatedBillingCycle,
+        amount: price,
+        transactionId,
+        subscriptionId,
+        status: "succeeded",
+        timestamp: new Date().toISOString(),
+      });
+
+      alert(`Simulação de pagamento aprovada para ${targetProfile.name}!`);
+      setSimulatedUser("");
+      fetchProfiles();
+      fetchStripeLogs();
+    } catch (err: any) {
+      console.error("Simulation error:", err);
+      alert(`Erro na simulação do Stripe: ${err.message || err}`);
+    } finally {
+      setSimulatingPayment(false);
+    }
+  };
 
   const fetchSupportSettings = async () => {
     try {
@@ -628,6 +946,90 @@ export function AdminDashboard() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+              <Database className="w-5 h-5 text-amber-500" />
+              <h2 className="font-semibold text-slate-800">
+                Backup de Segurança (Firestore Export)
+              </h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Gere e salve snapshots completos em formato JSON de todos os terapeutas, convites e configurações no Firebase Storage. Útil para auditoria e recuperação de desastres.
+              </p>
+
+              {backingUp ? (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processando backup...</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">{backupMessage}</p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleBackup}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Database className="w-4 h-4" />
+                  Iniciar Novo Backup Completo
+                </button>
+              )}
+
+              <hr className="border-slate-100" />
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                  Histórico de Snapshots Recentes
+                </h4>
+
+                {backupsHistory.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">
+                    Nenhum backup gerado anteriormente.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    {backupsHistory.map((b) => (
+                      <div
+                        key={b.id}
+                        className="p-3 bg-slate-50 border border-slate-150 rounded-xl flex items-center justify-between text-xs hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1 pr-3">
+                          <p className="font-medium text-slate-700 truncate">
+                            {b.filename.replace("backups/", "")}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {new Date(b.createdAt).toLocaleString("pt-BR")} • {b.profileCount || 0} perfis
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <a
+                            href={b.downloadUrl}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-150 rounded-lg transition-colors"
+                            title="Baixar backup"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => handleDeleteBackup(b.id, b.filename)}
+                            disabled={deletingBackupId === b.id}
+                            className="p-1.5 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-150 rounded-lg transition-colors disabled:opacity-50"
+                            title="Excluir backup"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
               <MailPlus className="w-5 h-5 text-slate-500" />
               <h2 className="font-semibold text-slate-800">
                 Convites Iniciais
@@ -691,6 +1093,446 @@ export function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Painel de Gestão e Integração do Stripe */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col mb-8">
+          <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <CreditCard className="w-6 h-6 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">
+                  Integração e Gestão do Stripe
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Configure as chaves da API, gerencie IDs de planos de assinatura e simule transações do gateway.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-center">
+              <button
+                type="button"
+                onClick={() => setStripeConfig({ ...stripeConfig, mode: "test" })}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg transition-colors cursor-pointer",
+                  stripeConfig.mode === "test" ? "bg-white text-slate-800 shadow-sm" : "text-slate-400"
+                )}
+              >
+                Test Mode
+              </button>
+              <button
+                type="button"
+                onClick={() => setStripeConfig({ ...stripeConfig, mode: "live" })}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg transition-colors cursor-pointer",
+                  stripeConfig.mode === "live" ? "bg-amber-500 text-white shadow-sm" : "text-slate-400"
+                )}
+              >
+                Live Mode
+              </button>
+            </div>
+          </div>
+
+          {/* Sub-Tabs Nav */}
+          <div className="flex border-b border-slate-100 px-5 bg-slate-50/50">
+            {[
+              { id: "config", label: "Chaves & Preços", icon: Key },
+              { id: "instructions", label: "Instruções de Configuração", icon: HelpCircle },
+              { id: "simulator", label: "Simulador de Webhooks & Logs", icon: Activity },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setActiveStripeTab(tab.id as any)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 transition-all -mb-px cursor-pointer",
+                    activeStripeTab === tab.id
+                      ? "border-amber-500 text-amber-600"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-6">
+            {/* Tab 1: Config & Prices */}
+            {activeStripeTab === "config" && (
+              <form onSubmit={handleSaveStripeConfig} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Credentials block */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                      <Key className="w-3.5 h-3.5 text-slate-400" />
+                      Credenciais da API do Stripe
+                    </h3>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                        Stripe Publishable Key ({stripeConfig.mode === "live" ? "Live" : "Test"})
+                      </label>
+                      <input
+                        type="text"
+                        value={stripeConfig.publishableKey}
+                        onChange={(e) => setStripeConfig({ ...stripeConfig, publishableKey: e.target.value })}
+                        placeholder="pk_test_..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                        Stripe Secret Key ({stripeConfig.mode === "live" ? "Live" : "Test"})
+                      </label>
+                      <input
+                        type="password"
+                        value={stripeConfig.secretKey}
+                        onChange={(e) => setStripeConfig({ ...stripeConfig, secretKey: e.target.value })}
+                        placeholder="sk_test_..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Mantida segura e encriptada. Apenas administradores do sistema podem salvar e visualizar esta chave.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                        Stripe Webhook Secret
+                      </label>
+                      <input
+                        type="password"
+                        value={stripeConfig.webhookSecret}
+                        onChange={(e) => setStripeConfig({ ...stripeConfig, webhookSecret: e.target.value })}
+                        placeholder="whsec_..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Segredo de assinatura para validar que os webhooks realmente vieram do Stripe.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Plan Price IDs block */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                      <Code className="w-3.5 h-3.5 text-slate-400" />
+                      Price IDs dos Planos (Stripe Dashboard)
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <span className="text-[11px] font-medium text-slate-400 block mb-2">
+                          Copie os Price IDs das assinaturas recorrentes geradas no painel do Stripe para sincronizar os botões de checkout dos terapeutas.
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Profissional Mensal (ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.priceProfMonthly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, priceProfMonthly: e.target.value })}
+                          placeholder="price_..."
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Profissional Anual (ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.priceProfYearly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, priceProfYearly: e.target.value })}
+                          placeholder="price_..."
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Premium Mensal (ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.pricePremMonthly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, pricePremMonthly: e.target.value })}
+                          placeholder="price_..."
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Premium Anual (ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.pricePremYearly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, pricePremYearly: e.target.value })}
+                          placeholder="price_..."
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingStripe}
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    {savingStripe ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Salvando Chaves...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-4 h-4" />
+                        <span>Salvar Configuração do Stripe</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Tab 2: Instructions */}
+            {activeStripeTab === "instructions" && (
+              <div className="space-y-4 text-sm text-slate-600 leading-relaxed max-w-4xl">
+                <h3 className="text-base font-bold text-slate-800">
+                  Melhor Arquitetura para Integração do Stripe na Plataforma
+                </h3>
+                
+                <p>
+                  Para habilitar o recebimento de pagamentos reais de forma segura e automatizada por parte dos terapeutas, a melhor prática envolve utilizar o <strong>Stripe Checkout</strong> e <strong>Stripe Webhooks</strong> de forma integrada ao Firebase.
+                </p>
+
+                <div className="p-4 bg-amber-50/50 border border-amber-200/60 rounded-2xl space-y-3">
+                  <h4 className="font-bold text-amber-900 text-xs uppercase tracking-wider">
+                    Como funciona o Fluxo Recomendado:
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1.5 text-xs text-amber-900/80">
+                    <li><strong>Início da Assinatura:</strong> Quando o profissional clica em "Assinar agora" no painel, o sistema faz uma requisição para a nossa API do servidor (ou Firebase Cloud Function) enviando o <code>Price ID</code> correspondente.</li>
+                    <li><strong>Checkout Session:</strong> O servidor inicializa uma sessão do Stripe Checkout via SDK Node.js e retorna o link seguro do Stripe. O terapeuta é redirecionado para concluir o pagamento de forma criptografada.</li>
+                    <li><strong>Redirecionamento:</strong> Após preencher o cartão ou pagar o Pix, o Stripe redireciona o usuário de volta para o sistema (página de sucesso).</li>
+                    <li><strong>Confirmação via Webhooks:</strong> O Stripe envia um webhook assinado para o nosso endpoint <code>/api/webhooks/stripe</code> no servidor. Ao receber e validar a assinatura com o <code>Webhook Secret</code>, o sistema atualiza o documento <code>profiles/id_do_usuario</code> com status <code>active</code> e datas de expiração corretas de forma segura.</li>
+                  </ol>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl">
+                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider mb-2">
+                      Eventos Necessários no Webhook:
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-slate-500">
+                      <li><code>checkout.session.completed</code>: Libera o plano imediatamente após o primeiro pagamento.</li>
+                      <li><code>invoice.payment_succeeded</code>: Executado a cada renovação mensal ou anual para prorrogar a expiração.</li>
+                      <li><code>customer.subscription.deleted</code>: Cancela ou bloqueia o acesso se o profissional cancelar a assinatura ou o cartão falhar consecutivamente.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl">
+                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider mb-2">
+                      Links Úteis no Painel do Stripe:
+                    </h4>
+                    <ul className="list-none space-y-1.5 text-xs text-slate-500">
+                      <li>
+                        <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline font-medium flex items-center gap-1">
+                          Chaves de API (Publishable / Secret Keys) <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </li>
+                      <li>
+                        <a href="https://dashboard.stripe.com/products" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline font-medium flex items-center gap-1">
+                          Produtos e Preços das Assinaturas <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </li>
+                      <li>
+                        <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline font-medium flex items-center gap-1">
+                          Configuração dos Webhooks <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Simulator */}
+            {activeStripeTab === "simulator" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column: Simulator Form */}
+                  <div className="lg:col-span-1 p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <Play className="w-4 h-4 text-amber-500" />
+                        Gerador de Eventos (Simulador)
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Selecione um terapeuta para simular o recebimento de um webhook com sucesso do Stripe e testar a sincronização.
+                      </p>
+                    </div>
+
+                    <form onSubmit={handleSimulatePayment} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Profissional Destinatário
+                        </label>
+                        <select
+                          value={simulatedUser}
+                          onChange={(e) => setSimulatedUser(e.target.value)}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700"
+                        >
+                          <option value="">-- Selecione o Terapeuta --</option>
+                          {profiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name || "Sem Nome"} ({p.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            Plano Escolhido
+                          </label>
+                          <select
+                            value={simulatedPlan}
+                            onChange={(e) => setSimulatedPlan(e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700"
+                          >
+                            <option value="professional">Profissional</option>
+                            <option value="premium">Premium</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            Recorrência
+                          </label>
+                          <select
+                            value={simulatedBillingCycle}
+                            onChange={(e) => setSimulatedBillingCycle(e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700"
+                          >
+                            <option value="monthly">Mensal</option>
+                            <option value="yearly">Anual</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={simulatingPayment}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                      >
+                        {simulatingPayment ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Processando Sincronismo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3.5 h-3.5" />
+                            <span>Simular Webhook Stripe</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Right Column: Webhook Log Table */}
+                  <div className="lg:col-span-2 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-slate-400" />
+                        Histórico Recente de Webhooks & Eventos Sincronizados
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={fetchStripeLogs}
+                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                        title="Atualizar Logs"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {simulatedLogs.length === 0 ? (
+                      <div className="p-8 border border-slate-200 border-dashed rounded-2xl text-center text-slate-400 text-xs">
+                        Nenhum evento registrado ainda. Execute uma simulação para visualizar os logs de sincronização aqui.
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-[300px] overflow-y-auto">
+                        <table className="w-full text-left text-xs divide-y divide-slate-100">
+                          <thead className="bg-slate-50 text-slate-500 font-bold sticky top-0">
+                            <tr>
+                              <th className="p-3">Evento / Data</th>
+                              <th className="p-3">Terapeuta</th>
+                              <th className="p-3">Plano / Valor</th>
+                              <th className="p-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150 bg-white">
+                            {simulatedLogs.map((log) => (
+                              <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="p-3">
+                                  <span className="font-mono text-amber-600 font-medium block">
+                                    {log.type}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                                    {new Date(log.timestamp).toLocaleString("pt-BR")}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <span className="font-semibold text-slate-700 block">
+                                    {log.profileName}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block font-mono">
+                                    {log.profileEmail}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <span className="text-slate-600 font-semibold block uppercase">
+                                    {log.plan} ({log.cycle === "monthly" ? "Mensal" : "Anual"})
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 block font-semibold text-emerald-600 mt-0.5">
+                                    R$ {log.amount.toFixed(2).replace(".", ",")}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-extrabold border border-emerald-150">
+                                    <Check className="w-3 h-3" /> SUCCESS
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
             <UserX className="w-5 h-5 text-slate-500" />

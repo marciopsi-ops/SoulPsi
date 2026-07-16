@@ -33,9 +33,8 @@ export function SubscriptionManager({
   onUpdateProfile,
   onClose,
 }: SubscriptionManagerProps) {
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(
-    "monthly",
-  );
+  const [selectedPlanType, setSelectedPlanType] = useState<"essencial" | "gestao_total">("essencial");
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "pix" | null>(
     null,
   );
@@ -59,11 +58,23 @@ export function SubscriptionManager({
     new Date(profileData.trialEndsAt) > new Date();
   const isActive = profileData?.subscriptionStatus === "active";
 
-  const planPrice = selectedPlan === "monthly" ? 59.9 : 499.9;
+  const planPrice =
+    selectedPlanType === "essencial"
+      ? selectedBillingCycle === "monthly"
+        ? 59.9
+        : 499.9
+      : selectedBillingCycle === "monthly"
+        ? 99.9
+        : 839.9;
+
   const planName =
-    selectedPlan === "monthly"
-      ? "Plano Mensal Profissional"
-      : "Plano Anual Premium (30% OFF)";
+    selectedPlanType === "essencial"
+      ? selectedBillingCycle === "monthly"
+        ? "Plano Essencial Mensal"
+        : "Plano Essencial Anual (30% OFF)"
+      : selectedBillingCycle === "monthly"
+        ? "Plano Gestão Total Mensal"
+        : "Plano Gestão Total Anual (30% OFF)";
 
   // Countdown for Pix QR Code
   useEffect(() => {
@@ -113,7 +124,10 @@ export function SubscriptionManager({
   };
 
   const handleCopyPix = () => {
-    const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${selectedPlan === "monthly" ? "59.90" : "499.90"}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
+    const priceStr = selectedPlanType === "essencial"
+      ? (selectedBillingCycle === "monthly" ? "59.90" : "499.90")
+      : (selectedBillingCycle === "monthly" ? "99.90" : "839.90");
+    const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${priceStr}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
     navigator.clipboard.writeText(pixCode);
     setPixCopied(true);
     setTimeout(() => setPixCopied(false), 2500);
@@ -142,13 +156,14 @@ export function SubscriptionManager({
       // Direct Firestore sync
       const userRef = doc(db, "profiles", userId);
       const endsAt =
-        selectedPlan === "monthly"
+        selectedBillingCycle === "monthly"
           ? addMonths(new Date(), 1)
           : addYears(new Date(), 1);
 
       const newSubscriptionData = {
         subscriptionStatus: "active",
-        activePlan: selectedPlan,
+        activePlan: selectedPlanType,
+        billingCycle: selectedBillingCycle,
         trialEndsAt: null,
         subscriptionStartedAt: new Date().toISOString(),
         subscriptionExpiresAt: endsAt.toISOString(),
@@ -276,12 +291,14 @@ export function SubscriptionManager({
             </h3>
             <p className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-              {profileData?.activePlan === "yearly"
-                ? "Plano Anual Premium"
-                : "Plano Mensal Profissional"}
+              {profileData?.activePlan === "gestao_total" || profileData?.activePlan === "yearly"
+                ? "Plano Gestão Total"
+                : "Plano Essencial"}
             </p>
             <p className="text-xs text-slate-450 mt-1">
-              Acesso ilimitado a todas as ferramentas.
+              {profileData?.activePlan === "gestao_total" || profileData?.activePlan === "yearly"
+                ? "Acesso completo a todas as ferramentas e IA."
+                : "Acesso às configurações, perfil, serviços, agenda e avaliações."}
             </p>
           </div>
 
@@ -312,6 +329,36 @@ export function SubscriptionManager({
             </p>
           </div>
         </div>
+
+        {/* Upgrade alert */}
+        {profileData?.activePlan !== "gestao_total" && profileData?.activePlan !== "yearly" && (
+          <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-300 rounded-3xl p-6 mt-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="text-left">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" /> Quer liberar a Gestão Total?
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Faturamento de pacientes e empresas, documentos automatizados, gerenciador de materiais, WhatsApp integrado e transcrição inteligente de chamadas com domínio corporativo.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const userRef = doc(db, "profiles", userId);
+                  await updateDoc(userRef, { subscriptionStatus: "trial" });
+                  onUpdateProfile({ ...profileData, subscriptionStatus: "trial" });
+                  setSelectedPlanType("gestao_total");
+                  setStep("plans");
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm px-6 py-3 rounded-xl transition shrink-0 shadow-md whitespace-nowrap"
+            >
+              Fazer Upgrade para Gestão Total
+            </button>
+          </div>
+        )}
 
         {/* Invoice List */}
         <div>
@@ -381,27 +428,56 @@ export function SubscriptionManager({
     <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-slate-100 max-w-4xl mx-auto shadow-sm font-sans relative overflow-hidden">
       {step === "plans" && (
         <>
-          <div className="text-center max-w-xl mx-auto mb-10">
-            <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-black px-3.5 py-1.5 rounded-full mb-4 border border-amber-200/50 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Acesso
-              Profissional Completo
+          <div className="text-center max-w-xl mx-auto mb-8">
+            <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-black px-3.5 py-1.5 rounded-full mb-4 border border-amber-200/50">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Escolha o seu plano ELO
             </div>
-            <h2 className="text-4xl font-extrabold text-slate-800 tracking-tight">
-              Escolha o seu plano ELO
+            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+              Os melhores planos para você
             </h2>
-            <p className="text-slate-600 mt-2 text-md">
-              Desbloqueie registros de pacientes, formulários, acompanhamento
-              financeiro, automação de alertas e muito mais.
+            <p className="text-slate-500 mt-2 text-sm leading-relaxed">
+              Trabalhe com o plano Essencial para agendamentos ou libere a Gestão Total para controle total de prontuários, financeiro, faturamento de empresas e transcrições automáticas.
             </p>
+
+            {/* Billing cycle toggle */}
+            <div className="flex items-center justify-center gap-2 mt-6 bg-slate-100 p-1.5 rounded-xl max-w-xs mx-auto border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSelectedBillingCycle("monthly")}
+                className={cn(
+                  "flex-1 text-xs py-2 px-3 rounded-lg font-bold transition",
+                  selectedBillingCycle === "monthly"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedBillingCycle("yearly")}
+                className={cn(
+                  "flex-1 text-xs py-2 px-3 rounded-lg font-bold transition relative",
+                  selectedBillingCycle === "yearly"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                Anual
+                <span className="absolute -top-3.5 -right-3.5 bg-amber-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black animate-bounce">
+                  30% OFF
+                </span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto mb-10">
-            {/* Plan 1 */}
+            {/* Plan 1 - Essencial */}
             <div
-              onClick={() => setSelectedPlan("monthly")}
+              onClick={() => setSelectedPlanType("essencial")}
               className={cn(
                 "p-8 rounded-[2rem] border-2 text-left cursor-pointer transition-all flex flex-col justify-between relative",
-                selectedPlan === "monthly"
+                selectedPlanType === "essencial"
                   ? "border-amber-400 bg-amber-50/20 shadow-md shadow-amber-100/50"
                   : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
               )}
@@ -410,21 +486,21 @@ export function SubscriptionManager({
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-extrabold text-xl text-slate-800">
-                      Mensal
+                      Plano Essencial
                     </h3>
-                    <p className="text-xs text-slate-400 font-medium">
-                      Flexibilidade sem fidelidade
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">
+                      Para controle individual e agendamentos
                     </p>
                   </div>
                   <div
                     className={cn(
                       "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                      selectedPlan === "monthly"
+                      selectedPlanType === "essencial"
                         ? "border-amber-500 bg-amber-500"
                         : "border-slate-300",
                     )}
                   >
-                    {selectedPlan === "monthly" && (
+                    {selectedPlanType === "essencial" && (
                       <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                     )}
                   </div>
@@ -432,63 +508,71 @@ export function SubscriptionManager({
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
                   <span className="text-4xl font-black text-slate-800">
-                    59,90
+                    {selectedBillingCycle === "monthly" ? "59,90" : "499,90"}
                   </span>
-                  <span className="text-slate-450 font-bold">/mês</span>
+                  <span className="text-slate-450 font-bold">
+                    /{selectedBillingCycle === "monthly" ? "mês" : "ano"}
+                  </span>
                 </div>
                 <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-4 border-t border-slate-100">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Infinitos agendamentos e prontuários
+                    Acesso completo à área "Meu Perfil"
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Envio automático de mensagens (Pix/Vencimentos)
+                    Gerenciamento próprio de Serviços
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Gerenciador de materiais e termos de uso
+                    Controle da "Minha Agenda"
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Suporte técnico integral
+                    Gestão de Avaliações recebidas
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-400">
+                    <Lock className="w-3.5 h-3.5 shrink-0" /> Gestão de Pacientes (Apenas modo Demo)
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-400">
+                    <Lock className="w-3.5 h-3.5 shrink-0" /> Faturamento e Notas (Apenas modo Demo)
                   </li>
                 </ul>
               </div>
             </div>
 
-            {/* Plan 2 */}
+            {/* Plan 2 - Gestão Total */}
             <div
-              onClick={() => setSelectedPlan("yearly")}
+              onClick={() => setSelectedPlanType("gestao_total")}
               className={cn(
                 "p-8 rounded-[2rem] border-2 text-left cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden",
-                selectedPlan === "yearly"
+                selectedPlanType === "gestao_total"
                   ? "border-amber-500 bg-amber-50/20 shadow-md shadow-amber-100/50"
                   : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
               )}
             >
               <div className="absolute top-3.5 right-[-35px] bg-amber-500 text-white text-[9px] font-black uppercase py-1 px-10 rotate-45 tracking-wider">
-                30% OFF
+                MELHOR OPÇÃO
               </div>
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-extrabold text-xl text-slate-800">
-                      Anual Premiado
+                      Gestão Total
                     </h3>
-                    <p className="text-xs text-slate-400 font-medium">
-                      Melhor custo-benefício
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">
+                      Controle total, faturamento e IA
                     </p>
                   </div>
                   <div
                     className={cn(
                       "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                      selectedPlan === "yearly"
+                      selectedPlanType === "gestao_total"
                         ? "border-amber-500 bg-amber-500"
                         : "border-slate-300",
                     )}
                   >
-                    {selectedPlan === "yearly" && (
+                    {selectedPlanType === "gestao_total" && (
                       <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                     )}
                   </div>
@@ -496,26 +580,36 @@ export function SubscriptionManager({
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
                   <span className="text-4xl font-black text-slate-800">
-                    499,90
+                    {selectedBillingCycle === "monthly" ? "99,90" : "839,90"}
                   </span>
-                  <span className="text-slate-450 font-bold">/ano</span>
+                  <span className="text-slate-450 font-bold">
+                    /{selectedBillingCycle === "monthly" ? "mês" : "ano"}
+                  </span>
                 </div>
                 <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-4 border-t border-slate-100">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Economize R$ 218,90 em relação ao mensal
+                    <strong>Tudo do Plano Essencial</strong>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Infinitos atendimentos e prontuários
+                    Gestão Completa de Pacientes e Faturamento
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Alertas automatizados completos via WhatsApp
+                    Gestão de Empresas e Faturamento Corporativo
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
-                    Acesso prioritário a atualizações
+                    <strong>Vídeo Chamadas com Transcrição & Resumo</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Gerenciamento de Materiais e Termos / Contratos
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />{" "}
+                    Conta corporativa com domínio da plataforma
                   </li>
                 </ul>
               </div>

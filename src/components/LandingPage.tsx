@@ -303,7 +303,7 @@ export function LandingPage({
   const customStyle: React.CSSProperties = {};
   if (
     finalProfile.themeColor &&
-    (!finalProfile.theme || finalProfile.theme === "auto")
+    (!finalProfile.theme || finalProfile.theme === "auto" || finalProfile.theme === "custom")
   ) {
     const rgb = hexToRgb(finalProfile.themeColor);
     if (rgb)

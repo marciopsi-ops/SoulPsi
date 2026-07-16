@@ -156,8 +156,8 @@ export default function App() {
           let adminDoc = await getDoc(adminDocRef);
           
           // Auto-bootstrap Admin for Master User
-          if (!adminDoc.exists() && currUser.email === 'marciopsi@elosolucoeshumanas.com') {
-             await setDoc(adminDocRef, { email: currUser.email, createdAt: serverTimestamp() });
+          if (!adminDoc.exists() && currUser.email && currUser.email.toLowerCase() === 'marciopsi@elosolucoeshumanas.com') {
+             await setDoc(adminDocRef, { email: currUser.email.toLowerCase(), createdAt: serverTimestamp() });
              adminDoc = await getDoc(adminDocRef);
           }
 
@@ -284,7 +284,7 @@ export default function App() {
 
       if (!docSnap || !docSnap.exists()) {
         // Bloquear primeiro acesso se o fluxo SaaS/vendas estiver desativado e não estiver na lista de permitidos ou não for master
-        const isMaster = email === 'marciopsi@elosolucoeshumanas.com';
+        const isMaster = email && email.toLowerCase() === 'marciopsi@elosolucoeshumanas.com';
         const isAllowedUser = allowedSnap ? allowedSnap.exists() : false;
         if (!currentSaasEnabled && !isMaster && !isAllowedUser) {
           setFirstAccessBlocked(true);
