@@ -1259,6 +1259,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         setSignatures(sigSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (e: any) {
         console.error("Error fetching static dashboard data:", e);
+        handleFirestoreError(e, OperationType.LIST, `profiles/${userId}/data`);
       }
       
       try {
@@ -1266,6 +1267,7 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
         setInteractions(intSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (e: any) {
         console.error("Error fetching interactions dashboard data:", e);
+        handleFirestoreError(e, OperationType.LIST, `profiles/${userId}/interactions`);
       }
     };
     fetchStaticData();
