@@ -592,9 +592,28 @@ export function Dashboard({ userId, profileData, onUpdateProfile }: any) {
       const localSeen = localStorage.getItem(`has_seen_tour_${userId}`);
       if (!hasSeenTour && !localSeen) {
         setRunTour(true);
+        // Persist immediately on first launch to ensure it only auto-runs once (on first login)
+        localStorage.setItem(`has_seen_tour_${userId}`, "true");
+        const markAsSeen = async () => {
+          try {
+            await updateDoc(doc(db, "profiles", userId), {
+              hasSeenTour: true,
+              updatedAt: serverTimestamp(),
+            });
+            if (onUpdateProfile) {
+              onUpdateProfile({
+                ...profileData,
+                hasSeenTour: true,
+              });
+            }
+          } catch (err) {
+            console.error("Error marking initial tour as seen in Firestore:", err);
+          }
+        };
+        markAsSeen();
       }
     }
-  }, [profileData, userId]);
+  }, [profileData, userId, onUpdateProfile]);
 
   const handleTourCallback = async (data: any) => {
     const { status } = data;

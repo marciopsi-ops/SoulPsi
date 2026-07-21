@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, handleFirestoreError, OperationType } from "../firebase";
-import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import {
   Sparkles,
   CreditCard,
@@ -51,6 +51,31 @@ export function SubscriptionManager({
   const [pixCopied, setPixCopied] = useState(false);
   const [pixCountdown, setPixCountdown] = useState(600); // 10 minutes
   const [forceShowPlans, setForceShowPlans] = useState(false);
+  const [stripeConfig, setStripeConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStripeConfig = async () => {
+      try {
+        const plansSnap = await getDoc(doc(db, "admin_settings", "subscription_plans"));
+        if (plansSnap.exists()) {
+          setStripeConfig(plansSnap.data());
+        } else {
+          const snap = await getDoc(doc(db, "admin_settings", "stripe_public"));
+          if (snap.exists()) {
+            setStripeConfig(snap.data());
+          }
+        }
+      } catch (err) {
+        console.error("Error loading stripe config in SubscriptionManager:", err);
+      }
+    };
+    fetchStripeConfig();
+  }, []);
+
+  const amountProfMonthly = stripeConfig?.amountProfMonthly ? Number(stripeConfig.amountProfMonthly) : 59.90;
+  const amountProfYearly = stripeConfig?.amountProfYearly ? Number(stripeConfig.amountProfYearly) : 499.90;
+  const amountPremMonthly = stripeConfig?.amountPremMonthly ? Number(stripeConfig.amountPremMonthly) : 99.90;
+  const amountPremYearly = stripeConfig?.amountPremYearly ? Number(stripeConfig.amountPremYearly) : 839.90;
 
   const isTrial = profileData?.subscriptionStatus === "trial";
   const isTrialValid =
@@ -62,11 +87,11 @@ export function SubscriptionManager({
   const planPrice =
     selectedPlanType === "essencial"
       ? selectedBillingCycle === "monthly"
-        ? 59.9
-        : 499.9
+        ? amountProfMonthly
+        : amountProfYearly
       : selectedBillingCycle === "monthly"
-        ? 99.9
-        : 839.9;
+        ? amountPremMonthly
+        : amountPremYearly;
 
   const planName =
     selectedPlanType === "essencial"
@@ -126,8 +151,8 @@ export function SubscriptionManager({
 
   const handleCopyPix = () => {
     const priceStr = selectedPlanType === "essencial"
-      ? (selectedBillingCycle === "monthly" ? "59.90" : "499.90")
-      : (selectedBillingCycle === "monthly" ? "99.90" : "839.90");
+      ? (selectedBillingCycle === "monthly" ? amountProfMonthly.toFixed(2) : amountProfYearly.toFixed(2))
+      : (selectedBillingCycle === "monthly" ? amountPremMonthly.toFixed(2) : amountPremYearly.toFixed(2));
     const pixCode = `00020101021226870014br.gov.bcb.pix25650021elo-solucoes-humanas-checkout-prod-5204000053039865405${priceStr}5802BR5925ELO SOLUCOES HUMANAS LTDA6009SAO PAULO62070503***6304CA3B`;
     try {
       navigator.clipboard.writeText(pixCode);
@@ -229,7 +254,7 @@ export function SubscriptionManager({
         date: profileData?.lastPaymentDate
           ? new Date(profileData.lastPaymentDate)
           : new Date(),
-        amount: profileData?.subscriptionPrice || 59.9,
+        amount: profileData?.subscriptionPrice || amountProfMonthly,
         method:
           profileData?.paymentMethod === "pix"
             ? "Pix"
@@ -244,7 +269,7 @@ export function SubscriptionManager({
             : new Date(),
           -1,
         ),
-        amount: profileData?.subscriptionPrice || 59.9,
+        amount: profileData?.subscriptionPrice || amountProfMonthly,
         method: "Pix",
         status: "paid",
         dummy: true,
@@ -284,7 +309,7 @@ export function SubscriptionManager({
               </p>
               <p className="text-xs text-slate-500 font-bold">
                 R${" "}
-                {(profileData?.subscriptionPrice || 59.9)
+                {(profileData?.subscriptionPrice || amountProfMonthly)
                   .toFixed(2)
                   .replace(".", ",")}
                 /{profileData?.activePlan === "yearly" ? "ano" : "mês"}
@@ -511,7 +536,9 @@ export function SubscriptionManager({
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
                   <span className="text-4xl font-black text-slate-800">
-                    {selectedBillingCycle === "monthly" ? "59,90" : "499,90"}
+                    {selectedBillingCycle === "monthly"
+                      ? amountProfMonthly.toFixed(2).replace(".", ",")
+                      : amountProfYearly.toFixed(2).replace(".", ",")}
                   </span>
                   <span className="text-slate-450 font-bold">
                     /{selectedBillingCycle === "monthly" ? "mês" : "ano"}
@@ -583,7 +610,9 @@ export function SubscriptionManager({
                 <div className="flex items-baseline gap-1 my-5 text-slate-700">
                   <span className="text-md font-bold">R$</span>
                   <span className="text-4xl font-black text-slate-800">
-                    {selectedBillingCycle === "monthly" ? "99,90" : "839,90"}
+                    {selectedBillingCycle === "monthly"
+                      ? amountPremMonthly.toFixed(2).replace(".", ",")
+                      : amountPremYearly.toFixed(2).replace(".", ",")}
                   </span>
                   <span className="text-slate-450 font-bold">
                     /{selectedBillingCycle === "monthly" ? "mês" : "ano"}

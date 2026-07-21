@@ -123,6 +123,10 @@ export function AdminDashboard() {
     priceProfYearly: "",
     pricePremMonthly: "",
     pricePremYearly: "",
+    amountProfMonthly: "59.90",
+    amountProfYearly: "499.90",
+    amountPremMonthly: "99.90",
+    amountPremYearly: "839.90",
   });
   const [savingStripe, setSavingStripe] = useState(false);
   const [simulatedUser, setSimulatedUser] = useState("");
@@ -454,6 +458,7 @@ export function AdminDashboard() {
     try {
       const publicSnap = await getDoc(doc(db, "admin_settings", "stripe_public"));
       const privateSnap = await getDoc(doc(db, "admin_settings", "stripe_private"));
+      const plansSnap = await getDoc(doc(db, "admin_settings", "subscription_plans"));
       let loaded = {
         mode: "test",
         publishableKey: "",
@@ -463,12 +468,19 @@ export function AdminDashboard() {
         priceProfYearly: "",
         pricePremMonthly: "",
         pricePremYearly: "",
+        amountProfMonthly: "59.90",
+        amountProfYearly: "499.90",
+        amountPremMonthly: "99.90",
+        amountPremYearly: "839.90",
       };
       if (publicSnap.exists()) {
         loaded = { ...loaded, ...publicSnap.data() };
       }
       if (privateSnap.exists()) {
         loaded = { ...loaded, ...privateSnap.data() };
+      }
+      if (plansSnap.exists()) {
+        loaded = { ...loaded, ...plansSnap.data() };
       }
       setStripeConfig(loaded);
     } catch (e) {
@@ -490,10 +502,21 @@ export function AdminDashboard() {
         webhookSecret: webhookSecret || "",
         updatedAt: serverTimestamp(),
       });
-      alert("Configurações do Stripe salvas e ativadas com sucesso!");
+      await setDoc(doc(db, "admin_settings", "subscription_plans"), {
+        amountProfMonthly: stripeConfig.amountProfMonthly || "59.90",
+        amountProfYearly: stripeConfig.amountProfYearly || "499.90",
+        amountPremMonthly: stripeConfig.amountPremMonthly || "99.90",
+        amountPremYearly: stripeConfig.amountPremYearly || "839.90",
+        priceProfMonthly: stripeConfig.priceProfMonthly || "",
+        priceProfYearly: stripeConfig.priceProfYearly || "",
+        pricePremMonthly: stripeConfig.pricePremMonthly || "",
+        pricePremYearly: stripeConfig.pricePremYearly || "",
+        updatedAt: serverTimestamp(),
+      });
+      alert("Configurações do Stripe e Planos de Assinatura salvas com sucesso!");
     } catch (e: any) {
       handleFirestoreError(e, OperationType.WRITE, "admin_settings/stripe_config");
-      alert("Erro ao salvar chaves e preços do Stripe.");
+      alert("Erro ao salvar chaves e preços do Stripe/Planos.");
     } finally {
       setSavingStripe(false);
     }
@@ -523,8 +546,8 @@ export function AdminDashboard() {
       if (!targetProfile) throw new Error("Perfil não encontrado");
 
       const price = simulatedPlan === "professional" 
-        ? (simulatedBillingCycle === "monthly" ? 59.90 : 599.00)
-        : (simulatedBillingCycle === "monthly" ? 99.90 : 999.00);
+        ? (simulatedBillingCycle === "monthly" ? Number(stripeConfig.amountProfMonthly || 59.90) : Number(stripeConfig.amountProfYearly || 499.90))
+        : (simulatedBillingCycle === "monthly" ? Number(stripeConfig.amountPremMonthly || 99.90) : Number(stripeConfig.amountPremYearly || 839.90));
 
       const endsAt = simulatedBillingCycle === "monthly"
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -1242,7 +1265,17 @@ export function AdminDashboard() {
                           value={stripeConfig.priceProfMonthly}
                           onChange={(e) => setStripeConfig({ ...stripeConfig, priceProfMonthly: e.target.value })}
                           placeholder="price_..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800 mb-2"
+                        />
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                          Valor de Exibição Mensal (R$)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.amountProfMonthly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, amountProfMonthly: e.target.value })}
+                          placeholder="59.90"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-semibold"
                         />
                       </div>
 
@@ -1255,7 +1288,17 @@ export function AdminDashboard() {
                           value={stripeConfig.priceProfYearly}
                           onChange={(e) => setStripeConfig({ ...stripeConfig, priceProfYearly: e.target.value })}
                           placeholder="price_..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800 mb-2"
+                        />
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                          Valor de Exibição Anual (R$)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.amountProfYearly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, amountProfYearly: e.target.value })}
+                          placeholder="499.90"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-semibold"
                         />
                       </div>
 
@@ -1268,7 +1311,17 @@ export function AdminDashboard() {
                           value={stripeConfig.pricePremMonthly}
                           onChange={(e) => setStripeConfig({ ...stripeConfig, pricePremMonthly: e.target.value })}
                           placeholder="price_..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800 mb-2"
+                        />
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                          Valor de Exibição Mensal (R$)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.amountPremMonthly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, amountPremMonthly: e.target.value })}
+                          placeholder="99.90"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-semibold"
                         />
                       </div>
 
@@ -1281,7 +1334,17 @@ export function AdminDashboard() {
                           value={stripeConfig.pricePremYearly}
                           onChange={(e) => setStripeConfig({ ...stripeConfig, pricePremYearly: e.target.value })}
                           placeholder="price_..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-800 mb-2"
+                        />
+                        <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                          Valor de Exibição Anual (R$)
+                        </label>
+                        <input
+                          type="text"
+                          value={stripeConfig.amountPremYearly}
+                          onChange={(e) => setStripeConfig({ ...stripeConfig, amountPremYearly: e.target.value })}
+                          placeholder="839.90"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none text-slate-700 font-semibold"
                         />
                       </div>
                     </div>

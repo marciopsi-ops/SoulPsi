@@ -90,50 +90,52 @@ service cloud.firestore {
 
     // --- Reviews ---
     match /profiles/{profileId}/reviews/{reviewId} {
-      allow get, list: if isValidId(profileId) && (isOwner(profileId) || existing().status == 'approved');
+      allow get, list: if isValidId(profileId) && (isOwner(profileId) || existing().status == 'approved' || isAdmin());
       
       allow create: if isValidId(profileId) && isValidId(reviewId) 
-                    && incoming().status == 'pending'
-                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+                    && (
+                      (incoming().status == 'pending' && exists(/databases/$(database)/documents/profiles/$(profileId))) ||
+                      isAdmin()
+                    );
 
-      allow update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
     }
 
     // --- Clients ---
     match /profiles/{profileId}/clients/{clientId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
       
-      allow create: if isValidId(profileId) && isValidId(clientId)
-                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow create: if (isValidId(profileId) && isValidId(clientId)
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     // --- Appointments ---
     match /profiles/{profileId}/appointments/{appointmentId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
       
-      allow create: if isValidId(profileId) && isValidId(appointmentId)
-                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow create: if (isValidId(profileId) && isValidId(appointmentId)
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     // --- Signatures ---
     match /profiles/{profileId}/signatures/{signatureId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
       
-      allow create: if isValidId(profileId) && isValidId(signatureId)
-                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow create: if (isValidId(profileId) && isValidId(signatureId)
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     // --- Companies ---
     match /profiles/{profileId}/companies/{companyId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
       
-      allow create: if isValidId(profileId) && isValidId(companyId)
-                    && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow create: if (isValidId(profileId) && isValidId(companyId)
+                    && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     // --- Company Appointments ---
     match /profiles/{profileId}/companyAppointments/{appointmentId} {
-      allow get, list, create, update, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, create, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
     }
 
     // --- Interactions ---
@@ -146,23 +148,23 @@ service cloud.firestore {
     }
 
     match /profiles/{profileId}/interactions/{interactionId} {
-      allow get, list, delete: if isOwner(profileId) && isValidId(profileId);
+      allow get, list, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
       
-      allow create: if isValidId(profileId) && isValidId(interactionId)
-                    && isValidInteraction(incoming());
+      allow create: if (isValidId(profileId) && isValidId(interactionId)
+                    && isValidInteraction(incoming())) || isAdmin();
       
       allow update: if false; // Interactions are immutable
     }
 
     // --- Custom Notifications & System Notifications ---
     match /profiles/{profileId}/notifications/{notifId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
-      allow create: if isValidId(profileId) && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
+      allow create: if (isValidId(profileId) && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     match /profiles/{profileId}/system_notifications/{notifId} {
-      allow get, list, update, delete: if isOwner(profileId) && isValidId(profileId);
-      allow create: if isValidId(profileId) && exists(/databases/$(database)/documents/profiles/$(profileId));
+      allow get, list, update, delete: if (isOwner(profileId) || isAdmin()) && isValidId(profileId);
+      allow create: if (isValidId(profileId) && exists(/databases/$(database)/documents/profiles/$(profileId))) || isAdmin();
     }
 
     // --- Backups History ---
